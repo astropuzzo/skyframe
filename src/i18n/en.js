@@ -14,6 +14,12 @@ window.I18N.en = {
   "Senza mappa importata, SQM e forma del cielo sono stimati dall’<a href=\"https://djlorenz.github.io/astronomy/lp/\" target=\"_blank\" rel=\"noopener\">atlante di David Lorenz</a> (VIIRS 2025) con un modello di cupole di luce tarato su una mappa all-sky reale. Se hai una misura col tuo SQM, scrivila nel campo e prevale.": "Without an imported map, SQM and sky shape are estimated from <a href=\"https://djlorenz.github.io/astronomy/lp/\" target=\"_blank\" rel=\"noopener\">David Lorenz's atlas</a> (VIIRS 2025) with a light-dome model calibrated on a real all-sky map. If you measured with your own SQM, type it in the field and it takes precedence.",
   "Clic o trascina per disegnare l’orizzonte. <b>Shift+clic</b> o clic destro toglie il punto più vicino. Tratteggio = altezza minima.": "Click or drag to draw the horizon. <b>Shift+click</b> or right click removes the nearest point. Dashed line = minimum altitude.",
   "Modifica profilo": "Edit profile",
+  // pose in banda larga
+  "La posa oltre cui le stelle saturano con questo telescopio senza accessori, in banda larga. Con riduttori e Barlow si scala da sola.": "The exposure beyond which stars saturate with this telescope without accessories, in broadband. With reducers and Barlows it scales by itself.",
+  "Posa più lunga in banda larga (s)": "Longest broadband sub (s)",
+  "automatica": "automatic",
+  "In banda larga uso la posa più lunga che hai indicato per il telescopio ({s} s in questa configurazione).": "In broadband I use the longest sub you set for the telescope ({s} s in this configuration).",
+  "In banda larga propongo il minimo pratico: se le stelle reggono pose più lunghe, scrivi nel telescopio la posa più lunga che usi e la userò.": "In broadband I suggest the practical minimum: if your stars take longer subs, enter the longest sub you use in the telescope and I will use it.",
   // notti di ripresa
   "Stima con notti tutte come questa: il conto notte per notte arriva tra un attimo": "Estimate with every night like this one: the night-by-night count arrives in a moment",
   "Con cielo sereno, in un anno se ne fa il {p}%": "With clear skies, a year gets {p}% of it done",

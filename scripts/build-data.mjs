@@ -247,8 +247,28 @@ for (const r of tsv('snr.tsv')) {
 for (const e of EXTRA) addOrMerge({ ...e, ra: e.ra * 15, alias: [], mag: null, src: 'X' }, { mergeInto: false });
 
 /* ---------- correzioni di tipo: ciò che conta per la ripresa ---------- */
-const TYPE_FIX = { 'M 45': ['RN', 22.8] }; // le Pleiadi si fotografano per la nebulosa a riflessione
+// le Pleiadi si fotografano per la nebulosa a riflessione; la Merope è riflessione; la Gabbiano è soprattutto emissione
+// (la testa vdB 93 è riflessione, ma il grosso è Sh2-292)
+const TYPE_FIX = { 'M 45': ['RN', 22.8], 'NGC 1435': ['RN', 22.5], 'IC 2177': ['EN', 23.0] };
 for (const o of list) { const f = TYPE_FIX[o.id]; if (f) { o.type = f[0]; o.sb = f[1]; } }
+/* Nebulose a riflessione: la magnitudine dei cataloghi è quella della stella che le illumina, non della nebulosa, e le
+   dimensioni di OpenNGC per gli "ammassi + nebulosa" sono quelle dell'ammasso. Da lì uscivano LS assurde in entrambe le
+   direzioni (NGC 1788 a 15,2, NGC 1333 a 25,3). La LS media viene quindi da questa tabella per le più riprese, stimata
+   dalle immagini (parte luminosa ben visibile, non le polveri attorno), e altrimenti da un valore tipico di 23,0.
+   [asse maggiore′ o null, minore′, LS mag/″²] */
+const RN_FIX = {
+  'NGC 1333': [10, 7, 21.8], 'M 78': [8, 6, 21.0], 'NGC 7023': [null, null, 22.0], 'NGC 2023': [null, null, 21.8],
+  'NGC 2071': [null, null, 21.8], 'NGC 1999': [null, null, 20.5], 'NGC 1788': [null, null, 22.3], 'NGC 2247': [null, null, 22.8],
+  'NGC 1555': [null, null, 21.5], 'NGC 2261': [null, null, 20.8], 'NGC 2245': [null, null, 21.5], 'NGC 6589': [null, null, 22.2],
+  'NGC 6590': [null, null, 22.2], 'NGC 2182': [null, null, 22.0], 'NGC 1985': [null, null, 21.5], 'IC 4592': [null, null, 23.8],
+  'IC 1287': [null, null, 23.3], 'IC 444': [null, null, 23.2], 'IC 4604': [null, null, 22.8], 'IC 4605': [null, null, 23.3],
+  'IC 349': [3, 3, 21.5], 'NGC 1435': [null, null, 22.5], 'M 45': [null, null, 22.8],
+};
+for (const o of list) {
+  if (o.type !== 'RN') continue;
+  const f = RN_FIX[o.id]; o.sb = f ? f[2] : 23.0;
+  if (f && f[0]) { o.a = f[0]; o.b = f[1]; }
+}
 
 /* ---------- contesto: polveri, riflessione e Hα deboli che circondano l'oggetto ----------
    Servono a stimare il campo vero (la Cocoon non è un oggetto da 12′) e il tempo per far uscire le parti deboli. */

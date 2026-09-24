@@ -558,7 +558,9 @@ function configConst(cfg) {
   const qe = (+p.camera.qe || 70) / 100, rn = +p.camera.rn || 2, dark = p.camera.type === 'dslr' ? 0.05 : 0.003;
   const Dcm = g.D / 10, obs = (+cfg.optic.obs || 0) / 100, Aeff0 = Math.PI * Dcm * Dcm / 4 * (1 - obs * obs) * 0.85 * qe;
   const res = Math.max(g.px, 2.0), area = res * res, npix = Math.pow(res / g.px, 2);
-  return { Aeff0, geo: Aeff0 * area, npix, rn, dark, fr: g.fr, pxArea: g.px * g.px, haMul: p.camera.type === 'dslr' ? 0.3 : 1 };
+  // posa più lunga in banda larga indicata per il telescopio (stelle non sature); con un accessorio scala col quadrato del fattore
+  const sm = +cfg.optic.subMax, fac = +cfg.acc.fac || 1, subMax = sm > 0 ? (fac === 1 ? Math.round(sm) : niceFloor(sm * fac * fac * 1.05)) : 0;
+  return { Aeff0, geo: Aeff0 * area, npix, rn, dark, fr: g.fr, pxArea: g.px * g.px, haMul: p.camera.type === 'dslr' ? 0.3 : 1, subMax };
 }
 /* segnale di un canale da un "livello" di oggetto (tipo, LS), fotoni/s per elemento di risoluzione a massa d'aria 1 */
 function chanSignal(c, type, sb, K) {
@@ -609,8 +611,10 @@ function evalStrategies(o, S, K, U, Q, T, field) {
       if (dust && c.target === 'all') R.push({ S: chanSignal(c, 'DN', Math.max(dust.sb, DUST_SB), K), snr: Q.faint * DUST_SNR * (c.snr || 1), what: 'dust' });
       // sub: minimo perché il fondo cielo (con la Luna di stanotte) copra 10× il rumore di lettura; poi limiti pratici del filtro
       const skyPx = F0 * K.Aeff0 * K.pxArea * ((0.75 * c.I + 44 * c.skyL) * avg.art + c.I * (avg.nat + avg.mf)) / PIX_FRAC[c.w];
-      const minSub = 10 * K.rn * K.rn / Math.max(1e-9, skyPx), [lo, hi] = subLimits(c.f || st.f, K.fr);
-      const sub = niceSub(clamp(minSub * 6, lo, hi));
+      // oltre il minimo che copre il rumore di lettura l'SNR non cambia: in banda larga decide la posa più lunga che le stelle
+      // reggono, se indicata nel telescopio; altrimenti il minimo della fascia pratica del filtro
+      const minSub = 10 * K.rn * K.rn / Math.max(1e-9, skyPx), [lo, hi] = subLimits(c.f || st.f, K.fr), fk = (c.f || st.f).kind;
+      const sub = K.subMax && (fk === 'bb' || fk === 'lp') ? Math.max(K.subMax, Math.ceil(minSub)) : niceSub(clamp(minSub * 6, lo, hi));
       const Nc = K.dark * K.npix + K.npix * K.rn * K.rn / sub;
       const Blp = F0 * K.geo * (0.75 * c.I + 44 * c.skyL), Bc = F0 * K.geo * c.I;
       chans.push({ c, st, R, sub, minSub, Nc, Blp, Bc, acc: new Float64Array(R.length) });
@@ -888,6 +892,7 @@ function bestPeriod(o, p, lut, fromDs) {
 }
 const NICE_SUBS = [10, 15, 20, 30, 45, 60, 90, 120, 180, 240, 300, 420, 600, 900];
 const niceSub = (s) => NICE_SUBS.reduce((b, v) => (Math.abs(Math.log(v / s)) < Math.abs(Math.log(b / s)) ? v : b), 180);
+const niceFloor = (s) => NICE_SUBS.filter((v) => v <= s + 1e-6).pop() || Math.max(1, Math.round(s));
 
 /* ============================ inquadratura: rotazione e centro migliori ============================ */
 /* Piano tangente in primi d'arco: x verso est, y verso nord. PA da nord verso est. */
@@ -995,7 +1000,9 @@ function adviceFor(r, e, ctx) {
   if (b) {
     const subs = b.steps.map((s) => `${fname(s.f)} ${Math.max(...s.subs.map((x) => x.s))} s`);
     const mins = b.steps.map((s) => Math.max(...s.subs.map((x) => x.min)));
-    tips.push({ k: 'Sub', t: tx('Esposizioni singole: {subs}. Sotto {mins} il rumore di lettura pesa; oltre, decidono inseguimento, stelle sature e quante pose puoi permetterti di buttare.', { subs: subs.join(', '), mins: mins.map((m) => Math.max(1, m) + ' s').join(' / ') }) });
+    let t = tx('Esposizioni singole: {subs}. Sotto {mins} il rumore di lettura pesa; oltre, decidono inseguimento, stelle sature e quante pose puoi permetterti di buttare.', { subs: subs.join(', '), mins: mins.map((m) => Math.max(1, m) + ' s').join(' / ') });
+    if (b.steps.some((s) => s.f.kind === 'bb' || s.f.kind === 'lp')) t += ' ' + (e.K.subMax ? tx('In banda larga uso la posa più lunga che hai indicato per il telescopio ({s} s in questa configurazione).', { s: e.K.subMax }) : tx('In banda larga propongo il minimo pratico: se le stelle reggono pose più lunghe, scrivi nel telescopio la posa più lunga che usi e la userò.'));
+    tips.push({ k: 'Sub', t });
   }
   if (!b) tips.push({ k: 'Filtri', t: tx('Con i filtri di questo profilo non c’è una strategia adatta: per {t} serve la banda larga.', { t: tx(TYPES_PL[o.type]).toLowerCase() }) });
   if (o.type === 'DN' || o.type === 'RN') tips.push({ k: 'Filtri', t: tx('Luce riflessa o polvere: la banda stretta non serve. Rende davvero solo sotto un cielo buio.') });

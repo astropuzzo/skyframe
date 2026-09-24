@@ -68,6 +68,8 @@ Riferimenti di taratura, tutti con OSC e 800 mm f/5 sotto SQM 19,3 salvo dove in
 
 Sono stime per scegliere, non promesse.
 
+Le **pose singole** in banda larga: oltre il minimo che copre il rumore di lettura (pochi secondi sotto un cielo cittadino) l'SNR finale dipende solo dal tempo totale, quindi decide quanto reggono le stelle. In ogni telescopio puoi scrivere la posa più lunga che usi in banda larga senza saturare: Skyframe la propone (scalata col quadrato del fattore di riduttori e Barlow); se il campo è vuoto propone il minimo della fascia pratica del filtro.
+
 Le **notti di ripresa** non sono le ore divise per le ore di stanotte: Skyframe scorre le notti una per una, da quella scelta in avanti (fino a un anno), e per ognuna calcola quante ore il target è libero sopra orizzonte e altezza minima col buio, e quanto rende in quelle ore con la Luna, l'altezza e il cielo di quella notte. Somma il lavoro fatto finché basta. Le notti in cui il target rende più di 2,5 volte meno che nella notte migliore del mese (di solito per la Luna) si saltano, perché conviene dedicarle ad altro. Si assume il cielo sempre sereno. Nel dettaglio un grafico mostra le notti usate, quelle saltate e quando finisci (anche per il tempo profondo).
 
 ## Dove finiscono i dati

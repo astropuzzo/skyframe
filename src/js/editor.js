@@ -40,6 +40,7 @@ function renderOptics() {
         <label class="field"><span>${tx('Focale nativa (mm)')}</span><input data-k="fl" type="number" min="10" step="1" value="${o.fl}"></label>
         <label class="field"><span>${tx('Ostruzione (% diametro)')}</span><input data-k="obs" type="number" min="0" max="60" step="1" value="${o.obs || 0}"></label>
         <div class="field"><span>${tx('Nativo')}</span><div class="res">${Math.round(o.fl)} mm · f/${it(o.fl / o.ap, 1)}</div></div>
+        <label class="field w2" title="${tx('La posa oltre cui le stelle saturano con questo telescopio senza accessori, in banda larga. Con riduttori e Barlow si scala da sola.')}"><span>${tx('Posa più lunga in banda larga (s)')}</span><input data-k="subMax" type="number" min="5" max="1800" step="5" value="${+o.subMax > 0 ? o.subMax : ''}" placeholder="${tx('automatica')}"></label>
       </div>
       <label class="chk"><input type="checkbox" data-k="native" ${o.useNative !== false ? 'checked' : ''}> ${tx('Uso anche questo telescopio senza accessori')}</label>
       <div class="accs">${accs || `<p class="hint" style="margin:0">${tx('Nessun accessorio: si usa solo l’ottica nativa.')}</p>`}</div>
@@ -56,6 +57,7 @@ function wireOptics() {
     const o = at(e), k = e.target.dataset.k; if (!o || !k) return;
     if (k === 'name') o.name = e.target.value;
     else if (k === 'ap' || k === 'fl' || k === 'obs') { const v = parseFloat(e.target.value); if (isFinite(v)) o[k] = v; o.preset = 'custom'; const sel = e.target.closest('.optic').querySelector('select[data-k="preset"]'); if (sel) sel.value = 'custom'; }
+    else if (k === 'subMax') { const v = parseFloat(e.target.value); if (isFinite(v) && v > 0) o.subMax = Math.round(v); else delete o.subMax; }
     else if (k === 'aname') o.accessories[+e.target.dataset.j].name = e.target.value;
     else if (k === 'afac') { const a = o.accessories[+e.target.dataset.j]; a.fac = parseFloat(e.target.value) || 1; res(e.target, o, a.fac); }
   });
