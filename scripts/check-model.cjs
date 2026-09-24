@@ -7,7 +7,7 @@ global.window = {};
 // lingua fissa per il controllo: frasi italiane con i segnaposto riempiti
 const I18N_STUB = "const LANG = 'it', LOCALE = 'it-IT', txName = (n) => n, tx = (s, p) => (p ? s.replace(/[{](\w+)[}]/g, (m, k) => (k in p ? p[k] : m)) : s);";
 vm.runInThisContext(I18N_STUB + ';' + fs.readFileSync(src('js/astro.js'), 'utf8') + '\n' + fs.readFileSync(src('js/model.js'), 'utf8') +
-  '\n;globalThis.__m={templateProfile,profileConfigs,computeAll,planOf};');
+  '\n;globalThis.__m={templateProfile,profileConfigs,computeAll,planOf,shootCalendar};');
 const M = globalThis.__m;
 
 function run(title, p, ids, ds) {
@@ -18,8 +18,11 @@ function run(title, p, ids, ds) {
     if (!r) { console.log('  ' + id, 'non visibile'); continue; }
     const e = r.e, b = e.best, plan = M.planOf(b, e.cfg, false) || [];
     const tot = plan.filter((s) => !s.optional).reduce((a, s) => a + s.h, 0), deep = plan.filter((s) => !s.optional).reduce((a, s) => a + s.hDeep, 0);
+    // notti di ripresa sommando notte per notte (cielo sereno), dalla notte del calcolo in avanti
+    const t1 = Date.now(), cal = M.shootCalendar(R.C, r, e, true), ms = Date.now() - t1, dd = (t) => (t ? new Date(t).toISOString().slice(5, 10) : 'oltre un anno');
+    const calTxt = cal ? `notti ${cal.sessions}${cal.done ? '' : '+'} (→${dd(cal.done)}, saltate ${cal.skipped}, stima ${b.nights.toFixed(1)})${cal.deep ? ` profondo ${cal.deep.sessions} →${dd(cal.deep.done)}` : ''} [${ms} ms]` : '';
     console.log(`  ${r.o.id.padEnd(9)} LS ${r.o.sb} Hα ${String(r.o.ha).padStart(5)}R  campo ${String(Math.round(r.field.a)).padStart(3)}′  ${e.fill.label.padEnd(22)} base ${String(tot.toFixed(1)).padStart(6)} h  profondo ${String(deep.toFixed(1)).padStart(6)} h  ` +
-      plan.map((s) => `${s.filter} ${s.h.toFixed(1)}/${s.hDeep.toFixed(1)}h@${s.sub}s${s.drive ? ' [' + s.drive + (s.driveDeep && s.driveDeep !== s.drive ? ' → ' + s.driveDeep : '') + ']' : ''}${s.optional ? ' (facolt.)' : ''}`).join(' + '));
+      plan.map((s) => `${s.filter} ${s.h.toFixed(1)}/${s.hDeep.toFixed(1)}h@${s.sub}s${s.drive ? ' [' + s.drive + (s.driveDeep && s.driveDeep !== s.drive ? ' → ' + s.driveDeep : '') + ']' : ''}${s.optional ? ' (facolt.)' : ''}`).join(' + ') + '\n            ' + calTxt);
   }
 }
 const base = (sqm) => { const p = M.templateProfile(); p.site = { name: 'test', lat: 41.9, lon: 12.5, bortle: 7, sqm }; p.session.quality = 'good'; return p; };

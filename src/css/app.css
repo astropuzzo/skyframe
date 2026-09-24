@@ -379,3 +379,13 @@ details.how p { max-width: 72ch; }
   .pick .pk { display: none; }
   .pick .sel { max-width: 40vw; }
 }
+
+/* ---------- notti di ripresa ---------- */
+.nights.est { background: rgba(140, 150, 170, .12); color: var(--ink-3); }
+.calsum { margin: 0 0 10px; font-size: 13.5px; line-height: 1.55; color: var(--ink-2); }
+.calsum b { color: var(--ink); font-weight: 600; }
+.chartbox.calchart { position: relative; touch-action: none; cursor: pointer; }
+.calchart rect.b.hl { opacity: .7; }
+@media (prefers-reduced-motion: no-preference) {
+  .calchart rect.b { transform-origin: bottom; transform-box: fill-box; animation: grow .6s var(--ease) both; }
+}

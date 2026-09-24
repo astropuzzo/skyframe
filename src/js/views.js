@@ -172,10 +172,8 @@ function rowHTML(r, i) {
   let plan;
   if (!b) plan = `<span style="color:var(--ink-3)">—</span><small>${tx('serve la banda larga')}</small>`;
   else {
-    const h = isFinite(b.tonight) ? b.tonight : b.ideal, nt = b.nights;
-    const ntx = !isFinite(nt) ? '' : nt <= 1 ? tx('1 notte') : tx('{n} notti', { n: nt < 10 ? it(nt) : Math.round(nt) });
-    const cls = nt <= 1 ? 'n1' : nt <= 3 ? 'n2' : 'n3';
-    plan = `<b>${fmtH(h)}</b>${ntx ? `<span class="nights ${cls}">${ntx}</span>` : ''}${state.cfgs.length > 1 ? `<span class="rig" title="${tx('Setup consigliato')}: ${esc(e.cfg.label)} · ${e.cfg.short}"><i></i><span>${esc(e.cfg.tag)}</span><em>${e.cfg.short}</em></span>` : ''}<small>${esc(b.label)}${b.deep ? ` · ${tx('profondo')} ${fmtH(isFinite(b.tonightDeep) ? b.tonightDeep : b.idealDeep)}` : ''}</small>`;
+    const h = isFinite(b.tonight) ? b.tonight : b.ideal;
+    plan = `<b>${fmtH(h)}</b><span class="nt">${nightsTag(r, e)}</span>${state.cfgs.length > 1 ? `<span class="rig" title="${tx('Setup consigliato')}: ${esc(e.cfg.label)} · ${e.cfg.short}"><i></i><span>${esc(e.cfg.tag)}</span><em>${e.cfg.short}</em></span>` : ''}<small>${esc(b.label)}${b.deep ? ` · ${tx('profondo')} ${fmtH(isFinite(b.tonightDeep) ? b.tonightDeep : b.idealDeep)}` : ''}</small>`;
   }
   plan += `<span class="lh">${locHint(r)}</span>`;
   const win = r.first >= 0 ? `${fmtT(n.t[r.first])}–${fmtT(n.t[r.last] + DT)}` : '';
@@ -189,6 +187,37 @@ function rowHTML(r, i) {
     <div class="c-vis vis">${spark(r)}<div>${vis}</div></div>
     <div class="c-plan plan">${plan}</div>
     <div class="c-now now">${nowCell(r)}</div></div>`;
+}
+/* Notti di ripresa: dal calendario notte per notte quando è pronto, altrimenti (per un attimo) la stima con notti
+   tutte come questa, in grigio. Se basta questa notte il calendario è immediato. */
+const nNights = (n) => (n <= 1 ? tx('1 notte') : tx('{n} notti', { n }));
+function nightsTag(r, e, C) {
+  const b = e.best; if (!b) return ''; C = C || state.res.C;
+  const A = C.ahead; let cal = A && (A.cache.get(calKey(r, e, false)) || A.cache.get(calKey(r, e, true)));
+  if (!cal && r.usableH >= CAL_MIN_H && b.tonight <= r.usableH) cal = shootCalendar(C, r, e, false);
+  if (!cal) return isFinite(b.nights) ? `<span class="nights est" title="${tx('Stima con notti tutte come questa: il conto notte per notte arriva tra un attimo')}">≈ ${Math.max(1, Math.ceil(b.nights))}</span>` : '';
+  return calBadge(cal);
+}
+function calBadge(cal) {
+  if (!cal.done) return `<span class="nights n3" title="${tx('Con cielo sereno, in un anno se ne fa il {p}%', { p: Math.round(cal.prog * 100) })}">${tx('oltre un anno')}</span>`;
+  const n = cal.sessions, cls = n <= 1 ? 'n1' : n <= 3 ? 'n2' : 'n3';
+  return `<span class="nights ${cls}" title="${tx('Con cielo sereno: {n} di ripresa, l’ultima {d}', { n: nNights(n), d: fmtDayLong(cal.done) })}">${nNights(n)}</span>`;
+}
+/* calendari delle righe visibili, a pezzi, dopo che la lista è disegnata */
+let ntJob = 0;
+function fillNights() {
+  const job = ++ntJob, C = state.res.C, rows = $$('#list .row[data-id]'); let i = 0;
+  const step = () => {
+    if (job !== ntJob || C !== state.res.C) return;
+    const t0 = performance.now();
+    while (i < rows.length && performance.now() - t0 < 12) {
+      const el = rows[i++], r = state.byId.get(el.dataset.id), x = el.querySelector('.nt');
+      if (!r || !x || !x.querySelector('.est')) continue;
+      shootCalendar(C, r, r.e, false); x.innerHTML = nightsTag(r, r.e);
+    }
+    if (i < rows.length) setTimeout(step, 0);
+  };
+  setTimeout(step, 60);
 }
 /* un altro luogo salvato dove il target costa molto meno tempo (o dove si riprende, se qui no) */
 function locHint(r) {
@@ -205,6 +234,7 @@ function renderList() {
   $('#list').innerHTML = shown.length ? shown.map(rowHTML).join('') + (L.length > shown.length ? `<button class="btn more" id="moreBtn">${tx('Mostra altri {n}', { n: Math.min(60, L.length - shown.length) })}</button>` : '') : `<div class="empty">${tx('Nessun target con questi filtri. Allarga i criteri o azzera i filtri.')}</div>`;
   requestAnimationFrame(() => $$('#list .score').forEach((el) => el.style.setProperty('--v', el.dataset.v)));
   const mb = $('#moreBtn'); if (mb) mb.onclick = () => { state.page += 60; renderList(); };
+  fillNights();
 }
 function refreshNowCells() { $$('#list .row[data-id]').forEach((el) => { const r = state.byId.get(el.dataset.id); if (r) el.querySelector('.c-now').innerHTML = nowCell(r); }); }
 
@@ -233,7 +263,7 @@ function renderDetail() {
   const cur = b ? (isFinite(b.tonight) ? b.tonight : b.ideal) : Infinity;
   const bestAlt = altEval.map((s) => ({ name: (s.alt.brand ? s.alt.brand + ' ' : '') + s.alt.name, h: isFinite(s.tonight) ? s.tonight : s.ideal, pen: s.penalty })).filter((x) => x.h < cur * 0.7).sort((x, y) => x.h * x.pen - y.h * y.pen)[0];
   const tips = adviceFor(r, e, { night: n, nextDark: state.nextDarkTxt, alt: bestAlt, sky: state.res.sky, framing: framingFor(o, r.field, e.cfg.geom) });
-  const plan = planOf(b, e.cfg, true);
+  const plan = planOf(b, e.cfg, true), cal = b ? shootCalendar(state.res.C, r, e, true) : null;
   const planTot = plan ? plan.filter((x) => !x.optional).reduce((a, x) => a + x.h, 0) : 0;
   const planDeep = plan ? plan.filter((x) => !x.optional).reduce((a, x) => a + x.hDeep, 0) : 0;
   const hOf = (s) => (isFinite(s.tonight) ? s.tonight : s.ideal);
@@ -255,7 +285,7 @@ function renderDetail() {
     <div class="kpi"><div class="lbl">${tx('Punteggio')}</div><div class="v" style="color:${scoreColor(e.score)}">${e.score}</div><div class="s">${tx('su 100')}</div></div>
     <div class="kpi"><div class="lbl">${tx('Inquadratura')}</div><div class="v">${Math.round(e.fill.score * 100)}</div><div class="s">${esc(tx(e.fill.label))}</div></div>
     <div class="kpi"><div class="lbl">${tx('Visibilità')}</div><div class="v">${Math.round(r.vis * 100)}</div><div class="s">${tx('{d} libero col buio', { d: fmtDur(r.usableH) })}</div></div>
-    <div class="kpi"><div class="lbl">${tx('Impegno')}</div><div class="v">${Math.round(e.effort * 100)}</div><div class="s">${b && isFinite(b.nights) ? (b.nights <= 1 ? tx('si chiude stanotte') : tx('≈ {n} notti così', { n: it(b.nights) })) : tx('non stanotte')}</div></div>
+    <div class="kpi"><div class="lbl">${tx('Impegno')}</div><div class="v">${Math.round(e.effort * 100)}</div><div class="s">${!cal ? tx('non stanotte') : !cal.done ? tx('oltre un anno') : cal.sessions <= 1 && cal.done === cal.nights[0].t0 ? tx('si chiude stanotte') : tx('{n} di ripresa', { n: nNights(cal.sessions) })}</div></div>
   </div>
   <div class="period" id="period"><span class="lbl">${tx('Periodo giusto')}</span><span class="pt">${tx('Calcolo quando conviene…')}</span></div>
   ${state.locs.length > 1 ? `<div class="sec"><h3>${tx('Dove conviene')} <small>${tx('stanotte, con questo profilo e il setup migliore in ogni luogo')}</small></h3><div class="loccmp" id="locCmp"></div></div>` : ''}
@@ -264,10 +294,11 @@ function renderDetail() {
       ${b.deep ? `<div class="deep">${tx('Per far uscire anche l’Hα diffuso attorno ({r} R nella mappa all-sky di Finkbeiner) servono <b>{h}</b> in tutto.', { r: it(o.ha, 1), h: fmtH(planDeep) })}</div>` : ''}
       <div class="steps">${plan.map((s) => `<div class="step${s.optional ? ' opt' : ''}"><div class="f">${esc(s.filter)}<small>${esc(s.what)}${s.optional ? ' · ' + tx('facoltativo') : s.drive ? ' · ' + tx('il tempo lo decidono:') + ' ' + esc(s.drive) : ''}</small></div><div class="h">${fmtH(s.h)}${s.hDeep > s.h * 1.15 ? `<small>${fmtH(s.hDeep)} ${tx('profondo')}</small>` : ''}</div><div class="sb">sub ${s.sub} s</div></div>`).join('')}</div>
       ${b.panels > 1 ? `<div class="note">${tx('Tempi totali per {n} pannelli di mosaico.', { n: b.panels })}</div>` : ''}
-      ${alts.length ? `<div class="alts"><span class="lbl">${tx('Altre strade, non da sommare')}</span>${alts.map((s) => `<div class="a"><span>${esc(s.label)}</span><b>${fmtH(hOf(s))}${isFinite(s.nights) ? ` · ${s.nights <= 1 ? tx('1 notte') : tx('{n} notti', { n: it(s.nights) })}` : ''}</b></div>`).join('')}</div>` : ''}
+      ${alts.length ? `<div class="alts"><span class="lbl">${tx('Altre strade, non da sommare')}</span>${alts.map((s) => { const c = shootCalendar(state.res.C, r, { ...e, best: s }, false); return `<div class="a"><span>${esc(s.label)}</span><b>${fmtH(hOf(s))}${c ? ` · ${c.done ? nNights(c.sessions) : tx('oltre un anno')}` : ''}</b></div>`; }).join('')}</div>` : ''}
       <div class="note">${tx('Senza Luna e al transito servirebbero {h}. Sub scelti filtro per filtro: coprono il rumore di lettura con il cielo di stanotte (Luna compresa) e restano nei valori pratici di quel tipo di filtro.', { h: fmtH(b.ideal) })}</div></div>`
     : `<p class="hint">${tx('Con i filtri di questo profilo non c’è una strategia adatta a {t}.', { t: tx(TYPES_PL[o.type]).toLowerCase() })}</p>`}
   </div>
+  ${cal ? `<div class="sec"><h3>${tx('Notti di ripresa')} <small>${tx('una per una da questa in avanti, con il cielo sempre sereno')}</small></h3><p class="calsum">${calSummary(cal, b)}</p><div class="chartbox calchart" id="calChart"></div></div>` : ''}
   <div class="sec"><h3>${tx('Consigli')}</h3><div class="tips">${tips.map((q) => `<div class="tip k-${esc(q.k.replace(/[^\w]/g, ''))}"><div class="k">${esc(tx(q.k))}</div><div>${esc(q.t)}</div></div>`).join('')}</div></div>
   <div class="sec"><h3>${tx('Campo inquadrato')} <small>${fmtDeg(g.W)} × ${fmtDeg(g.H)} · ${Math.round(g.fEff)} mm · ${tx('nord in alto, est a sinistra')}</small></h3>
     <div class="fovbox"><canvas id="fov" aria-label="${tx('Anteprima del campo')}"></canvas>
@@ -297,19 +328,19 @@ function renderDetail() {
   const cf = $('#copyFrame'); if (cf) cf.onclick = () => copyText(`${o.id} (${tx('centro inquadratura')}) ${raStr(fr.ra)} ${decStr(fr.dec).replace('−', '-')} · ${tx('PA lato lungo')} ${bestRot}°`);
   const m = $('#mos'); if (m) m.onchange = (ev) => { state.mosaic = ev.target.checked; drawPreview(); };
   $('#realSky').onchange = (ev) => { state.realSky = ev.target.checked; LS.set('sf.realSky', state.realSky); drawPreview(); };
-  requestAnimationFrame(() => { drawPreview(); renderSeason(r); wireNightCharts(); setTimeout(() => renderPeriod(r), 30); });
+  requestAnimationFrame(() => { drawPreview(); renderSeason(r); if (cal) renderCalChart(cal); wireNightCharts(); setTimeout(() => renderPeriod(r), 30); });
 }
 /* ---------- quando conviene ---------- */
 /* lo stesso target in ogni luogo salvato: cielo nella sua direzione, ore libere, tempo e setup consigliato */
 function renderLocCmp() {
   const box = $('#locCmp'), r = state.byId.get(state.sel); if (!box || !r) return;
-  const rows = state.locs.map((l) => { const x = cmpFull(l, r.o), ok = x && x.usableH >= 0.25; return { l, x, h: ok ? hoursOf(x.e.best) : Infinity }; });
+  const rows = state.locs.map((l) => { const x = cmpFull(l, r.o), ok = x && x.usableH >= 0.25; return { l, x, h: ok ? hoursOf(x.e.best) : Infinity, cal: ok && x.e.best ? shootCalendar(cmpCtx(l), x, x.e, false) : null }; });
   const bestH = Math.min(...rows.map((q) => q.h));
-  box.innerHTML = rows.map(({ l, x, h }) => {
-    const cur = l.id === state.locId, nt = x && x.e.best ? x.e.best.nights : Infinity;
+  box.innerHTML = rows.map(({ l, x, h, cal }) => {
+    const cur = l.id === state.locId;
     const vis = !x ? tx('non sale sopra {a}°', { a: l.minAlt }) : x.usableH >= 0.25 ? `${fmtDur(x.usableH)} · max ${Math.round(x.maxA)}°` : tx('coperto stanotte');
     const bb = x && x.e.best, deep = bb && bb.deep ? (isFinite(bb.tonightDeep) ? bb.tonightDeep : bb.idealDeep) : null;
-    const plan = isFinite(h) ? `<b>${fmtH(h)}</b>${isFinite(nt) ? ` · ${nt <= 1 ? tx('1 notte') : tx('{n} notti', { n: nt < 10 ? it(nt) : Math.round(nt) })}` : ''}${deep ? `<small>${tx('profondo')} ${fmtH(deep)}</small>` : ''}${state.cfgs.length > 1 ? `<small>${esc(x.e.cfg.tag)}</small>` : ''}` : '<b>—</b>';
+    const plan = isFinite(h) ? `<b>${fmtH(h)}</b>${cal ? ` · ${cal.done ? nNights(cal.sessions) : tx('oltre un anno')}` : ''}${deep ? `<small>${tx('profondo')} ${fmtH(deep)}</small>` : ''}${state.cfgs.length > 1 ? `<small>${esc(x.e.cfg.tag)}</small>` : ''}` : '<b>—</b>';
     return `<div class="lr${cur ? ' cur' : ''}${isFinite(h) && h === bestH && rows.length > 1 ? ' best' : ''}"><div class="n">${esc(l.site.name)}<small>SQM ${it(+l.site.sqm, 2)}${x && x.skyMag != null ? ' · ' + tx('cielo sul target {m}', { m: it(x.skyMag, 2) }) : ''}</small></div><div class="v">${vis}</div><div class="p">${plan}</div>${cur ? `<span class="here">${tx('attivo')}</span>` : `<button class="btn sm" data-loc="${esc(l.id)}">${tx('Passa qui')}</button>`}</div>`;
   }).join('');
 }
@@ -348,7 +379,7 @@ function setTimeFromChart(i) {
 function chartTip(box, html, x, y) {
   let tip = box.querySelector('.ctip'); if (!tip) { tip = document.createElement('div'); tip.className = 'ctip'; box.appendChild(tip); }
   if (!html) { tip.hidden = true; return; } tip.hidden = false; tip.innerHTML = html;
-  tip.style.left = clamp(x, 80, box.clientWidth - 80) + 'px'; tip.style.top = y + 'px';
+  const hw = tip.offsetWidth / 2 + 4; tip.style.left = clamp(x, hw, Math.max(hw, box.clientWidth - hw)) + 'px'; tip.style.top = y + 'px';
 }
 function stepInfo(r, i) {
   const n = state.res.night, a = r.alt[i], minAlt = +active().session.minAlt || 0;
@@ -387,6 +418,60 @@ function updateNightCharts() {
   if (!r || !ab || $('#drawer').hidden) return;
   const keep = (box, html) => { const tip = box.querySelector('.ctip'); box.innerHTML = html; if (tip) box.appendChild(tip); };
   keep(ab, altChart(r)); keep(pb, polar(r));
+}
+/* Notti di ripresa del target: quante, fino a quando, quali si saltano */
+function calSummary(cal, b) {
+  let t;
+  if (!cal.done) t = tx('In un anno di notti serene ne fai il {p}%: è un progetto da più stagioni.', { p: Math.round(cal.prog * 100) });
+  else if (cal.sessions <= 1 && cal.done === cal.nights[0].t0) t = tx('Basta questa notte: servono {h} e il target è libero per {u}.', { h: fmtH(b.tonight), u: fmtDur(cal.nights[0].h) });
+  else t = tx('Con il cielo sereno finisci in <b>{n}</b> di ripresa, l’ultima <b>{d}</b>.', { n: nNights(cal.sessions), d: fmtDayLong(cal.done) });
+  if (cal.skipped) t += ' ' + tx('Ne salto {n} in cui il target rende più di 2,5 volte meno che nella notte migliore del mese (di solito per la Luna): meglio dedicarle ad altro.', { n: cal.skipped });
+  if (cal.deep) t += ' ' + (cal.deep.done ? tx('Per il profondo: <b>{n}</b>, fino a {d}.', { n: nNights(cal.deep.sessions), d: fmtDayLong(cal.deep.done) }) : tx('Per il profondo: in un anno arrivi al {p}%.', { p: Math.round(cal.deep.prog * 100) }));
+  return t;
+}
+/* Grafico delle notti: ore libere di ogni notte (a settimane se il progetto è lungo); colore = usata per il lavoro,
+   usata solo per il profondo, saltata. Clic: apre quella notte. */
+function renderCalChart(cal) {
+  const el = $('#calChart'); if (!el) return;
+  const N0 = cal.nights, weekly = N0.length > 62;
+  const bars = weekly ? [] : N0.map((x) => ({ t0: x.t0, h: x.h, kind: x.use ? (x.deepOnly ? 'deep' : 'base') : x.h >= CAL_MIN_H ? 'skip' : 'none', x }));
+  if (weekly) for (let i = 0; i < N0.length; i += 7) {
+    const w = N0.slice(i, i + 7), used = w.filter((x) => x.use);
+    bars.push({ t0: w[0].t0, h: used.reduce((a, x) => a + x.h, 0), n: used.length, kind: used.some((x) => !x.deepOnly) ? 'base' : used.length ? 'deep' : w.some((x) => x.h >= CAL_MIN_H) ? 'skip' : 'none', w });
+  }
+  if (weekly) bars.forEach((q) => { if (q.kind === 'skip') q.h = q.w.reduce((a, x) => a + (x.h >= CAL_MIN_H ? x.h : 0), 0); });
+  const W = 640, H = 150, pad = 30, bw = (W - pad - 8) / bars.length, max = Math.max(weekly ? 8 : 4, ...bars.map((q) => q.h));
+  const Y = (h) => H - 24 - h / max * (H - 44), col = { base: 'var(--oiii)', deep: 'var(--ha)', skip: '#3a4558', none: 'transparent' };
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${tx('Notti di ripresa')}">`;
+  [0, max / 2, max].forEach((v) => { svg += `<line x1="${pad}" x2="${W - 6}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${pad - 5}" y="${Y(v) + 4}" fill="var(--ink-3)" font-size="10" text-anchor="end" font-family="IBM Plex Mono">${Math.round(v)}h</text>`; });
+  let lastM = -1;
+  bars.forEach((q, i) => {
+    const x = pad + i * bw, hgt = Math.max(q.h > 0 ? 2 : 0, H - 24 - Y(q.h));
+    svg += `<rect class="b" style="animation-delay:${Math.min(i, 40) * 15}ms" x="${(x + bw * 0.14).toFixed(1)}" y="${(H - 24 - hgt).toFixed(1)}" width="${Math.max(1, bw * 0.72).toFixed(1)}" height="${hgt.toFixed(1)}" rx="${bw > 8 ? 2 : 1}" fill="${col[q.kind]}" opacity="${q.kind === 'deep' ? 0.75 : 1}"/>`;
+    const d = new Date(q.t0), lab = weekly ? (d.getMonth() !== lastM ? d.toLocaleDateString(LOCALE, { month: 'short' }) : '') : (i === 0 || d.getDate() === 1 || (i % 7 === 0 && bars.length > 10) ? d.toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' }) : '');
+    if (weekly) lastM = d.getMonth();
+    if (lab) svg += `<text x="${(x + bw / 2).toFixed(1)}" y="${H - 8}" fill="var(--ink-3)" font-size="10.5" text-anchor="${i === 0 ? 'start' : 'middle'}" font-family="IBM Plex Sans">${lab.replace('.', '')}</text>`;
+  });
+  // fine del lavoro e del profondo
+  const mark = (t, lbl, c) => { const i = bars.findIndex((q, j) => q.t0 <= t && (j === bars.length - 1 || bars[j + 1].t0 > t)); if (i < 0) return; const x = pad + (i + 1) * bw; svg += `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="10" y2="${H - 24}" stroke="${c}" stroke-dasharray="3 3"/><text x="${(x - 3).toFixed(1)}" y="18" fill="${c}" font-size="10.5" text-anchor="end" font-family="IBM Plex Sans">${lbl}</text>`; };
+  if (cal.done) mark(cal.done, tx('fatto'), 'var(--oiii)');
+  if (cal.deep && cal.deep.done && cal.deep.done !== cal.done) mark(cal.deep.done, tx('profondo'), 'var(--ha)');
+  bars.forEach((q, i) => { svg += `<rect class="hit" data-k="${i}" x="${(pad + i * bw).toFixed(1)}" y="4" width="${bw.toFixed(2)}" height="${H - 8}" fill="transparent"/>`; });
+  el.innerHTML = svg + '</svg>';
+  const sv = el.querySelector('svg'), rects = $$('#calChart rect.b');
+  sv.onpointermove = (ev) => {
+    const k = ev.target.dataset && ev.target.dataset.k; rects.forEach((b, i) => b.classList.toggle('hl', String(i) === k));
+    if (k == null) { chartTip(el, null); return; }
+    const q = bars[+k], bx = el.getBoundingClientRect(); let html;
+    if (weekly) html = `<b>${tx('settimana dal {d}', { d: fmtDayLong(q.t0) })}</b> · ${q.n ? tx('{n} usate, {h} utili', { n: nNights(q.n), h: fmtDur(q.h) }) : tx('nessuna notte usata')}`;
+    else {
+      const x = q.x, why = x.use ? (x.deepOnly ? tx('solo per il profondo') : tx('fa il {p}% del lavoro', { p: Math.max(1, Math.round((x.frac || 0) * 100)) })) : x.h >= CAL_MIN_H ? tx('saltata: rende {k} volte meno della notte migliore del mese', { k: it(x.slow, 1) }) : tx('non si riprende: sotto l’orizzonte o col chiaro');
+      html = `<b>${fmtDayLong(x.t0)}</b> · ${x.h >= CAL_MIN_H ? tx('{d} utili', { d: fmtDur(x.h) }) : '—'} · ${tx('Luna {p}%', { p: Math.round(x.moon * 100) })}<small>${why}</small>`;
+    }
+    chartTip(el, html + `<small>${tx('clicca per aprire la notte')}</small>`, ev.clientX - bx.left, 6);
+  };
+  sv.onpointerleave = () => { chartTip(el, null); rects.forEach((b) => b.classList.remove('hl')); };
+  sv.onclick = (ev) => { const k = ev.target.dataset && ev.target.dataset.k; if (k == null) return; const q = bars[+k]; goNight(weekly ? (q.w.find((x) => x.use) || q.w[0]).t0 : q.t0); };
 }
 function renderSeason(r) {
   const el = $('#season'); if (!el) return;

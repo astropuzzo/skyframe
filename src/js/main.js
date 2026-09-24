@@ -126,13 +126,14 @@ function scheduleCompare() {
   };
   setTimeout(step, 200);
 }
-/* un target in un altro luogo, calcolato per intero (serve al dettaglio) */
-function cmpFull(l, o) {
-  if (l.id === activeLoc().id) return state.byId.get(o.id) || null;
+/* contesto di calcolo di un luogo e un target calcolato per intero in quel luogo (servono al dettaglio) */
+function cmpCtx(l) {
+  if (l.id === activeLoc().id) return state.res.C;
   const k = cmp.keys.get(l.id); let c = cmp.cache.get(k); if (!c) { c = {}; cmp.cache.set(k, c); }
   if (!c.C) { const e = effectiveProfile(activeProfile(), l); c.C = computePrep(profileConfigs(e), e, state.res.night.ds, Date.now()); }
-  return computeObj(c.C, o);
+  return c.C;
 }
+function cmpFull(l, o) { return l.id === activeLoc().id ? state.byId.get(o.id) || null : computeObj(cmpCtx(l), o); }
 /* il luogo più rapido per un target, se conviene davvero (almeno il 25% di tempo in meno, o qui non si riprende) */
 function betterLoc(r) {
   if (state.locs.length < 2) return null;
@@ -167,7 +168,9 @@ function applyFilters() {
   if (f.maxSb < 26) L = L.filter((r) => r.o.sb <= f.maxSb);
   if (f.band === 'nb') L = L.filter((r) => LINES[r.o.type]); else if (f.band === 'bb') L = L.filter((r) => !LINES[r.o.type]);
   if (f.fill === 'fits') L = L.filter((r) => r.e.fill.r >= 0.35 && r.e.fill.nx * r.e.fill.ny === 1); else if (f.fill === 'small') L = L.filter((r) => r.e.fill.r < 0.35); else if (f.fill === 'mosaic') L = L.filter((r) => r.e.fill.nx * r.e.fill.ny > 1);
-  if (f.maxNights < 11) L = L.filter((r) => r.e.best && r.e.best.nights <= f.maxNights);
+  // notti: dal calendario notte per notte se è già calcolato (righe viste), altrimenti la stima con notti tutte come questa
+  const A = state.res.C.ahead, nightsOf = (r) => { const c = A && A.cache.get(calKey(r, r.e, false)); return c ? (c.done ? c.sessions : Infinity) : r.e.best.nights; };
+  if (f.maxNights < 11) L = L.filter((r) => r.e.best && nightsOf(r) <= f.maxNights);
   if (state.cfgFilter) L = L.filter((r) => r.e.cfg.key === state.cfgFilter);
   if (q) L = L.filter((r) => r.o.search.includes(q));
   const hrs = (r) => (r.e.best && isFinite(r.e.best.tonight) ? r.e.best.tonight : 1e9);

@@ -397,6 +397,8 @@ const STEP = 5, N = 288, DT = STEP * 60000;
 function defaultNightStr() { const n = new Date(); const d = new Date(n); if (n.getHours() < 12) d.setDate(d.getDate() - 1); return dateStr(d); }
 const dateStr = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 function hmToOff(s) { if (!s) return null; const [h, m] = s.split(':').map(Number); return ((h * 60 + m - 720) + 1440) % 1440; }
+/* dentro l'orario della sessione ("dalle", "alle"); off = minuti da mezzogiorno */
+const inSession = (off, f, to) => (f != null && to != null ? (f <= to ? off >= f && off <= to : off >= f || off <= to) : f != null ? off >= f : to != null ? off <= to : true);
 function computeNight(p, ds, withMoon = true) {
   const [y, m, d] = ds.split('-').map(Number); const t0 = new Date(y, m - 1, d, 12, 0, 0).getTime();
   const lat = p.site.lat * D2R, sL = Math.sin(lat), cL = Math.cos(lat), lon = +p.site.lon, thr = +p.session.sunThr;
@@ -412,8 +414,7 @@ function computeNight(p, ds, withMoon = true) {
       const el = Math.acos(clamp(Math.cos(mo.lat * D2R) * Math.cos((mo.lon - s.lon) * D2R), -1, 1)); mIll[i] = (1 - Math.cos(el)) / 2; if (i === N / 2) waxing = norm360(mo.lon - s.lon) < 180;
     }
     darkAll[i] = sun[i] < thr ? 1 : 0;
-    let inS = true; const off = i * STEP;
-    if (f != null && to != null) inS = f <= to ? (off >= f && off <= to) : (off >= f || off <= to); else if (f != null) inS = off >= f; else if (to != null) inS = off <= to;
+    const inS = inSession(i * STEP, f, to);
     dark[i] = darkAll[i] && inS ? 1 : 0;
   }
   const cross = (arr, v, down) => { for (let i = 1; i <= N; i++) { if (down ? (arr[i - 1] >= v && arr[i] < v) : (arr[i - 1] < v && arr[i] >= v)) { return i - 1 + (arr[i - 1] - v) / (arr[i - 1] - arr[i]); } } return null; };
@@ -741,7 +742,7 @@ function computeObj(C, o) {
 function computeAll(cfgs, active, ds, now) {
   const C = computePrep(cfgs, active, ds, now), out = [];
   for (const o of CAT) { const r = computeObj(C, o); if (r) out.push(r); }
-  return { night: C.night, results: out, lut: C.lut, sky: C.sky, sqm: C.sky.sqm, Q: C.Q };
+  return { night: C.night, results: out, lut: C.lut, sky: C.sky, sqm: C.sky.sqm, Q: C.Q, C };
 }
 /* ore per un target in una configurazione: quelle con le condizioni di stanotte, altrimenti senza Luna e al transito */
 const hoursOf = (b) => (b ? (isFinite(b.tonight) ? b.tonight : b.ideal) : Infinity);
@@ -750,6 +751,78 @@ function usableSteps(r, night, sky) {
   const U = { X: new Float32Array(N + 1), art: new Float32Array(N + 1), nat: new Float32Array(N + 1), mf: new Float32Array(N + 1), n: 0, h: 0 };
   for (let i = 0; i <= N; i++) if (r.use[i]) { U.X[U.n] = airmass(r.alt[i]); U.art[U.n] = sky.art(r.alt[i], r.az[i]); U.nat[U.n] = sky.nat(r.alt[i]); U.mf[U.n] = moonFlux(night, i, r.v)[0]; U.n++; }
   U.h = U.n * STEP / 60; return U;
+}
+
+/* ============================ notti di ripresa ============================ */
+/* Le notti che vengono, una per una, a passi di 20 minuti: buio (soglia del Sole e orario della sessione) e Luna.
+   Si calcolano solo quando servono e restano nel contesto di calcolo del luogo. */
+const CAL_STEP = 20, CAL_N = 72, CAL_MAX = 366, CAL_MIN_H = 0.25, CAL_SKIP = 2.5, CAL_BLOCK = 30;
+function aheadCtx(C) {
+  return C.ahead || (C.ahead = { list: [], cache: new Map(), sL: C.night.sL, cL: C.night.cL, lon: +C.active.site.lon, thr: +C.active.session.sunThr, f: hmToOff(C.active.session.from), to: hmToOff(C.active.session.to), ymd: C.night.ds.split('-').map(Number) });
+}
+function aheadNight(C, k) {
+  const A = aheadCtx(C); if (A.list[k]) return A.list[k];
+  const [y, m, d] = A.ymd, t0 = new Date(y, m - 1, d + k, 12, 0, 0).getTime();
+  const lst = new Float64Array(CAL_N), dark = new Uint8Array(CAL_N), mAlt = new Float32Array(CAL_N), mIll = new Float32Array(CAL_N), mV = new Array(CAL_N);
+  let moon = 0, nd = 0, up = 0;
+  for (let i = 0; i < CAL_N; i++) {
+    const off = (i + 0.5) * CAL_STEP, ms = t0 + off * 60000; lst[i] = lstDeg(ms, A.lon);
+    if (!inSession(off, A.f, A.to)) continue;
+    const J = jd(ms), sn = sunPos(J); if (altaz(sn.ra, sn.dec, lst[i], A.sL, A.cL)[0] >= A.thr) continue;
+    const mo = moonPos(J), aa = altaz(mo.ra, mo.dec, lst[i], A.sL, A.cL);
+    dark[i] = 1; nd++; mAlt[i] = aa[0] - 0.95 * Math.cos(aa[0] * D2R); mV[i] = unit(mo.ra, mo.dec); if (mAlt[i] > 0) up++;
+    const el = Math.acos(clamp(Math.cos(mo.lat * D2R) * Math.cos((mo.lon - sn.lon) * D2R), -1, 1)); mIll[i] = moon = (1 - Math.cos(el)) / 2;
+  }
+  return (A.list[k] = { t0, lst, dark, mAlt, mIll, mV, moon, moonUp: nd ? up / nd : 0 });
+}
+const calKey = (r, e, deep) => r.o.id + '|' + e.cfg.key + '|' + (e.best ? e.best.id : '') + (deep ? '|d' : '');
+/* Calendario di ripresa di un target in una configurazione. Dalla notte scelta in avanti si sommano le ore utili di ogni
+   notte, ognuna col suo rendimento (Luna, altezza, cielo nella direzione del target): una notte fa h/T del lavoro, dove
+   T sono le ore che servirebbero con notti tutte come quella. Le notti in cui il target rende più di 2,5 volte meno
+   che nella notte migliore del mese (di solito per la Luna) si saltano: conviene fare altro. Cielo sempre sereno. */
+function shootCalendar(C, r, e, deep) {
+  const b = e.best; if (!b) return null;
+  const A = aheadCtx(C), key = calKey(r, e, deep); if (A.cache.has(key)) return A.cache.get(key);
+  const s0 = e.cfg.strategies.find((x) => x.id === b.id), bb = e.cfg.strategies.find((x) => x.suits === 'all');
+  const S = s0 ? (bb && bb !== s0 ? [s0, bb] : [s0]) : null, panels = b.panels || 1;
+  const U = { X: new Float32Array(CAL_N), art: new Float32Array(CAL_N), nat: new Float32Array(CAL_N), mf: new Float32Array(CAL_N), n: 0, h: 0 };
+  const rec = (k) => {
+    const nk = aheadNight(C, k);
+    if (k === 0) return { k, t0: nk.t0, h: r.usableH, T: b.tonight, TD: b.tonightDeep, moon: C.night.moonIll }; // stanotte: i valori esatti della lista
+    U.n = 0;
+    for (let i = 0; i < CAL_N; i++) {
+      if (!nk.dark[i]) continue; const aa = altaz(r.pr.ra, r.pr.dec, nk.lst[i], A.sL, A.cL), a = aa[0], z = aa[1];
+      if (a < Math.max(C.minAlt, C.lut[Math.round(z) % 360])) continue;
+      U.X[U.n] = airmass(a); U.art[U.n] = C.sky.art(a, z); U.nat[U.n] = C.sky.nat(a); U.mf[U.n] = moonFlux(nk, i, r.v)[0]; U.n++;
+    }
+    const h = U.h = U.n * CAL_STEP / 60; let T = Infinity, TD = Infinity;
+    if (h >= CAL_MIN_H && S) { const ev = evalStrategies(r.o, S, e.K, U, C.Q, r.T, r.field).find((x) => x.id === b.id); if (ev) { T = ev.tonight * panels; TD = ev.tonightDeep * panels; } }
+    return { k, t0: nk.t0, h, T, TD, moon: nk.moon };
+  };
+  const out = { nights: [], sessions: 0, done: null, prog: 0, skipped: 0, deep: deep && b.deep ? { sessions: 0, done: null, prog: 0 } : null };
+  const finished = () => out.done && (!out.deep || out.deep.done);
+  const first = rec(0), tonightOk = first.h >= CAL_MIN_H && first.T <= first.h;
+  if (tonightOk && (!out.deep || first.TD <= first.h)) { // basta stanotte
+    Object.assign(first, { use: true, frac: first.h / first.T });
+    Object.assign(out, { nights: [first], sessions: 1, done: first.t0, prog: 1 }); if (out.deep) Object.assign(out.deep, { sessions: 1, done: first.t0, prog: 1 });
+  } else {
+    for (let k0 = 0; k0 < CAL_MAX && !finished(); k0 += CAL_BLOCK) {
+      const blk = []; for (let k = k0; k < Math.min(CAL_MAX, k0 + CAL_BLOCK); k++) blk.push(k === 0 ? first : rec(k));
+      const ref = Math.min(...blk.map((x) => x.T));
+      for (const x of blk) {
+        x.slow = x.T / ref; x.use = (x === first && tonightOk) || (x.h >= CAL_MIN_H && isFinite(x.T) && x.slow <= CAL_SKIP);
+        if (x.use) {
+          if (!out.done) { x.frac = Math.min(x.h / x.T, 1 - out.prog); out.prog += x.h / x.T; out.sessions++; if (out.prog >= 1 - 1e-9) { out.prog = 1; out.done = x.t0; } }
+          else x.deepOnly = true;
+          if (out.deep && !out.deep.done) { out.deep.prog += x.h / x.TD; out.deep.sessions++; if (out.deep.prog >= 1 - 1e-9) { out.deep.prog = 1; out.deep.done = x.t0; } }
+        } else if (x.h >= CAL_MIN_H && !out.done) out.skipped++;
+        out.nights.push(x);
+        if (finished()) break;
+      }
+    }
+  }
+  A.cache.set(key, out);
+  return out;
 }
 
 /* ============================ finestre senza Luna e stagionalità ============================ */
