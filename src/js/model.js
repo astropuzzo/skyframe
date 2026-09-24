@@ -60,11 +60,37 @@ const OPTICS = [
   { id: 'edgehd8', name: 'Celestron EdgeHD 8', ap: 203, fl: 2032, obs: 34, acc: [['Riduttore 0,7×', 0.7]] },
   { id: 'c8', name: 'Celestron C8', ap: 203, fl: 2032, obs: 34, acc: [['Riduttore 0,63×', 0.63]] },
   { id: 'rasa8', name: 'Celestron RASA 8', ap: 203, fl: 400, obs: 45 },
+  { id: 'rasa11', name: 'Celestron RASA 11', ap: 279, fl: 620, obs: 41 },
+  { id: 'edgehd11', name: 'Celestron EdgeHD 11', ap: 280, fl: 2800, obs: 34, acc: [['Riduttore 0,7×', 0.7]] },
+  // Lacerta Photonewton in carbonio (lacerta-optics.com): secondario 70 mm sul 200/800; correttore GPU 4 lenti a 1,0×
+  { id: 'lacerta1506', name: 'Lacerta Photonewton 150/600 carbon', ap: 150, fl: 600, obs: 35, acc: [['Correttore di coma GPU 1,0×', 1.0]] },
+  { id: 'lacerta2008', name: 'Lacerta Photonewton 200/800 carbon', ap: 200, fl: 800, obs: 35, acc: [['Correttore di coma GPU 1,0×', 1.0]] },
+  { id: 'lacerta25010', name: 'Lacerta Photonewton 250/1000 carbon', ap: 250, fl: 1000, obs: 33, acc: [['Correttore di coma GPU 1,0×', 1.0]] },
+  { id: 'sw130pds', name: 'Sky-Watcher 130PDS', ap: 130, fl: 650, obs: 36, acc: [['Correttore di coma 0,9×', 0.9]] },
+  { id: 'quattro150', name: 'Sky-Watcher Quattro 150P', ap: 150, fl: 600, obs: 42, acc: [['Correttore di coma 0,9×', 0.9]] },
+  { id: 'quattro250', name: 'Sky-Watcher Quattro 250P', ap: 254, fl: 1000, obs: 32, acc: [['Correttore di coma 0,9×', 0.9]] },
+  { id: 'quattro300', name: 'Sky-Watcher Quattro 300P', ap: 305, fl: 1200, obs: 33, acc: [['Correttore di coma 0,9×', 0.9]] },
+  { id: 'tsontc8', name: 'TS-Optics ONTC 8" f/4', ap: 200, fl: 800, obs: 35, acc: [['Correttore di coma 0,95×', 0.95]] },
+  { id: 'gso8f4', name: 'GSO / TS Photon 8" f/4', ap: 200, fl: 800, obs: 35, acc: [['Correttore di coma 0,9×', 0.9]] },
+  { id: 'eps130', name: 'Takahashi Epsilon-130D', ap: 130, fl: 430, obs: 48 },
+  { id: 'eps160', name: 'Takahashi Epsilon-160ED', ap: 160, fl: 530, obs: 44 },
+  { id: 'fsq85', name: 'Takahashi FSQ-85EDP', ap: 85, fl: 450, obs: 0, acc: [['Riduttore 0,73×', 0.73]] },
+  { id: 'gt81', name: 'William Optics GT81', ap: 81, fl: 478, obs: 0, acc: [['Spianatore/riduttore 0,8×', 0.8]] },
+  { id: 'flt91', name: 'William Optics FLT 91', ap: 91, fl: 540, obs: 0, acc: [['Spianatore/riduttore 0,8×', 0.8]] },
+  { id: 'pleiades68', name: 'William Optics Pleiades 68', ap: 68, fl: 250, obs: 0 },
+  { id: 'askar71f', name: 'Askar 71F', ap: 71, fl: 490, obs: 0 },
+  { id: 'askar103', name: 'Askar 103APO', ap: 103, fl: 700, obs: 0, acc: [['Riduttore 0,7×', 0.7]] },
+  { id: 'askar120', name: 'Askar 120APO', ap: 120, fl: 840, obs: 0, acc: [['Riduttore 0,8×', 0.8]] },
+  { id: 'sqa55', name: 'Askar SQA55', ap: 55, fl: 264, obs: 0 },
+  { id: 'evo100', name: 'Sky-Watcher Evostar 100ED', ap: 100, fl: 900, obs: 0, acc: [['Riduttore 0,85×', 0.85]] },
+  { id: 'esprit150', name: 'Sky-Watcher Esprit 150ED', ap: 150, fl: 1050, obs: 0 },
+  { id: 'ed102', name: 'Explore Scientific ED102', ap: 102, fl: 714, obs: 0, acc: [['Riduttore 0,7×', 0.7]] },
+  { id: 'lens200', name: 'Obiettivo 200 mm f/2,8', ap: 71.4, fl: 200, obs: 0 },
   { id: 'samyang135', name: 'Samyang 135 mm f/2', ap: 67.5, fl: 135, obs: 0 },
   { id: 'lens85', name: 'Obiettivo 85 mm f/1,8 (a f/2,8)', ap: 30.4, fl: 85, obs: 0 },
   { id: 'lens50', name: 'Obiettivo 50 mm (a f/2,8)', ap: 17.9, fl: 50, obs: 0 },
   { id: 'custom', name: 'Personalizzato' }];
-const ACCESSORY_PRESETS = [['Correttore di coma 0,9×', 0.9], ['Spianatore 1,0×', 1.0], ['Riduttore 0,85×', 0.85], ['Riduttore 0,8×', 0.8], ['Riduttore 0,77×', 0.77], ['Riduttore 0,7×', 0.7], ['Riduttore 0,63×', 0.63], ['Extender 1,4×', 1.4], ['Barlow 2×', 2]];
+const ACCESSORY_PRESETS = [['Correttore di coma 0,9×', 0.9], ['Correttore di coma GPU 1,0×', 1.0], ['Correttore di coma 0,95×', 0.95], ['Spianatore 1,0×', 1.0], ['Riduttore 0,85×', 0.85], ['Riduttore 0,8×', 0.8], ['Riduttore 0,77×', 0.77], ['Riduttore 0,7×', 0.7], ['Riduttore 0,63×', 0.63], ['Extender 1,4×', 1.4], ['Barlow 2×', 2]];
 const BORTLE_SQM = { 1: 21.95, 2: 21.7, 3: 21.45, 4: 20.8, 5: 20.0, 6: 19.2, 7: 18.6, 8: 18.1, 9: 17.6 };
 const sqmToBortle = (s) => (s >= 21.9 ? 1 : s >= 21.6 ? 2 : s >= 21.3 ? 3 : s >= 20.4 ? 4 : s >= 19.5 ? 5 : s >= 18.9 ? 6 : s >= 18.4 ? 7 : s >= 17.8 ? 8 : 9);
 const QLABEL = { quick: 'rapida', good: 'buona', great: 'eccellente' };
@@ -110,7 +136,7 @@ function setupGeom(cam, optic, fac, bin) {
   return { fEff, D, fr, px, W, H };
 }
 const siteKey = (s) => `${(+s.lat).toFixed(2)},${(+s.lon).toFixed(2)}`;
-function shortOptic(o) { return o.name.replace(/^(William Optics|Sky-Watcher|Celestron|Takahashi|Askar|Obiettivo)\s+/, '').replace(/\s*\(.*\)/, ''); }
+function shortOptic(o) { return o.name.replace(/^(William Optics|Sky-Watcher|Celestron|Takahashi|Askar|Lacerta|TS-Optics|Explore Scientific|Obiettivo)\s+/, '').replace(/\s*\(.*\)/, ''); }
 /* un profilo produce una configurazione per l'ottica nativa (se usabile) e una per ogni accessorio */
 function profileConfigs(p) {
   const out = [], bin = +p.bin || 1;

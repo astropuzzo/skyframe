@@ -82,6 +82,9 @@ function smokeTest(win, out) {
       const img = await win.webContents.capturePage();
       await fs.writeFile(out, img.toPNG());
       // editor del profilo: luogo reale via mappa, atlante, altitudine
+      // un clic fuori dal pannello e "Chiudi" con modifiche non devono perdere il profilo
+      const guard = await win.webContents.executeJavaScript(`closeDetail(); openEditor(state.activeId); F('f_name').value = 'prova'; F('f_name').dispatchEvent(new Event('input', { bubbles: true })); F('editor').click(); F('edClose').click(); const r = { aperto: !F('editor').hidden, conferma: !F('leaveConfirm').hidden, lacerta: OPTICS.some((o) => o.id === 'lacerta2008') }; F('leaveYes').click(); r`);
+      if (!guard.aperto || !guard.conferma) throw new Error('editor chiuso senza conferma ' + JSON.stringify(guard));
       await win.webContents.executeJavaScript(`closeDetail(); openEditor(state.activeId); setGeo(41.9109, 12.4764, 'Roma, Piazza del Popolo', 12);`);
       // la mappa all-sky di lightpollutionmap arriva in 10–20 s
       for (let i = 0; i < 60; i++) { await wait(1000); if (await win.webContents.executeJavaScript(`!lpmBusy && !!draft.site.skyMap`)) break; }
@@ -91,7 +94,7 @@ function smokeTest(win, out) {
       await win.webContents.executeJavaScript(`document.querySelector('#geoMap').scrollIntoView({block:'center'})`);
       await wait(1500);
       await fs.writeFile(out.replace(/\.png$/, '-map.png'), (await win.webContents.capturePage()).toPNG());
-      console.log(JSON.stringify({ ...info, anteprima: note, geo }));
+      console.log(JSON.stringify({ ...info, anteprima: note, geo, guard }));
     } catch (e) {
       console.error('SMOKE FAIL', e);
       process.exitCode = 1;

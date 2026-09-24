@@ -178,7 +178,7 @@ function wire() {
   $('#list').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { const r = e.target.closest('.row[data-id]'); if (r) { e.preventDefault(); openDetail(r.dataset.id); } } });
   $('#list').addEventListener('mouseover', (e) => { const r = e.target.closest('.row[data-id]'); $$('#list .row.hl').forEach((x) => x !== r && x.classList.remove('hl')); });
   $('#backdrop').onclick = closeDetail;
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (!$('#editor').hidden) closeEditor(); else if (!$('#drawer').hidden) closeDetail(); } });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (!$('#editor').hidden) askCloseEditor(); else if (!$('#drawer').hidden) closeDetail(); } });
   const red = (v) => { $('#veil').hidden = !v; $('#nightBtn').setAttribute('aria-pressed', String(!!v)); LS.set('sf.red', !!v); };
   red(LS.get('sf.red', false)); $('#nightBtn').onclick = () => red($('#veil').hidden);
   window.addEventListener('resize', () => { drawStrip(); if (state.sel && !$('#drawer').hidden) drawPreview(); });

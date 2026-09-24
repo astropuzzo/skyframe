@@ -45,9 +45,15 @@ function openEditor(id, asNew) {
   initGeoMap();
   // centratura dopo il layout: legge i campi (nel frattempo il punto potrebbe essere già cambiato)
   if (geoMap) requestAnimationFrame(() => { const la = +F('f_lat').value, lo = +F('f_lon').value; geoMap.invalidateSize(); geoPin.setLatLng([la, lo]); geoMap.setView([la, lo], d.site.example && la === d.site.lat ? 6 : Math.max(geoMap.getZoom(), 12)); });
-  F('editor').hidden = false; F('f_name').focus();
+  F('editor').hidden = false; F('f_name').focus(); edDirty = !!asNew; F('leaveConfirm').hidden = true;
 }
-function closeEditor() { F('editor').hidden = true; draft = null; }
+function closeEditor() { F('editor').hidden = true; F('leaveConfirm').hidden = true; draft = null; edDirty = false; }
+/* chiusura richiesta dall'utente (Chiudi, Esc): con modifiche non salvate si chiede prima cosa fare */
+let edDirty = false;
+function askCloseEditor() {
+  if (!edDirty) { closeEditor(); return; }
+  F('leaveConfirm').hidden = false; F('leaveNo').focus();
+}
 function readForm() {
   const d = draft, n = (id) => parseFloat(F(id).value);
   d.name = F('f_name').value.trim() || 'Profilo senza nome';
@@ -236,8 +242,13 @@ function wireEditor() {
   F('lpmBtn').hidden = !(window.cielo && window.cielo.lpmAllSky);
   [F('skyTop'), F('skyBot')].forEach((i) => i.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); skyApply(); } }));
   wireGeo();
-  F('edClose').onclick = closeEditor;
-  F('editor').addEventListener('click', (e) => { if (e.target.id === 'editor') closeEditor(); });
+  // un clic fuori dal pannello non chiude più nulla: si esce solo con Chiudi, Esc o Salva
+  F('edClose').onclick = askCloseEditor;
+  ['input', 'change'].forEach((ev) => F('editor').addEventListener(ev, () => { edDirty = true; }));
+  F('editor').querySelector('.sheet-body, .sheet > div, form')?.addEventListener('pointerdown', () => { edDirty = true; });
+  F('leaveNo').onclick = () => { F('leaveConfirm').hidden = true; };
+  F('leaveYes').onclick = closeEditor;
+  F('leaveSave').onclick = () => F('edSave').click();
   F('edSave').onclick = () => { const d = readForm(); persistProfile(d); state.activeId = d.id; saveStore(); closeEditor(); refresh(true); toast('Profilo salvato'); };
   F('edDup').onclick = () => { readForm(); draft = clone(draft); draft.id = 'p-' + Date.now().toString(36); draft.name += ' (copia)'; delete draft.unsaved; F('f_name').value = draft.name; F('edTitle').textContent = 'Nuovo profilo'; F('edDelete').hidden = true; };
   F('edDelete').onclick = () => { F('delConfirm').hidden = false; F('edDelete').hidden = true; };
