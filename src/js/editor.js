@@ -124,7 +124,10 @@ async function skyFileChosen(file) {
     cv.width = Math.max(1, Math.round(w * sc)); cv.height = 150; const c = cv.getContext('2d');
     c.drawImage(img, x, yt, w, yb - yt, 0, 0, cv.width, cv.height);
     F('skyImp').hidden = false; F('skyTop').focus();
-    F('skyMsg').textContent = `${det.kind === 'fisheye' ? 'Mappa all-sky (fisheye)' : 'Panoramica'} riconosciuta. Scrivi i due numeri stampati ai capi della barra colori.`;
+    // proposta dei due valori: tacche regolari della barra più l'SQM del luogo; vanno solo confermati
+    const as = AllSky.autoScale(det, parseFloat(String(F('f_sqm').value).replace(',', '.')));
+    if (as) { F('skyTop').value = it(as.top, 2); F('skyBot').value = it(as.bottom, 2); }
+    F('skyMsg').textContent = `${det.kind === 'fisheye' ? 'Mappa all-sky (fisheye)' : 'Panoramica'} riconosciuta. ${as ? 'Controlla i due valori proposti con quelli stampati ai capi della barra colori e premi Importa la mappa.' : 'Scrivi i due numeri stampati ai capi della barra colori.'}`;
   } catch (e) { F('skyImp').hidden = true; toast('Immagine non riconosciuta: ' + e.message); }
 }
 function skyApply() {
@@ -132,6 +135,7 @@ function skyApply() {
   const top = parseFloat(F('skyTop').value.replace(',', '.')), bot = parseFloat(F('skyBot').value.replace(',', '.'));
   if (!isFinite(top) || !isFinite(bot) || top <= bot) { F('skyMsg').textContent = 'Servono i due valori della barra: quello in alto (cielo più buio) è il più grande, es. 19,3 e 17,9.'; return; }
   readForm(); applySkyMap(skyImport.det, top, bot, skyImport.name);
+  F('skyMsg').textContent = `Mappa importata da ${skyImport.name} alle ${fmtT(Date.now())}: barra ${it(top, 2)} → ${it(bot, 2)}, zenit ${it(draft.site.skyMap.zenith, 2)}. Ricordati di salvare il profilo.`;
   F('skyImp').hidden = true; skyImport = null;
 }
 /* griglia di luminosità dal lettore → profilo (SQM, mappa del cielo, orizzonte minimo dal terreno) */
@@ -156,6 +160,7 @@ async function lpmFetch() {
   if (!isFinite(lat) || !isFinite(lon)) return;
   const sm = draft.site.skyMap; if (sm && sm.at && Math.abs(sm.at[0] - lat) < 0.002 && Math.abs(sm.at[1] - lon) < 0.002) return; // già fatta qui
   lpmBusy = true; F('skyMsg').textContent = 'Chiedo a lightpollutionmap la mappa all-sky di questo punto (10–20 s)…';
+  const btn = F('lpmBtn'), label = btn.textContent; btn.disabled = true; btn.textContent = 'Scarico la mappa…';
   try {
     const r = await window.cielo.lpmAllSky(lat, lon);
     if (!draft) return;
@@ -167,7 +172,7 @@ async function lpmFetch() {
       if (!sc) continue;
       readForm(); applySkyMap(det, sc.top, sc.bottom, `lightpollutionmap ${r.year}`, r.year);
       if (isFinite(r.elev) && !F('f_elev').value) F('f_elev').value = Math.round(r.elev);
-      F('skyMsg').textContent = `Mappa all-sky ${r.year} di lightpollutionmap letta: barra ${it(sc.top, 2)} → ${it(sc.bottom, 2)}, zenit ${it(r.sqm, 2)}.`;
+      F('skyMsg').textContent = `Mappa all-sky ${r.year} di lightpollutionmap aggiornata alle ${fmtT(Date.now())}: barra ${it(sc.top, 2)} → ${it(sc.bottom, 2)}, zenit ${it(r.sqm, 2)}. Ricordati di salvare il profilo.`;
       done = true; break;
     }
     if (!done) { // scala non ricavabile: si chiede di leggere i due valori della barra
@@ -178,7 +183,7 @@ async function lpmFetch() {
     }
   } catch (e) {
     F('skyMsg').textContent = `Mappa all-sky non ottenuta (${e.message}). Puoi importarla a mano coi passi qui sopra.`;
-  } finally { lpmBusy = false; }
+  } finally { lpmBusy = false; btn.disabled = false; btn.textContent = label; }
 }
 function skyRemove() { if (!draft) return; readForm(); delete draft.site.skyMap; if (draft.site.lpZen != null) { draft.site.sqm = draft.site.lpZen; F('f_sqm').value = draft.site.lpZen; } draft.site.lpSrc = draft.site.lpSrcAtlas || ''; drawLpPreview(F('lpSky'), draft.site, draft.horizon); lpStatus(); }
 /* ============================ luogo: mappa, ricerca, altitudine ============================ */

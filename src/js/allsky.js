@@ -88,13 +88,20 @@ const AllSky = (() => {
     for (let y = Math.max(0, Math.floor(y0)); y <= Math.min(H - 1, Math.ceil(y1)); y += 2) for (let x = Math.max(0, Math.floor(x0)); x <= Math.min(W - 1, Math.ceil(x1)); x += 2) {
       if (det.cls[y * W + x] !== 2) continue;
       const s = toSky(det, x, y); if (!s) continue; const k = (y * W + x) * 4, t = tOf(d[k], d[k + 1], d[k + 2]); if (t < 0) continue;
-      const hb = Math.min(NB - 1, Math.max(0, Math.floor(s[0] / 2))), ab = Math.floor(s[1] / 5) % NAZ;
+      const hb = Math.min(NB - 2, Math.max(0, Math.floor(s[0] / 2))), ab = Math.floor(s[1] / 5) % NAZ;
       sum[hb * NAZ + ab] += top + (bottom - top) * t; cnt[hb * NAZ + ab]++;
     }
     const mag = new Array(NB * NAZ).fill(null);
     for (let i = 0; i < NB * NAZ; i++) if (cnt[i]) mag[i] = Math.round(sum[i] / cnt[i] * 100) / 100;
-    for (let a = 0; a < NAZ; a++) { let last = null; for (let h = NB - 1; h >= 0; h--) { const i = h * NAZ + a; if (mag[i] == null) mag[i] = last; else last = mag[i]; } }
+    // buchi (etichette, griglia del grafico): si riempiono lungo la verticale, prima verso il basso poi verso l'alto
+    for (let a = 0; a < NAZ; a++) {
+      let last = null; for (let h = NB - 2; h >= 0; h--) { const i = h * NAZ + a; if (mag[i] == null) mag[i] = last; else last = mag[i]; }
+      last = null; for (let h = 0; h < NB - 1; h++) { const i = h * NAZ + a; if (mag[i] == null) mag[i] = last; else last = mag[i]; }
+    }
     for (let h = 0; h < NB; h++) for (let a = 0; a < NAZ; a++) { const i = h * NAZ + a; if (mag[i] == null) { for (let dd = 1; dd < NAZ; dd++) { const v = mag[h * NAZ + (a + dd) % NAZ] ?? mag[h * NAZ + (a - dd + NAZ) % NAZ]; if (v != null) { mag[i] = v; break; } } } }
+    // zenit (90°): media della riga 88–90°, uguale in tutte le direzioni
+    const top2 = mag.slice((NB - 2) * NAZ, (NB - 1) * NAZ).filter((v) => v != null), z90 = top2.length ? Math.round(top2.reduce((a, v) => a + v, 0) / top2.length * 100) / 100 : null;
+    for (let a = 0; a < NAZ; a++) mag[(NB - 1) * NAZ + a] = z90;
     const zen = mag.slice((NB - 2) * NAZ).filter((v) => v != null), zenith = zen.reduce((s2, v) => s2 + v, 0) / (zen.length || 1);
     return { alts: Array.from({ length: NB }, (_, i) => Math.min(90, i * 2 + 1)), naz: NAZ, mag, zenith: Math.round(zenith * 100) / 100, top, bottom, kind: det.kind };
   }
@@ -141,6 +148,8 @@ const AllSky = (() => {
     for (const step of [0.05, 0.1, 0.2, 0.25, 0.5, 1]) {
       const s = step / dpx, mag = (y) => zenSqm - (y - yz) * s;
       const err = inner.reduce((e, y) => { const q = mag(y) / step; return e + Math.abs(q - Math.round(q)); }, 0) / inner.length;
+      // le barre di lightpollutionmap coprono l'escursione del luogo: da qualche decimo a 2–3 mag, non di più
+      const range = mag(yt) - mag(yb); if (range < 0.3 || range > 3) continue;
       if (!best || err < best.err) best = { err, step, top: mag(yt), bottom: mag(yb) };
     }
     if (!best || best.err > 0.12) return null;

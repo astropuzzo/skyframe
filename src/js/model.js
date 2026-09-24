@@ -365,8 +365,18 @@ function gridAt(alts, naz, vals, h, az) {
 }
 /* Tre fonti, dalla più precisa: 1) mappa all-sky importata da lightpollutionmap (magnitudini per direzione, terreno
    compreso); 2) forma stimata dall'atlante Lorenz (griglia relativa allo zenit); 3) solo SQM, profilo medio. */
+/* mappe salvate con buchi (valori nulli, per esempio lo zenit delle prime importazioni fisheye): si riempiono dai vicini */
+function cleanSkyMap(m) {
+  if (m.mag.every((v) => Number.isFinite(v) && v > 5)) return m;
+  const nb = m.alts.length, naz = m.naz, mag = m.mag.map((v) => (Number.isFinite(v) && v > 5 ? v : null));
+  for (let a = 0; a < naz; a++) {
+    let last = null; for (let h = nb - 1; h >= 0; h--) { const i = h * naz + a; if (mag[i] == null) mag[i] = last; else last = mag[i]; }
+    last = null; for (let h = 0; h < nb; h++) { const i = h * naz + a; if (mag[i] == null) mag[i] = last; else last = mag[i]; }
+  }
+  const z = m.zenith || 19; return { ...m, mag: mag.map((v) => (v == null ? z : v)) };
+}
 function skyModel(site) {
-  const map = site.skyMap && Array.isArray(site.skyMap.mag) ? site.skyMap : null;
+  const map = site.skyMap && Array.isArray(site.skyMap.mag) && Array.isArray(site.skyMap.alts) ? cleanSkyMap(site.skyMap) : null;
   const rel = !map && site.lpGrid && Array.isArray(site.lpGrid.v) ? site.lpGrid : null;
   const g = !map && !rel && Array.isArray(site.lpAz) && site.lpAz.length === 36 ? site.lpAz : null;
   const sqm = +site.sqm || (map && map.zenith) || BORTLE_SQM[site.bortle] || 19;

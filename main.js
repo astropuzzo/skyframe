@@ -31,10 +31,10 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      offscreen: !!process.env.SKYFRAME_SMOKE, // lo smoke test cattura la pagina senza bisogno di un desktop visibile
+      offscreen: !!(process.env.SKYFRAME_SMOKE || process.env.SKYFRAME_EVAL), // lo smoke test cattura la pagina senza bisogno di un desktop visibile
     },
   });
-  if (process.env.SKYFRAME_SMOKE) { win.setSize(1440, 900); win.webContents.setFrameRate(30); }
+  if (process.env.SKYFRAME_SMOKE || process.env.SKYFRAME_EVAL) { win.setSize(1440, 900); win.webContents.setFrameRate(30); }
 
   // I link esterni (Aladin, Stellarium Web, lightpollutionmap) si aprono nel browser di sistema.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -51,8 +51,19 @@ function createWindow() {
   win.loadFile(path.join(__dirname, 'src', 'index.html'));
   updater.start(win);
   if (process.env.SKYFRAME_SMOKE) smokeTest(win, process.env.SKYFRAME_SMOKE);
+  if (process.env.SKYFRAME_EVAL) evalScript(win, process.env.SKYFRAME_EVAL);
 }
 
+// sviluppo: SKYFRAME_EVAL=script.js esegue lo script nella pagina (async, ritorna un valore), stampa il risultato ed esce
+function evalScript(win, file) {
+  win.webContents.on('console-message', (e) => { if (e.level === 'error' || e.level === 3) console.log('[renderer]', e.message); });
+  win.webContents.once('did-finish-load', async () => {
+    try { await sleep(2500); const code = await fs.readFile(file, 'utf8'); console.log(JSON.stringify(await win.webContents.executeJavaScript(`(async () => { ${code} })()`, true))); }
+    catch (e) { console.error('EVAL FAIL', e.message); process.exitCode = 1; }
+    if (process.env.SKYFRAME_EVAL_SHOT) await fs.writeFile(process.env.SKYFRAME_EVAL_SHOT, (await win.webContents.capturePage()).toPNG());
+    app.quit();
+  });
+}
 // `npm run smoke`: apre un target, aspetta l'anteprima e salva uno screenshot. Serve a verificare le build.
 function smokeTest(win, out) {
   win.webContents.on('console-message', (e) => { if (e.level === 'error' || e.level === 3) console.log('[renderer]', e.message); });
@@ -107,6 +118,12 @@ function smokeTest(win, out) {
       for (let i = 0; i < 60; i++) { await wait(1000); if (await win.webContents.executeJavaScript(`!lpmBusy && !!draft.site.skyMap`)) break; }
       const geo = await win.webContents.executeJavaScript(`document.querySelector('#lpSky').scrollIntoView({block:'center'}); ({ sqm: F('f_sqm').value, quota: F('f_elev').value, atlante: F('lpMsg').textContent, allsky: F('skyMsg').textContent })`);
       await wait(600);
+      // tutte e due le immagini del sito (fisheye e panoramica) devono dare una mappa completa, con scala ricavata da sola
+      geo.letture = await win.webContents.executeJavaScript(`(async () => { const r = await window.cielo.lpmAllSky(41.9109, 12.4764); const out = [];
+        for (const url of r.images) { const det = AllSky.detect(await AllSky.fromDataUrl(url)), sc = AllSky.autoScale(det, r.sqm); if (!sc) { out.push(det.kind + ': scala non trovata'); continue; }
+          const g = AllSky.build(det, sc.top, sc.bottom), bad = g.mag.filter((v) => !(v > 5)).length; out.push(det.kind + ' ' + sc.top + '→' + sc.bottom + ' zenit ' + g.zenith + (bad ? ' BUCHI ' + bad : ' ok')); }
+        return out; })()`);
+      if (geo.letture.some((x) => /BUCHI|non trovata/.test(x))) throw new Error('lettura all-sky: ' + geo.letture.join(' | '));
       await fs.writeFile(out.replace(/\.png$/, '-editor.png'), (await win.webContents.capturePage()).toPNG());
       await win.webContents.executeJavaScript(`document.querySelector('#geoMap').scrollIntoView({block:'center'})`);
       await wait(1500);
