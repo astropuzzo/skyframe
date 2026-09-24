@@ -66,6 +66,7 @@
           <label class="f"><span class="rv"><span>Chiudibile in al massimo</span><b class="num" id="maxNightsV"></b></span><input type="range" id="maxNights" min="1" max="11" step="1"></label>
           <label class="f"><span class="rv"><span>Luminosità superficiale fino a</span><b class="num" id="maxSbV"></b></span><input type="range" id="maxSb" min="19" max="26" step="0.25"></label>
           <label class="f"><span class="lbl">Inquadratura</span><select id="fillSel" class="sel"><option value="any">Qualsiasi</option><option value="fits">Sta nel campo e lo riempie</option><option value="small">Piccoli (da ritagliare)</option><option value="mosaic">Richiedono mosaico</option></select></label>
+          <label class="f" id="cfgF" hidden><span class="lbl">Consigliati con</span><select id="cfgSel" class="sel"></select></label>
           <label class="f"><span class="lbl">Tecnica</span><select id="bandSel" class="sel"><option value="any">Qualsiasi</option><option value="nb">Si fanno in banda stretta</option><option value="bb">Solo banda larga</option></select></label>
           <label class="f"><span class="lbl">Costellazione</span><select id="conSel" class="sel"></select></label>
           <div class="f"><span class="lbl">Altro</span>
@@ -103,17 +104,10 @@
         </div>
       </section>
       <section class="fs">
-        <h3>Ottica e accessori</h3>
-        <div class="grid">
-          <label class="field w2"><span>Telescopio / obiettivo</span><select id="f_opt"></select></label>
-          <label class="field"><span>Apertura (mm)</span><input id="f_ap" type="number" min="10" step="1"></label>
-          <label class="field"><span>Focale nativa (mm)</span><input id="f_fl" type="number" min="10" step="1"></label>
-          <label class="field"><span>Ostruzione (% diametro)</span><input id="f_obs" type="number" min="0" max="60" step="1"></label>
-        </div>
-        <label class="chk" style="margin-top:12px"><input type="checkbox" id="f_native"> Uso anche l’ottica senza accessori</label>
-        <div class="accs" id="accs"></div>
-        <div class="hzbar"><select id="accPreset" class="sel"></select><button class="btn sm" id="accAdd">Aggiungi accessorio</button></div>
-        <p class="hint">Ogni accessorio è una configurazione in più: Skyframe le valuta tutte e per ogni target ti dice quale conviene. Correttori e riduttori sotto 1× accorciano la focale, allargano il campo e rendono il sistema più veloce.</p>
+        <h3>Telescopi e accessori</h3>
+        <div id="optics" class="optics"></div>
+        <button class="btn sm" id="opticAdd" type="button">Aggiungi telescopio</button>
+        <p class="hint">Ogni telescopio ha i suoi correttori e riduttori: a ciascuno si propongono solo quelli che ci vanno (Newton, rifrattore, SCT, RC). Ogni combinazione è una configurazione e Skyframe, per ogni target, ti dice quale conviene fra quelle di questo profilo.</p>
       </section>
       <section class="fs">
         <h3>Filtri che possiedi</h3>

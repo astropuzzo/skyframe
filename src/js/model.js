@@ -134,7 +134,25 @@ const OPTICS = [
   { id: 'lens85', name: 'Obiettivo 85 mm f/1,8 (a f/2,8)', ap: 30.4, fl: 85, obs: 0 },
   { id: 'lens50', name: 'Obiettivo 50 mm (a f/2,8)', ap: 17.9, fl: 50, obs: 0 },
   { id: 'custom', name: 'Personalizzato' }];
-const ACCESSORY_PRESETS = [['Correttore di coma 0,9×', 0.9], ['Correttore di coma GPU 1,0×', 1.0], ['Correttore di coma 0,95×', 0.95], ['Starizona Nexus 0,75× (Newton)', 0.75], ['Baader MPCC Mk III 1,0×', 1.0], ['Tele Vue Paracorr 1,15×', 1.15], ['Riduttore TS 0,79×', 0.79], ['Riduttore/spianatore RC 0,75×', 0.75], ['Starizona Apex 0,65× (SCT)', 0.65], ['Starizona SCT Corrector LF 0,63×', 0.63], ['Spianatore 1,0×', 1.0], ['Riduttore 0,85×', 0.85], ['Riduttore 0,8×', 0.8], ['Riduttore 0,77×', 0.77], ['Riduttore 0,7×', 0.7], ['Riduttore 0,63×', 0.63], ['Extender 1,4×', 1.4], ['Barlow 2×', 2]];
+/* accessori da catalogo: [nome, fattore, ottica su cui si montano] (newton, refr = rifrattore, sct, rc, any = qualsiasi) */
+const ACCESSORY_PRESETS = [
+  ['Correttore di coma 0,9×', 0.9, 'newton'], ['Correttore di coma GPU 1,0×', 1.0, 'newton'], ['Correttore di coma 0,95×', 0.95, 'newton'],
+  ['Starizona Nexus 0,75×', 0.75, 'newton'], ['Baader MPCC Mk III 1,0×', 1.0, 'newton'], ['Tele Vue Paracorr 1,15×', 1.15, 'newton'],
+  ['Spianatore 1,0×', 1.0, 'refr'], ['Riduttore 0,85×', 0.85, 'refr'], ['Riduttore 0,8×', 0.8, 'refr'], ['Riduttore TS 0,79×', 0.79, 'refr'],
+  ['Riduttore 0,77×', 0.77, 'refr'], ['Riduttore 0,7×', 0.7, 'refr'],
+  ['Riduttore/spianatore RC 0,75×', 0.75, 'rc'],
+  ['Riduttore EdgeHD 0,7×', 0.7, 'sct'], ['Riduttore f/6,3 (0,63×)', 0.63, 'sct'], ['Starizona Apex 0,65×', 0.65, 'sct'], ['Starizona SCT Corrector LF 0,63×', 0.63, 'sct'],
+  ['Extender 1,4×', 1.4, 'any'], ['Barlow 2×', 2, 'any']];
+/* famiglia di un'ottica, per proporre solo gli accessori che ci vanno */
+function opticKind(o) {
+  const n = String(o.name || '');
+  if (/Ritchey|\bRC\b/.test(n)) return 'rc';
+  if (/EdgeHD|\bC8\b|\bC9|\bC11|\bC14|SCT|Schmidt/i.test(n)) return 'sct';
+  if (/RASA|Hypergraph|correttore integrato|iperbolico|Epsilon/i.test(n)) return 'fixed';
+  if (/^Obiettivo|Samyang|mm f\/\d.*obiettivo/i.test(n)) return 'lens';
+  return (+o.obs || 0) > 0 ? 'newton' : 'refr';
+}
+const presetsFor = (o) => { const k = opticKind(o); return ACCESSORY_PRESETS.filter((x) => x[2] === 'any' || x[2] === k); };
 const BORTLE_SQM = { 1: 21.95, 2: 21.7, 3: 21.45, 4: 20.8, 5: 20.0, 6: 19.2, 7: 18.6, 8: 18.1, 9: 17.6 };
 const sqmToBortle = (s) => (s >= 21.9 ? 1 : s >= 21.6 ? 2 : s >= 21.3 ? 3 : s >= 20.4 ? 4 : s >= 19.5 ? 5 : s >= 18.9 ? 6 : s >= 18.4 ? 7 : s >= 17.8 ? 8 : 9);
 const QLABEL = { quick: 'rapida', good: 'buona', great: 'eccellente' };
@@ -144,22 +162,25 @@ function templateProfile() {
   return {
     id: 'esempio', unsaved: true, name: 'RedCat 51 + ASI2600MC',
     camera: { preset: 'asi2600mc', name: 'ZWO ASI2600MC Pro', w: 6248, h: 4176, pix: 3.76, type: 'osc', qe: 80, rn: 1.5 }, bin: 1,
-    optic: { preset: 'redcat51', name: 'William Optics RedCat 51', ap: 51, fl: 250, obs: 0 }, useNative: true, accessories: [],
+    optics: [{ id: 'o1', preset: 'redcat51', name: 'William Optics RedCat 51', ap: 51, fl: 250, obs: 0, useNative: true, accessories: [] }],
     filters: { owned: ['uvir', 'lextreme'] },
     site: { name: 'Milano (esempio)', lat: 45.4642, lon: 9.19, bortle: 7, sqm: 18.6, example: true },
     session: { minAlt: 25, sunThr: -18, from: '', to: '', sub: 180, quality: 'good' },
     horizon: [[0, 18], [30, 24], [60, 32], [90, 28], [110, 14], [150, 10], [180, 8], [210, 9], [240, 16], [270, 22], [300, 35], [330, 26]],
   };
 }
-/* profili salvati con la versione precedente (fattore unico in optic.fac) */
+/* profili salvati con le versioni precedenti: fattore unico in optic.fac, poi un'ottica sola con accessori a livello di profilo */
 function migrateProfile(p) {
   if (!p) return p;
-  if (!p.accessories) {
-    const fac = +(p.optic && p.optic.fac) || 1;
-    p.accessories = fac !== 1 ? [{ id: accId(), name: fac < 1 ? `Riduttore ${it(fac, 2)}×` : `Barlow ${it(fac, 1)}×`, fac }] : [];
-    p.useNative = fac === 1;
-    if (p.optic) delete p.optic.fac;
+  if (!Array.isArray(p.optics)) {
+    const o = p.optic || { name: 'Personalizzato', ap: 60, fl: 300, obs: 0 };
+    let acc = p.accessories, nat = p.useNative;
+    if (!acc) { const fac = +o.fac || 1; acc = fac !== 1 ? [{ id: accId(), name: fac < 1 ? `Riduttore ${it(fac, 2)}×` : `Barlow ${it(fac, 1)}×`, fac }] : []; nat = fac === 1; }
+    const { fac, ...clean } = o;
+    p.optics = [{ id: 'o1', ...clean, useNative: nat !== false, accessories: acc }];
+    delete p.optic; delete p.accessories; delete p.useNative;
   }
+  p.optics.forEach((o, i) => { if (!o.id) o.id = 'o' + (i + 1); if (!Array.isArray(o.accessories)) o.accessories = []; });
   if (p.filters && !Array.isArray(p.filters.owned)) { // vecchio formato sì/no → filtri generici
     const f = p.filters, nb = +f.nbw || 7, set = nb <= 3.5 ? 'chr3' : nb <= 5 ? 'chr5' : nb <= 6.5 ? 'bd65' : nb <= 7 ? 'zwo7' : 'ast12';
     const owned = [];
@@ -181,19 +202,25 @@ function setupGeom(cam, optic, fac, bin) {
 }
 const siteKey = (s) => `${(+s.lat).toFixed(2)},${(+s.lon).toFixed(2)}`;
 function shortOptic(o) { return o.name.replace(/^(William Optics|Sky-Watcher|Celestron|Takahashi|Askar|Lacerta|TS-Optics|Explore Scientific|Obiettivo)\s+/, '').replace(/\s*\(.*\)/, ''); }
-/* un profilo produce una configurazione per l'ottica nativa (se usabile) e una per ogni accessorio */
+/* nome compatto di un setup per la lista: "Photonewton 200/800 + CC GPU 1,0×" */
+const abbrAcc = (n) => String(n).replace(/Correttore di coma/i, 'CC').replace(/Riduttore\/spianatore/i, 'rid.').replace(/^Riduttore/i, 'rid.').replace(/^Spianatore/i, 'spian.').replace(/^Starizona\s+/i, '').replace(/Baader\s+/i, '').replace(/Tele Vue\s+/i, '').replace(/\s*\((Newton|SCT)\)/, '');
+const abbrOptic = (o) => shortOptic(o).replace(/\s+(carbon|Pro|Deluxe)\b/gi, '').replace(/\s*tripletto/i, '');
+/* un profilo produce, per ogni telescopio, una configurazione nativa (se usata) e una per ciascuno dei suoi accessori */
 function profileConfigs(p) {
-  const out = [], bin = +p.bin || 1;
-  const opts = [];
-  if (p.useNative !== false || !(p.accessories || []).length) opts.push({ id: 'nat', name: 'nativo', fac: 1 });
-  (p.accessories || []).forEach((a) => opts.push({ id: a.id, name: a.name, fac: +a.fac || 1 }));
-  for (const a of opts) {
-    const g = setupGeom(p.camera, p.optic, a.fac, bin);
-    out.push({
-      key: p.id + ':' + a.id, profileId: p.id, profile: p, acc: a, geom: g, strategies: buildStrategies(p.camera.type, ownedFilters(p)),
-      label: `${shortOptic(p.optic)}${a.id === 'nat' ? '' : ' + ' + a.name}`,
-      short: `${Math.round(g.fEff)} mm f/${it(g.fr, 1)}`,
-    });
+  const out = [], bin = +p.bin || 1, strategies = buildStrategies(p.camera.type, ownedFilters(p));
+  for (const o of p.optics || []) {
+    const opts = [];
+    if (o.useNative !== false || !(o.accessories || []).length) opts.push({ id: 'nat', name: 'nativo', fac: 1 });
+    (o.accessories || []).forEach((a) => opts.push({ id: a.id, name: a.name, fac: +a.fac || 1 }));
+    for (const a of opts) {
+      const g = setupGeom(p.camera, o, a.fac, bin);
+      out.push({
+        key: p.id + ':' + o.id + ':' + a.id, profileId: p.id, profile: p, optic: o, acc: a, geom: g, strategies,
+        label: `${shortOptic(o)}${a.id === 'nat' ? '' : ' + ' + a.name}`,
+        tag: `${abbrOptic(o)}${a.id === 'nat' ? '' : ' + ' + abbrAcc(a.name)}`,
+        short: `${Math.round(g.fEff)} mm f/${it(g.fr, 1)}`,
+      });
+    }
   }
   return out;
 }
@@ -473,7 +500,7 @@ function fillInfo(o, g, field) {
 function configConst(cfg) {
   const p = cfg.profile, g = cfg.geom;
   const qe = (+p.camera.qe || 70) / 100, rn = +p.camera.rn || 2, dark = p.camera.type === 'dslr' ? 0.05 : 0.003;
-  const Dcm = g.D / 10, obs = (+p.optic.obs || 0) / 100, Aeff0 = Math.PI * Dcm * Dcm / 4 * (1 - obs * obs) * 0.85 * qe;
+  const Dcm = g.D / 10, obs = (+cfg.optic.obs || 0) / 100, Aeff0 = Math.PI * Dcm * Dcm / 4 * (1 - obs * obs) * 0.85 * qe;
   const res = Math.max(g.px, 2.0), area = res * res, npix = Math.pow(res / g.px, 2);
   return { Aeff0, geo: Aeff0 * area, npix, rn, dark, fr: g.fr, pxArea: g.px * g.px, haMul: p.camera.type === 'dslr' ? 0.3 : 1 };
 }

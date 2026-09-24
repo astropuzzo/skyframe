@@ -2,14 +2,14 @@
 /* ============================ editor del profilo ============================ */
 let draft = null;
 const F = (id) => document.getElementById(id);
+let OPTIC_OPTIONS = '';
 function fillEditorSelects() {
   F('f_cam').innerHTML = CAMERAS.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
   // ottiche raggruppate per marca (in ordine alfabetico), "Personalizzato" in fondo
   const brandOf = (n) => (n.match(/^(William Optics|Sky-Watcher|Explore Scientific|TS-Optics|TS-Photon|GSO \/ TS|Obiettivo)/) || [n.split(' ')[0]])[0].replace(/^TS-Photon|^GSO \/ TS/, 'TS-Optics');
   const groups = new Map(); OPTICS.filter((c) => c.id !== 'custom').forEach((c) => { const b = brandOf(c.name); if (!groups.has(b)) groups.set(b, []); groups.get(b).push(c); });
-  F('f_opt').innerHTML = [...groups.keys()].sort((a, b) => a.localeCompare(b)).map((b) => `<optgroup label="${esc(b === 'Obiettivo' ? 'Obiettivi fotografici' : b)}">${groups.get(b).map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</optgroup>`).join('') + '<option value="custom">Personalizzato</option>';
+  OPTIC_OPTIONS = [...groups.keys()].sort((a, b) => a.localeCompare(b)).map((b) => `<optgroup label="${esc(b === 'Obiettivo' ? 'Obiettivi fotografici' : b)}">${groups.get(b).map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</optgroup>`).join('') + '<option value="custom">Personalizzato</option>';
   F('f_bortle').innerHTML = Object.keys(BORTLE_SQM).map((b) => `<option value="${b}">${b} · SQM ≈ ${it(BORTLE_SQM[b], 1)}</option>`).join('');
-  F('accPreset').innerHTML = ACCESSORY_PRESETS.map(([n, f], i) => `<option value="${i}">${esc(n)}</option>`).join('') + '<option value="custom">Personalizzato…</option>';
 }
 function bandTxt(f) {
   const C = { Ha: 656.3, OIII: 500.7, SII: 672.4 };
@@ -24,9 +24,62 @@ function renderFilterPick() {
   ok.forEach((f) => { const g = f.kind === 'nb' ? `${f.series}` : f.kind === 'bb' ? (type === 'mono' ? 'Banda larga (L, R, G, B)' : 'Banda larga') : f.kind === 'lp' ? 'Anti-inquinamento a banda larga' : 'Multibanda stretti'; (groups[g] = groups[g] || []).push(f); });
   F('filterPick').innerHTML = Object.entries(groups).map(([g, fs]) => `<div class="fgrp"><span class="lbl">${esc(g)}</span><div class="fpick">${fs.map((f) => `<label class="fbox" title="${esc(f.note || '')}"><input type="checkbox" data-fid="${f.id}" ${owned.has(f.id) ? 'checked' : ''}> ${esc(f.kind === 'nb' ? f.name.split(' ')[0] : fname(f))} <small>${esc(bandTxt(f))}</small>${f.approx ? '<small class="ap">stima</small>' : ''}${f.src ? ` <a href="${esc(f.src)}" target="_blank" rel="noopener" title="Fonte dei dati">↗</a>` : ''}</label>`).join('')}</div></div>`).join('');
 }
-function renderAccs() {
-  const g0 = { ap: +F('f_ap').value || 60, fl: +F('f_fl').value || 300 };
-  F('accs').innerHTML = (draft.accessories || []).map((a, i) => { const fl = g0.fl * (+a.fac || 1); return `<div class="acc"><input data-ai="${i}" data-k="name" value="${esc(a.name)}" aria-label="Nome accessorio"><input data-ai="${i}" data-k="fac" type="number" step="0.01" min="0.3" max="4" value="${a.fac}" aria-label="Fattore"><span class="res">${Math.round(fl)} mm · f/${it(fl / g0.ap, 1)}</span><button class="btn sm ghost" data-del="${i}">Togli</button></div>`; }).join('') || '<p class="hint" style="margin:0">Nessun accessorio: si usa solo l’ottica nativa.</p>';
+/* ---------- telescopi del profilo, ognuno con i suoi accessori ---------- */
+const KIND_LABEL = { newton: 'Newton', refr: 'rifrattore', sct: 'Schmidt-Cassegrain', rc: 'Ritchey-Chrétien', fixed: 'astrografo con correttore integrato', lens: 'obiettivo fotografico' };
+function renderOptics() {
+  const list = draft.optics;
+  F('optics').innerHTML = list.map((o, i) => {
+    const kind = opticKind(o), pres = presetsFor(o);
+    const accs = (o.accessories || []).map((a, j) => { const fl = o.fl * (+a.fac || 1); return `<div class="acc"><input data-k="aname" data-j="${j}" value="${esc(a.name)}" aria-label="Nome accessorio"><input data-k="afac" data-j="${j}" type="number" step="0.01" min="0.3" max="4" value="${a.fac}" aria-label="Fattore"><span class="res">${Math.round(fl)} mm · f/${it(fl / o.ap, 1)}</span><button class="btn sm ghost" data-act="adel" data-j="${j}" type="button">Togli</button></div>`; }).join('');
+    return `<div class="optic" data-oi="${i}">
+      <div class="optic-head"><span class="lbl">Telescopio ${i + 1}</span><span class="kind">${KIND_LABEL[kind]}</span>${list.length > 1 ? '<button class="btn sm ghost" data-act="odel" type="button">Togli telescopio</button>' : ''}</div>
+      <div class="grid">
+        <label class="field w2"><span>Modello</span><select data-k="preset">${OPTIC_OPTIONS}</select></label>
+        <label class="field w2"><span>Nome</span><input data-k="name" value="${esc(o.name)}" maxlength="60"></label>
+        <label class="field"><span>Apertura (mm)</span><input data-k="ap" type="number" min="10" step="1" value="${o.ap}"></label>
+        <label class="field"><span>Focale nativa (mm)</span><input data-k="fl" type="number" min="10" step="1" value="${o.fl}"></label>
+        <label class="field"><span>Ostruzione (% diametro)</span><input data-k="obs" type="number" min="0" max="60" step="1" value="${o.obs || 0}"></label>
+        <div class="field"><span>Nativo</span><div class="res">${Math.round(o.fl)} mm · f/${it(o.fl / o.ap, 1)}</div></div>
+      </div>
+      <label class="chk"><input type="checkbox" data-k="native" ${o.useNative !== false ? 'checked' : ''}> Uso anche questo telescopio senza accessori</label>
+      <div class="accs">${accs || '<p class="hint" style="margin:0">Nessun accessorio: si usa solo l’ottica nativa.</p>'}</div>
+      ${kind === 'fixed' ? '<p class="hint" style="margin:0">Ha già il correttore integrato: niente correttori esterni.</p>' : ''}
+      <div class="hzbar"><select class="sel" data-k="accPreset">${pres.map((x) => `<option value="${ACCESSORY_PRESETS.indexOf(x)}">${esc(x[0])}</option>`).join('')}<option value="custom">Personalizzato…</option></select><button class="btn sm" data-act="aadd" type="button">Aggiungi accessorio</button></div>
+    </div>`;
+  }).join('');
+  list.forEach((o, i) => { const sel = F('optics').querySelector(`.optic[data-oi="${i}"] select[data-k="preset"]`); sel.value = OPTICS.some((c) => c.id === o.preset) ? o.preset : 'custom'; });
+}
+function wireOptics() {
+  const box = F('optics'), at = (e) => { const el = e.target.closest('.optic'); return el ? draft.optics[+el.dataset.oi] : null; };
+  const res = (el, o, fac) => { const r = el.parentElement.querySelector('.res'); const fl = o.fl * fac; if (r) r.textContent = `${Math.round(fl)} mm · f/${it(fl / o.ap, 1)}`; };
+  box.addEventListener('input', (e) => {
+    const o = at(e), k = e.target.dataset.k; if (!o || !k) return;
+    if (k === 'name') o.name = e.target.value;
+    else if (k === 'ap' || k === 'fl' || k === 'obs') { const v = parseFloat(e.target.value); if (isFinite(v)) o[k] = v; o.preset = 'custom'; const sel = e.target.closest('.optic').querySelector('select[data-k="preset"]'); if (sel) sel.value = 'custom'; }
+    else if (k === 'aname') o.accessories[+e.target.dataset.j].name = e.target.value;
+    else if (k === 'afac') { const a = o.accessories[+e.target.dataset.j]; a.fac = parseFloat(e.target.value) || 1; res(e.target, o, a.fac); }
+  });
+  box.addEventListener('change', (e) => {
+    const o = at(e), k = e.target.dataset.k; if (!o || !k) return;
+    if (k === 'preset') {
+      const c = OPTICS.find((x) => x.id === e.target.value); o.preset = e.target.value;
+      if (c && c.id !== 'custom') {
+        Object.assign(o, { name: c.name, ap: c.ap, fl: c.fl, obs: c.obs });
+        // gli accessori del modello precedente probabilmente non ci vanno: si ripartono da quelli del nuovo
+        o.accessories = (c.acc || []).map(([nm, f]) => ({ id: accId(), name: nm, fac: f }));
+      }
+      renderOptics();
+    } else if (k === 'native') o.useNative = e.target.checked;
+    else if (k === 'ap' || k === 'fl' || k === 'obs') renderOptics();
+  });
+  box.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-act]'); if (!b) return; const o = at(e); if (!o) return;
+    if (b.dataset.act === 'odel') { draft.optics = draft.optics.filter((x) => x !== o); renderOptics(); }
+    else if (b.dataset.act === 'adel') { o.accessories.splice(+b.dataset.j, 1); renderOptics(); }
+    else if (b.dataset.act === 'aadd') { const v = b.parentElement.querySelector('select').value; const [nm, f] = v === 'custom' ? ['Accessorio', 1] : ACCESSORY_PRESETS[+v]; o.accessories.push({ id: accId(), name: nm, fac: f }); renderOptics(); }
+    edDirty = true;
+  });
+  F('opticAdd').onclick = () => { draft.optics.push({ id: 'o' + Date.now().toString(36), preset: 'custom', name: 'Nuovo telescopio', ap: 80, fl: 480, obs: 0, useNative: true, accessories: [] }); renderOptics(); edDirty = true; F('optics').lastElementChild.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); };
 }
 function openEditor(id, asNew) {
   const src = id ? state.profiles.find((p) => p.id === id) : null;
@@ -36,14 +89,12 @@ function openEditor(id, asNew) {
   const d = draft;
   F('f_name').value = d.name; F('f_cam').value = CAMERAS.some((c) => c.id === d.camera.preset) ? d.camera.preset : 'custom'; F('f_ctype').value = d.camera.type; F('f_bin').value = String(d.bin || 1);
   F('f_cw').value = d.camera.w; F('f_ch').value = d.camera.h; F('f_pix').value = d.camera.pix; F('f_qe').value = d.camera.qe; F('f_rn').value = d.camera.rn;
-  F('f_opt').value = OPTICS.some((c) => c.id === d.optic.preset) ? d.optic.preset : 'custom'; F('f_ap').value = d.optic.ap; F('f_fl').value = d.optic.fl; F('f_obs').value = d.optic.obs || 0;
-  F('f_native').checked = d.useNative !== false;
   F('f_site').value = d.site.name; F('f_lat').value = d.site.lat; F('f_lon').value = d.site.lon; F('f_bortle').value = String(d.site.bortle || sqmToBortle(d.site.sqm)); F('f_sqm').value = d.site.sqm;
   F('f_minalt').value = d.session.minAlt; F('f_thr').value = String(d.session.sunThr); F('f_from').value = d.session.from || ''; F('f_to').value = d.session.to || ''; F('f_quality').value = d.session.quality || 'good';
   F('delConfirm').hidden = true; F('edDelete').hidden = !!asNew; F('hzPaste').hidden = true; F('hzMsg').textContent = '';
   F('f_elev').value = d.site.elev != null ? d.site.elev : '';
   F('lpBtn').hidden = !(window.cielo && window.cielo.lpLookup);
-  lpStatus(); renderAccs(); renderFilterPick(); drawHz(); drawLpPreview(F('lpSky'), d.site, d.horizon);
+  lpStatus(); renderOptics(); renderFilterPick(); drawHz(); drawLpPreview(F('lpSky'), d.site, d.horizon);
   F('editor').hidden = false;
   initGeoMap();
   // centratura dopo il layout: legge i campi (nel frattempo il punto potrebbe essere già cambiato)
@@ -62,8 +113,8 @@ function readForm() {
   d.name = F('f_name').value.trim() || 'Profilo senza nome';
   d.camera = { preset: F('f_cam').value, name: (CAMERAS.find((c) => c.id === F('f_cam').value) || {}).name || 'Personalizzata', w: n('f_cw') || 4000, h: n('f_ch') || 3000, pix: n('f_pix') || 3.76, type: F('f_ctype').value, qe: n('f_qe') || 70, rn: n('f_rn') || 2 };
   d.bin = +F('f_bin').value || 1;
-  d.optic = { preset: F('f_opt').value, name: (OPTICS.find((c) => c.id === F('f_opt').value) || {}).name || 'Personalizzato', ap: n('f_ap') || 60, fl: n('f_fl') || 300, obs: n('f_obs') || 0 };
-  d.useNative = F('f_native').checked;
+  d.optics = (d.optics || []).map((o) => ({ ...o, name: String(o.name || '').trim() || 'Telescopio', ap: +o.ap > 0 ? +o.ap : 60, fl: +o.fl > 0 ? +o.fl : 300, obs: clamp(+o.obs || 0, 0, 60), accessories: (o.accessories || []).map((a) => ({ ...a, fac: +a.fac > 0 ? +a.fac : 1 })) }));
+  if (!d.optics.length) d.optics = [{ id: 'o1', preset: 'custom', name: 'Telescopio', ap: 80, fl: 480, obs: 0, useNative: true, accessories: [] }];
   const owned = $$('#filterPick input[data-fid]').filter((x) => x.checked).map((x) => x.dataset.fid);
   const type = d.camera.type; d.filters = { owned: owned.filter((id) => { const f = FDB_BY_ID.get(id); return f && (type === 'mono' ? f.for !== 'osc' : f.for !== 'mono'); }) };
   const sqm = n('f_sqm'), lat = n('f_lat'), lon = n('f_lon'), prev = d.site;
@@ -228,12 +279,8 @@ function wireEditor() {
   fillEditorSelects();
   F('f_cam').onchange = () => { const c = CAMERAS.find((x) => x.id === F('f_cam').value); if (c && c.id !== 'custom') { F('f_cw').value = c.w; F('f_ch').value = c.h; F('f_pix').value = c.pix; F('f_ctype').value = c.type; F('f_qe').value = c.qe; F('f_rn').value = c.rn; readForm(); renderFilterPick(); } };
   F('f_ctype').onchange = () => { readForm(); renderFilterPick(); };
-  F('f_opt').onchange = () => { const o = OPTICS.find((x) => x.id === F('f_opt').value); if (o && o.id !== 'custom') { F('f_ap').value = o.ap; F('f_fl').value = o.fl; F('f_obs').value = o.obs; if (o.acc && !(draft.accessories || []).length) draft.accessories = o.acc.map(([nm, f]) => ({ id: accId(), name: nm, fac: f })); } renderAccs(); };
   ['f_cw', 'f_ch', 'f_pix', 'f_qe', 'f_rn'].forEach((id) => F(id).addEventListener('input', () => { F('f_cam').value = 'custom'; }));
-  ['f_ap', 'f_fl'].forEach((id) => F(id).addEventListener('input', () => { F('f_opt').value = 'custom'; renderAccs(); }));
-  F('accs').addEventListener('input', (e) => { const i = e.target.dataset.ai; if (i == null) return; const a = draft.accessories[+i]; if (e.target.dataset.k === 'fac') { a.fac = parseFloat(e.target.value) || 1; const fl = (+F('f_fl').value || 300) * a.fac; e.target.parentElement.querySelector('.res').textContent = `${Math.round(fl)} mm · f/${it(fl / (+F('f_ap').value || 60), 1)}`; } else a.name = e.target.value; });
-  F('accs').addEventListener('click', (e) => { const i = e.target.dataset.del; if (i == null) return; draft.accessories.splice(+i, 1); renderAccs(); });
-  F('accAdd').onclick = () => { const v = F('accPreset').value; const [nm, f] = v === 'custom' ? ['Accessorio', 1] : ACCESSORY_PRESETS[+v]; (draft.accessories = draft.accessories || []).push({ id: accId(), name: nm, fac: f }); renderAccs(); };
+  wireOptics();
   F('f_minalt').addEventListener('input', drawHz);
   F('f_bortle').onchange = () => { F('f_sqm').value = BORTLE_SQM[F('f_bortle').value]; lpRedraw(); };
   F('f_sqm').addEventListener('input', () => { const s = parseFloat(F('f_sqm').value); if (isFinite(s)) F('f_bortle').value = String(sqmToBortle(s)); lpRedraw(); });

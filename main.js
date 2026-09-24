@@ -6,6 +6,13 @@ const { lookup: lpLookup } = require('./lpatlas');
 const updater = require('./updater');
 
 app.setName('Skyframe');
+// prove: SKYFRAME_USERDATA usa una cartella dati separata (profili di prova senza toccare quelli veri)
+if (process.env.SKYFRAME_USERDATA) app.setPath('userData', process.env.SKYFRAME_USERDATA);
+else if (process.env.SKYFRAME_SMOKE) { // lo smoke test lavora su una copia dei profili veri
+  const fsS = require('fs'), src = path.join(app.getPath('userData'), 'profili.json'), dir = path.join(app.getPath('temp'), 'skyframe-smoke');
+  fsS.mkdirSync(dir, { recursive: true }); try { fsS.copyFileSync(src, path.join(dir, 'profili.json')); } catch { /* nessun profilo: si parte dall'esempio */ }
+  app.setPath('userData', dir);
+}
 const dataFile = () => path.join(app.getPath('userData'), 'profili.json');
 /* profili salvati con il nome precedente dell'app */
 async function migrateOldProfiles() {

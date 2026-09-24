@@ -2,7 +2,7 @@
 /* ============================ stato ============================ */
 const F_DEFAULT = { types: [], srcs: [], minUse: 0.25, maxNights: 11, maxSb: 26, fill: 'any', band: 'any', con: '', hideClassic: false, showAll: false };
 const state = {
-  profiles: [], activeId: null, compare: LS.get('sf.compare', true), res: null, cfgs: [], byId: new Map(), filtered: [], page: 60,
+  profiles: [], activeId: null, cfgFilter: '', res: null, cfgs: [], byId: new Map(), filtered: [], page: 60,
   sel: null, selCfg: null, rot: 90, mosaic: true, realSky: LS.get('sf.realSky', true), live: true, playing: false,
   f: Object.assign({}, F_DEFAULT, LS.get('sf.filters', {})), q: '', sort: LS.get('sf.sort', 'score'), computeKey: '', windows: null, nextDarkTxt: '', calKey: '',
 };
@@ -15,15 +15,18 @@ async function copyText(txt) {
 
 /* ============================ archiviazione ============================ */
 const DESK = !!(window.cielo && window.cielo.loadProfiles);
+/* nel file restano anche i campi del formato precedente (primo telescopio): una versione più vecchia, prima di
+   aggiornarsi, legge ancora il profilo invece di scartarlo */
+const withLegacy = (p) => { const o = (p.optics || [])[0]; if (!o) return p; const { id, useNative, accessories, ...optic } = o; return { ...p, optic, useNative, accessories }; };
 function saveStore() {
-  const saved = state.profiles.filter((p) => !p.unsaved);
+  const saved = state.profiles.filter((p) => !p.unsaved).map(withLegacy);
   LS.set('sf.profiles', saved); LS.set('sf.active', state.activeId);
   if (DESK) window.cielo.saveProfiles({ version: 2, active: state.activeId, profiles: saved }).catch(() => toast('Salvataggio su file non riuscito'));
 }
 function persistProfile(p) { p = clone(p); delete p.unsaved; p.updated = Date.now(); const i = state.profiles.findIndex((x) => x.id === p.id); if (i >= 0) state.profiles[i] = p; else state.profiles.push(p); state.profiles = state.profiles.filter((x) => !x.unsaved); saveStore(); return p; }
 function removeProfile(id) { state.profiles = state.profiles.filter((p) => p.id !== id); if (!state.profiles.length) state.profiles = [templateProfile()]; if (!state.profiles.some((p) => p.id === state.activeId)) state.activeId = state.profiles[0].id; saveStore(); }
 function applyStore(data) {
-  const list = (data && Array.isArray(data.profiles) ? data.profiles : []).filter((p) => p && p.camera && p.optic && p.site).map(migrateProfile);
+  const list = (data && Array.isArray(data.profiles) ? data.profiles : []).filter((p) => p && p.camera && (p.optic || p.optics) && p.site).map(migrateProfile);
   state.profiles = list.length ? list : [templateProfile()];
   state.activeId = (data && data.active) || state.profiles[0].id;
   if (!state.profiles.some((p) => p.id === state.activeId)) state.activeId = state.profiles[0].id;
@@ -35,20 +38,21 @@ async function exportProfiles() {
 async function importProfiles() {
   if (!DESK) { toast('L’importazione da file è disponibile nell’app desktop'); return; }
   const data = await window.cielo.importProfiles(); if (!data) return;
-  const list = (data.profiles || []).filter((p) => p && p.camera && p.optic && p.site).map(migrateProfile);
+  const list = (data.profiles || []).filter((p) => p && p.camera && (p.optic || p.optics) && p.site).map(migrateProfile);
   if (!list.length) { toast('Il file non contiene profili validi'); return; }
   list.forEach((p) => { const i = state.profiles.findIndex((x) => x.id === p.id); if (i >= 0) state.profiles[i] = p; else state.profiles.push(p); });
   state.profiles = state.profiles.filter((p) => !p.unsaved); saveStore(); if (typeof closeEditor === 'function') closeEditor(); refresh(true); toast(list.length + ' profili importati');
 }
 
 /* ============================ calcolo ============================ */
-function compareProfiles() { const a = active(); return state.compare ? state.profiles.filter((p) => p.id === a.id || (!p.unsaved && siteKey(p.site) === siteKey(a.site))) : [a]; }
+/* si consiglia solo con il materiale del profilo attivo: le sue ottiche, i loro accessori, la sua camera e i suoi filtri */
 function recompute(force) {
-  const a = active(), ds = $('#nightDate').value || defaultNightStr(), profs = compareProfiles();
-  const key = JSON.stringify(profs) + ds + a.id;
+  const a = active(), ds = $('#nightDate').value || defaultNightStr();
+  const key = JSON.stringify(a) + ds;
   if (!force && key === state.computeKey && state.res) return false;
   state.computeKey = key;
-  state.cfgs = profs.sort((x, y) => (x.id === a.id ? -1 : y.id === a.id ? 1 : 0)).flatMap(profileConfigs);
+  state.cfgs = profileConfigs(a);
+  if (state.cfgFilter && !state.cfgs.some((c) => c.key === state.cfgFilter)) state.cfgFilter = '';
   state.res = computeAll(state.cfgs, a, ds, Date.now());
   state.byId = new Map(state.res.results.map((r) => [r.o.id, r]));
   const ck = siteKey(a.site) + a.session.sunThr + defaultNightStr();
@@ -68,6 +72,7 @@ function applyFilters() {
   if (f.band === 'nb') L = L.filter((r) => LINES[r.o.type]); else if (f.band === 'bb') L = L.filter((r) => !LINES[r.o.type]);
   if (f.fill === 'fits') L = L.filter((r) => r.e.fill.r >= 0.35 && r.e.fill.nx * r.e.fill.ny === 1); else if (f.fill === 'small') L = L.filter((r) => r.e.fill.r < 0.35); else if (f.fill === 'mosaic') L = L.filter((r) => r.e.fill.nx * r.e.fill.ny > 1);
   if (f.maxNights < 11) L = L.filter((r) => r.e.best && r.e.best.nights <= f.maxNights);
+  if (state.cfgFilter) L = L.filter((r) => r.e.cfg.key === state.cfgFilter);
   if (q) L = L.filter((r) => r.o.search.includes(q));
   const hrs = (r) => (r.e.best && isFinite(r.e.best.tonight) ? r.e.best.tonight : 1e9);
   const t = Dome.time;
@@ -78,7 +83,7 @@ function applyFilters() {
   }[state.sort] || ((a, b) => b.score - a.score);
   state.filtered = L.slice().sort(cmp);
   LS.set('sf.filters', state.f);
-  const nAdv = (f.srcs.length ? 1 : 0) + (f.minUse > 0.25 ? 1 : 0) + (f.maxNights < 11 ? 1 : 0) + (f.maxSb < 26 ? 1 : 0) + (f.fill !== 'any') + (f.band !== 'any') + (f.con ? 1 : 0) + (f.hideClassic ? 1 : 0) + (f.showAll ? 1 : 0);
+  const nAdv = (f.srcs.length ? 1 : 0) + (f.minUse > 0.25 ? 1 : 0) + (f.maxNights < 11 ? 1 : 0) + (f.maxSb < 26 ? 1 : 0) + (f.fill !== 'any') + (f.band !== 'any') + (f.con ? 1 : 0) + (f.hideClassic ? 1 : 0) + (f.showAll ? 1 : 0) + (state.cfgFilter ? 1 : 0);
   $('#advCount').hidden = !nAdv; $('#advCount').textContent = nAdv;
 }
 function pushDome() {
@@ -104,9 +109,11 @@ function renderHeader() {
 function renderChips() {
   const f = state.f;
   $('#typeChips').innerHTML = `<button class="chip" data-type="" aria-pressed="${!f.types.length}">Tutti</button>` + Object.keys(TYPES_PL).map((t) => `<button class="chip" data-type="${t}" aria-pressed="${f.types.includes(t)}"><i style="background:${TYPE_COLOR[t]}"></i>${TYPES_PL[t]}</button>`).join('')
-    + (state.cfgs.length > 1 || state.profiles.length > 1 ? `<label class="chk" style="margin-left:auto"><input type="checkbox" id="cmpChk" ${state.compare ? 'checked' : ''}> Confronta i setup dello stesso luogo</label>` : '');
+;
+  // setup del profilo: filtro "consigliato con…"
+  const cs = $('#cfgSel'); $('#cfgF').hidden = state.cfgs.length < 2;
+  cs.innerHTML = '<option value="">Qualsiasi</option>' + state.cfgs.map((c) => `<option value="${esc(c.key)}">${esc(c.label)} · ${c.short}</option>`).join(''); cs.value = state.cfgFilter;
   $('#srcChips').innerHTML = Object.entries(SOURCES).map(([k, l]) => `<button class="chip" data-src="${k}" aria-pressed="${f.srcs.includes(k)}">${l}</button>`).join('');
-  const c = $('#cmpChk'); if (c) c.onchange = (e) => { state.compare = e.target.checked; LS.set('sf.compare', state.compare); refresh(true); };
 }
 function syncAdv() {
   const f = state.f;
@@ -166,11 +173,12 @@ function wire() {
   $('#maxSb').oninput = (e) => { state.f.maxSb = +e.target.value; upd(); };
   $('#fillSel').onchange = (e) => { state.f.fill = e.target.value; upd(); };
   $('#bandSel').onchange = (e) => { state.f.band = e.target.value; upd(); };
+  $('#cfgSel').onchange = (e) => { state.cfgFilter = e.target.value; upd(); };
   $('#conSel').innerHTML = '<option value="">Tutte</option>' + Object.entries(CONST_NAMES).sort((a, b) => a[1].localeCompare(b[1])).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
   $('#conSel').onchange = (e) => { state.f.con = e.target.value; upd(); };
   $('#hideClassic').onchange = (e) => { state.f.hideClassic = e.target.checked; upd(); };
   $('#showAll').onchange = (e) => { state.f.showAll = e.target.checked; upd(); };
-  $('#resetF').onclick = () => { state.f = Object.assign({}, F_DEFAULT); renderChips(); upd(); };
+  $('#resetF').onclick = () => { state.f = Object.assign({}, F_DEFAULT); state.cfgFilter = ''; renderChips(); upd(); };
   $('#advBtn').onclick = () => { const a = $('#adv'); a.hidden = !a.hidden; $('#advBtn').setAttribute('aria-expanded', String(!a.hidden)); };
   $('#sortSel').value = state.sort; $('#sortSel').onchange = (e) => { state.sort = e.target.value; LS.set('sf.sort', state.sort); applyFilters(); renderList(); pushDome(); };
   let qt; $('#q').oninput = (e) => { clearTimeout(qt); qt = setTimeout(() => { state.q = e.target.value; state.page = 60; applyFilters(); renderList(); pushDome(); }, 120); };

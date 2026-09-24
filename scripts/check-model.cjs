@@ -22,15 +22,15 @@ function run(title, p, ids, ds) {
 }
 const base = (sqm) => { const p = M.templateProfile(); p.site = { name: 'test', lat: 41.9, lon: 12.5, bortle: 7, sqm }; p.session.quality = 'good'; return p; };
 const mono = { preset: 'asi2600mm', name: 'ASI2600MM', w: 6248, h: 4176, pix: 3.76, type: 'mono', qe: 87, rn: 1.5 };
-const lens800 = { name: '800 mm f/5', ap: 160, fl: 800, obs: 0 };
+const lens800 = [{ id: 'o1', name: '800 mm f/5', ap: 160, fl: 800, obs: 0, useNative: true, accessories: [] }];
 
-let p = base(19.26); p.optic = lens800; p.filters.owned = ['uvir', 'lextreme', 'triband2', 'lpro'];
+let p = base(19.26); p.optics = lens800; p.filters.owned = ['uvir', 'lextreme', 'triband2', 'lpro'];
 run('OSC 2600MC · 800 mm f/5 · SQM 19,26', p, ['IC 5146', 'Sh2-206', 'M 31', 'NGC 7000', 'M 27', 'NGC 7635', 'M 51', 'LDN 1235']);
-p = base(19.26); p.optic = lens800; p.filters.owned = ['uvir', 'lextreme', 'lsynergy'];
+p = base(19.26); p.optics = lens800; p.filters.owned = ['uvir', 'lextreme', 'lsynergy'];
 run('OSC 2600MC · 800 mm f/5 · SQM 19,26 · L-eXtreme + L-Synergy (rif. reali: WR 134 ≈ 95 h, Cocoon ≈ 100 h)', p, ['WR 134', 'IC 5146', 'NGC 6888', 'Sh2-129']);
 p = base(19.26); p.filters.owned = ['uvir', 'lextreme'];
 run('OSC 2600MC · RedCat 51 · SQM 19,26', p, ['M 31', 'NGC 7000', 'IC 1805', 'Sh2-206', 'M 45']);
 p = base(18.6); p.filters.owned = ['uvir', 'lextreme'];
 run('OSC 2600MC · RedCat 51 · SQM 18,6', p, ['M 31', 'NGC 7000', 'IC 1805']);
-p = base(19.26); p.camera = mono; p.optic = lens800; p.filters.owned = ['L', 'R', 'G', 'B', 'bd65-Ha', 'bd65-OIII', 'bd65-SII'];
+p = base(19.26); p.camera = mono; p.optics = lens800; p.filters.owned = ['L', 'R', 'G', 'B', 'bd65-Ha', 'bd65-OIII', 'bd65-SII'];
 run('Mono 2600MM · 800 mm f/5 · SQM 19,26', p, ['IC 5146', 'NGC 7000', 'M 31', 'M 27']);

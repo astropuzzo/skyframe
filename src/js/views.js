@@ -23,7 +23,7 @@ function renderSetups() {
   top.forEach((r) => wins.set(r.e.cfg.key, wins.get(r.e.cfg.key) + 1));
   const max = Math.max(1, ...wins.values());
   el.hidden = false;
-  el.innerHTML = `<h3 class="lbl">Quale setup stanotte</h3><div class="note" style="margin:-4px 0 8px">Su quanti dei primi ${top.length} target vince ogni configurazione.</div>` + cfgs.map((c) => `<div class="su"><div><div class="n">${esc(c.label)}</div><div class="d">${c.short} · ${fmtDeg(c.geom.W)}×${fmtDeg(c.geom.H)} · ${it(c.geom.px, 2)}″/px${c.profile.id !== state.activeId ? ' · ' + esc(c.profile.name) : ''}</div></div><div class="w">${wins.get(c.key)}</div><div class="bar"><i style="width:${(wins.get(c.key) / max) * 100}%"></i></div></div>`).join('');
+  el.innerHTML = `<h3 class="lbl">Quale setup stanotte</h3><div class="note" style="margin:-4px 0 8px">Su quanti dei primi ${top.length} target vince ogni configurazione.</div>` + cfgs.map((c) => `<div class="su"><div><div class="n">${esc(c.label)}</div><div class="d">${c.short} · ${fmtDeg(c.geom.W)}×${fmtDeg(c.geom.H)} · ${it(c.geom.px, 2)}″/px</div></div><div class="w">${wins.get(c.key)}</div><div class="bar"><i style="width:${(wins.get(c.key) / max) * 100}%"></i></div></div>`).join('');
 }
 /* striscia della notte: crepuscoli, Luna, finestra di ripresa, altezza del target selezionato, cursore */
 function drawStrip() {
@@ -148,7 +148,7 @@ function rowHTML(r, i) {
     const h = isFinite(b.tonight) ? b.tonight : b.ideal, nt = b.nights;
     const ntx = !isFinite(nt) ? '' : nt <= 1 ? '1 notte' : (nt < 10 ? it(nt) : Math.round(nt)) + ' notti';
     const cls = nt <= 1 ? 'n1' : nt <= 3 ? 'n2' : 'n3';
-    plan = `<b>${fmtH(h)}</b>${ntx ? `<span class="nights ${cls}">${ntx}</span>` : ''}${state.cfgs.length > 1 ? `<span class="cfg">${Math.round(e.cfg.geom.fEff)} mm</span>` : ''}<small>${esc(b.label)}${b.deep ? ` · profondo ${fmtH(isFinite(b.tonightDeep) ? b.tonightDeep : b.idealDeep)}` : ''}</small>`;
+    plan = `<b>${fmtH(h)}</b>${ntx ? `<span class="nights ${cls}">${ntx}</span>` : ''}${state.cfgs.length > 1 ? `<span class="rig" title="Setup consigliato: ${esc(e.cfg.label)} · ${e.cfg.short}"><i></i><span>${esc(e.cfg.tag)}</span><em>${e.cfg.short}</em></span>` : ''}<small>${esc(b.label)}${b.deep ? ` · profondo ${fmtH(isFinite(b.tonightDeep) ? b.tonightDeep : b.idealDeep)}` : ''}</small>`;
   }
   const win = r.first >= 0 ? `${fmtT(n.t[r.first])}–${fmtT(n.t[r.last] + DT)}` : '';
   const vis = r.usableH > 0 ? `${fmtDur(r.usableH)} · max ${Math.round(r.maxA)}°<small>${win}</small>` : `<span style="color:var(--ink-3)">non riprendibile</span><small>coperto o sotto ${active().session.minAlt}°</small>`;
