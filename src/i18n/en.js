@@ -14,6 +14,18 @@ window.I18N.en = {
   "Senza mappa importata, SQM e forma del cielo sono stimati dall’<a href=\"https://djlorenz.github.io/astronomy/lp/\" target=\"_blank\" rel=\"noopener\">atlante di David Lorenz</a> (VIIRS 2025) con un modello di cupole di luce tarato su una mappa all-sky reale. Se hai una misura col tuo SQM, scrivila nel campo e prevale.": "Without an imported map, SQM and sky shape are estimated from <a href=\"https://djlorenz.github.io/astronomy/lp/\" target=\"_blank\" rel=\"noopener\">David Lorenz's atlas</a> (VIIRS 2025) with a light-dome model calibrated on a real all-sky map. If you measured with your own SQM, type it in the field and it takes precedence.",
   "Clic o trascina per disegnare l’orizzonte. <b>Shift+clic</b> o clic destro toglie il punto più vicino. Tratteggio = altezza minima.": "Click or drag to draw the horizon. <b>Shift+click</b> or right click removes the nearest point. Dashed line = minimum altitude.",
   "Modifica profilo": "Edit profile",
+  // dettaglio a schede
+  "fino a {d}": "until {d}",
+  "Stanotte libero {w} · max {a}°": "Tonight clear {w} · max {a}°",
+  "Stanotte non si riprende": "Not shootable tonight",
+  "Luna {p}%: stanotte {h}": "Moon {p}%: tonight {h}",
+  "Periodo…": "Season…",
+  "Con la Luna di stanotte ne servirebbero {m}: le notti di ripresa (scheda Quando) tengono conto della Luna notte per notte.": "With tonight’s Moon it would take {m}: the imaging nights (When tab) account for the Moon night by night.",
+  "Mai libero col buio da qui": "Never clear in the dark from here",
+  "È il suo periodo, fino a {d}": "In season, until {d}",
+  "Periodo giusto da {d}": "Best season from {d}",
+  "Apri la scheda Quando": "Open the When tab",
+  "Piano": "Plan",
   // ore senza Luna e con la Luna
   "Ore di posa senza Luna, lungo il percorso del target in questa notte": "Exposure hours without the Moon, along the target’s path on this night",
   "con la Luna di stanotte {h}": "with tonight’s Moon {h}",

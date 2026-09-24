@@ -98,7 +98,7 @@ function smokeTest(win, out) {
       await fs.writeFile(out.replace(/\.png$/, '-update.png'), (await win.webContents.capturePage({ x: 0, y: 0, width: 1440, height: 110 })).toPNG());
       await win.webContents.executeJavaScript(`showUpdate({ state: 'idle' })`);
       const info = await win.webContents.executeJavaScript(
-        `openDetail('M 31'); ({catalogo: CAT.length, calcolati: state.res.results.length, visibili: state.res.results.filter(r=>r.usableH>=0.25).length, configurazioni: state.cfgs.length, file: DESK})`
+        `openDetail('M 31'); setDTab('campo'); ({catalogo: CAT.length, calcolati: state.res.results.length, visibili: state.res.results.filter(r=>r.usableH>=0.25).length, configurazioni: state.cfgs.length, file: DESK})`
       );
       await wait(500);
       await win.webContents.executeJavaScript(`document.querySelector('#fov').scrollIntoView({block:'center'})`);
@@ -112,7 +112,7 @@ function smokeTest(win, out) {
       await fs.writeFile(out, img.toPNG());
       // editor del profilo: luogo reale via mappa, atlante, altitudine
       // periodo giusto di un target fuori stagione e grafici interattivi
-      await win.webContents.executeJavaScript(`(() => { try { closeDetail(); state.byId.has('M 51') ? openDetail('M 51') : openDetail(state.res.results.find((x) => x.usableH < 0.5).o.id); return 1; } catch (e) { return e.stack; } })()`).then((v) => { if (v !== 1) console.log('ERR1', v); });
+      await win.webContents.executeJavaScript(`(() => { try { closeDetail(); state.byId.has('M 51') ? openDetail('M 51') : openDetail(state.res.results.find((x) => x.usableH < 0.5).o.id); setDTab('quando'); return 1; } catch (e) { return e.stack; } })()`).then((v) => { if (v !== 1) console.log('ERR1', v); });
       await wait(1500);
       const period = await win.webContents.executeJavaScript(`(() => { try { document.querySelector('#altBox').scrollIntoView({ block: 'center' }); const b = document.querySelector('#altBox svg').getBoundingClientRect(); document.querySelector('#altBox').dispatchEvent(new PointerEvent('pointermove', { clientX: b.left + b.width * 0.6, clientY: b.top + 40, bubbles: true })); return { periodo: document.querySelector('#period').textContent, tip: (document.querySelector('#altBox .ctip') || {}).textContent }; } catch (e) { return { err: e.stack }; } })()`);
       await wait(400);
