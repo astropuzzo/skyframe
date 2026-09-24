@@ -61,6 +61,13 @@ function smokeTest(win, out) {
     try {
       await wait(2500);
       await fs.writeFile(out.replace(/\.png$/, '-main.png'), (await win.webContents.capturePage()).toPNG());
+      // livello Luci e SQM al passaggio del mouse sulla cupola
+      const domeTip = await win.webContents.executeJavaScript(`(() => { Dome.setLP(true); const c = document.querySelector('#dome'), b = c.getBoundingClientRect(); c.dispatchEvent(new MouseEvent('mousemove', { clientX: b.left + b.width * 0.2, clientY: b.top + b.height * 0.3, bubbles: true })); return document.querySelector('#domeTip').textContent; })()`);
+      await wait(700);
+      await fs.writeFile(out.replace(/[.]png$/, '-lp.png'), (await win.webContents.capturePage()).toPNG());
+      await win.webContents.executeJavaScript(`Dome.setLP(false); document.querySelector('#domeTip').hidden = true`);
+      await wait(300);
+      await fs.writeFile(out.replace(/[.]png$/, '-glow.png'), (await win.webContents.capturePage()).toPNG());
       await win.webContents.executeJavaScript(`document.querySelector('.main').style.scrollBehavior = 'auto'; document.querySelector('.work').scrollIntoView()`);
       await wait(600);
       await fs.writeFile(out.replace(/\.png$/, '-list.png'), (await win.webContents.capturePage()).toPNG());
@@ -104,7 +111,7 @@ function smokeTest(win, out) {
       await win.webContents.executeJavaScript(`document.querySelector('#geoMap').scrollIntoView({block:'center'})`);
       await wait(1500);
       await fs.writeFile(out.replace(/\.png$/, '-map.png'), (await win.webContents.capturePage()).toPNG());
-      console.log(JSON.stringify({ ...info, anteprima: note, geo, guard, period }));
+      console.log(JSON.stringify({ ...info, anteprima: note, geo, guard, period, domeTip }));
     } catch (e) {
       console.error('SMOKE FAIL', e);
       process.exitCode = 1;

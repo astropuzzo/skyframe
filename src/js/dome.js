@@ -6,7 +6,7 @@ const Dome = (() => {
   const ST = SKY.stars.map((s, i) => { const d = s[1] * D2R; const c = bvColor(s[3]); return { ra: s[0], sd: Math.sin(d), cd: Math.cos(d), mag: s[2], rgb: `${c[0]},${c[1]},${c[2]}`, ph: (i * 2.399) % 6.283 }; });
   const MW = SKY.mw; const LINES_ = SKY.lines; const NAMES = SKY.names.filter((n) => n.r <= 2);
   let cv, ctx, tipEl, mw, mwx, S = 600, dpr = 1, R = 280, cx = 300, cy = 300;
-  let data = null, time = Date.now(), hover = null, pick = () => {}, dirty = true, t0 = performance.now(), lastDraw = 0, anim = false, markers = [], lpOn = false, lpCache = null;
+  let data = null, time = Date.now(), hover = null, pick = () => {}, dirty = true, t0 = performance.now(), lastDraw = 0, anim = false, markers = [], lpOn = false, lpCache = null; let glowCache = null;
   const HMAX = 96; // raggio del disco = 96° dallo zenit (6° sotto l'orizzonte)
 
   function init(canvas, tip) {
@@ -49,7 +49,12 @@ const Dome = (() => {
     if (sAlt > -18 && sAlt < 4) { const [sx, sy] = proj(Math.max(sAlt, -5), sAz); const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, R * 1.1); sg.addColorStop(0, `rgba(255,150,80,${0.45 * tw})`); sg.addColorStop(0.35, `rgba(200,110,110,${0.18 * tw})`); sg.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = sg; ctx.fillRect(0, 0, S, S); }
     // inquinamento luminoso: bagliore ambrato che sale dall'orizzonte
     const lp = clamp((21.9 - sqm) / 4.2, 0, 1);
-    if (lp > 0) { const lg = ctx.createRadialGradient(cx, cy, R * 0.25, cx, cy, R); lg.addColorStop(0, 'rgba(0,0,0,0)'); lg.addColorStop(0.7, `rgba(210,150,90,${0.10 * lp})`); lg.addColorStop(1, `rgba(235,165,95,${0.42 * lp})`); ctx.fillStyle = lg; ctx.fillRect(0, 0, S, S); }
+    // con la mappa del luogo il bagliore ha la sua forma vera (dove le luci sono, lì è più forte); senza, un anello uniforme
+    if (lp > 0 && data.sky && data.sky.dir) {
+      const key = `${S}|${dpr}`;
+      if (!glowCache || glowCache.sky !== data.sky || glowCache.key !== key) glowCache = { sky: data.sky, key, cv: lpGlow(data.sky, Math.round(Math.min(900, 2 * R * dpr * HMAX / 90)), 90) };
+      const rr = R * 90 / HMAX; ctx.globalAlpha = 0.35 + 0.65 * lp; ctx.drawImage(glowCache.cv, cx - rr, cy - rr, 2 * rr, 2 * rr); ctx.globalAlpha = 1;
+    } else if (lp > 0) { const lg = ctx.createRadialGradient(cx, cy, R * 0.25, cx, cy, R); lg.addColorStop(0, 'rgba(0,0,0,0)'); lg.addColorStop(0.7, `rgba(210,150,90,${0.10 * lp})`); lg.addColorStop(1, `rgba(235,165,95,${0.42 * lp})`); ctx.fillStyle = lg; ctx.fillRect(0, 0, S, S); }
     // livello "Luci": luminosità del cielo per direzione dal modello del luogo (non dipende dall'ora)
     if (lpOn && data.sky) {
       const key = `${S}|${dpr}`;
@@ -105,6 +110,8 @@ const Dome = (() => {
     ctx.beginPath(); for (let az = 0; az <= 360; az += 2) { const h = Math.max(0, data.lut[az % 360]); const [x, y] = proj(h, az); az ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
     ctx.closePath(); ctx.moveTo(cx + R + 2, cy); ctx.arc(cx, cy, R + 2, 0, Math.PI * 2, true);
     ctx.fillStyle = day > 0.5 ? '#1d2a1f' : '#04060A'; ctx.fill('evenodd');
+    // con "Luci" la mappa continua, attenuata, anche dietro l'orizzonte: si vedono le sorgenti basse come nell'all-sky
+    if (lpOn && lpCache) { ctx.save(); ctx.clip('evenodd'); ctx.globalAlpha = 0.45; const rr = R * 90 / HMAX; ctx.drawImage(lpCache.cv, cx - rr, cy - rr, 2 * rr, 2 * rr); ctx.restore(); }
     ctx.beginPath(); for (let az = 0; az <= 360; az += 2) { const h = Math.max(0, data.lut[az % 360]); const [x, y] = proj(h, az); az ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
     ctx.strokeStyle = `rgba(${lp > 0.3 ? '235,170,100' : '170,190,220'},${0.35 + 0.3 * lp})`; ctx.lineWidth = 1.2; ctx.stroke();
     // altezza minima
@@ -157,9 +164,22 @@ const Dome = (() => {
     let best = null, bd = 1e9; markers.forEach((m) => { const d = Math.hypot(m.x - x, m.y - y); if (d < Math.max(12, m.rad + 4) && d < bd) { bd = d; best = m; } });
     return best;
   }
+  /* punto del cielo sotto il mouse: altezza, azimut e luminosità del fondo cielo in quella direzione */
+  function skyAt(e) {
+    const b = cv.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top, dx = cx - x, dy = cy - y, r = Math.hypot(dx, dy);
+    const alt = 90 - r / R * HMAX; if (alt < 0 || !data.sky) return null;
+    return { x, y, alt, az: (Math.atan2(dx, dy) * R2D + 360) % 360 };
+  }
   function onMove(e) {
     const m = hit(e); if ((m && m.r) !== (hover && hover.r)) dirty = true; hover = m;
-    if (!m) { tipEl.hidden = true; cv.style.cursor = 'crosshair'; return; }
+    if (!m) {
+      cv.style.cursor = 'crosshair';
+      const q = skyAt(e); if (!q) { tipEl.hidden = true; return; }
+      const mag = data.sky.mag(q.alt, q.az), blk = data.lut && q.alt < Math.max(data.lut[Math.round(q.az) % 360], 0);
+      tipEl.hidden = false; tipEl.style.left = q.x + 'px'; tipEl.style.top = (q.y - 6) + 'px';
+      tipEl.innerHTML = `<b>SQM ${it(mag, 2)}</b> mag/″²<small>${Math.round(q.alt)}° ${azName(q.az)} (${Math.round(q.az)}°)${blk ? ' · dietro l’orizzonte' : ''} · senza Luna${data.sky.source === 'allsky' ? ' · all-sky lightpollutionmap' : data.sky.dir ? ' · stima atlante' : ''}</small>`;
+      return;
+    }
     cv.style.cursor = 'pointer';
     const o = m.r.o; tipEl.hidden = false; tipEl.style.left = m.x + 'px'; tipEl.style.top = (m.y - m.rad) + 'px';
     tipEl.innerHTML = `<b>${esc(o.id)}</b>${o.nick ? ' · ' + esc(o.nick) : ''}<small>${Math.round(m.a)}° ${azName(m.z)} · ${m.blocked ? 'coperto' : 'libero'} · punti ${m.r.score}</small>`;

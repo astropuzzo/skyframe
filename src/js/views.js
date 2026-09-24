@@ -89,6 +89,19 @@ function lpImage(sky, size, hmax, lut, rg) {
   }
   return cv;
 }
+/* bagliore delle luci per la cupola: ambra, intensità dalla parte artificiale del fondo cielo in ogni direzione */
+function lpGlow(sky, size, hmax) {
+  const cv = document.createElement('canvas'); cv.width = size; cv.height = size;
+  const c = cv.getContext('2d'), img = c.createImageData(size, size), R = size / 2, d = img.data;
+  let lo = Infinity, hi = 0; for (let h = 0; h <= 90; h += 2) for (let az = 0; az < 360; az += 5) { const v = sky.art(h, az); if (v < lo) lo = v; if (v > hi) hi = v; }
+  const span = Math.max(hi - lo, hi * 0.05);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const dx = R - x, dy = R - y, alt = 90 - Math.hypot(dx, dy) / R * hmax; if (alt < -4) continue;
+    const az = (Math.atan2(dx, dy) * R2D + 360) % 360, t = clamp((sky.art(Math.max(0, alt), az) - lo) / span, 0, 1), k = (y * size + x) * 4;
+    d[k] = 236; d[k + 1] = 160 + Math.round(40 * t); d[k + 2] = 92 + Math.round(50 * t); d[k + 3] = Math.round(255 * (0.03 + 0.5 * Math.pow(t, 1.4)));
+  }
+  c.putImageData(img, 0, 0); return cv;
+}
 function lpLegendHTML(st) {
   const stops = LP_RAMP.map(([t, c]) => `rgb(${c}) ${Math.round(t * 100)}%`).join(',');
   return `<div class="lpleg"><div class="bar" style="background:linear-gradient(90deg,${stops})"></div><div class="ends"><span>${it(st.hi, 2)}</span><span>${it(st.lo, 2)} mag/″²</span></div></div>

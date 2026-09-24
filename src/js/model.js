@@ -384,12 +384,17 @@ function skyModel(site) {
       A[h * NA + k] = v;
     }
   }
-  const hi = (h) => clamp(Math.round(h), 0, 90), ki = (az) => Math.floor(norm360(az) / 5) % NA;
+  const hi = (h) => clamp(Math.round(h), 0, 90);
+  // interpolazione bilineare sulla griglia 1° × 5° (centri dei settori a k·5 + 2,5), con giro completo in azimut
+  const art = (h, az) => {
+    h = clamp(h, 0, 90); const h0 = Math.min(89, Math.floor(h)), th = h - h0, x = norm360(az) / 5 - 0.5, k0 = ((Math.floor(x) % NA) + NA) % NA, k1 = (k0 + 1) % NA, tk = x - Math.floor(x);
+    const r0 = A[h0 * NA + k0] * (1 - tk) + A[h0 * NA + k1] * tk, r1 = A[(h0 + 1) * NA + k0] * (1 - tk) + A[(h0 + 1) * NA + k1] * tk;
+    return r0 * (1 - th) + r1 * th;
+  };
   return {
     sqm, art0, dir: !!(map || rel || g), source: map ? 'allsky' : rel ? 'atlas' : g ? 'atlas-old' : 'sqm',
-    art: (h, az) => A[hi(h) * NA + ki(az)],
-    nat: (h) => Nt[hi(h)],
-    mag: (h, az) => -2.5 * Math.log10(A[hi(h) * NA + ki(az)] + Nt[hi(h)]),
+    art, nat: (h) => Nt[hi(h)],
+    mag: (h, az) => -2.5 * Math.log10(art(h, az) + Nt[hi(h)]),
   };
 }
 
