@@ -5,7 +5,9 @@
    avvisa soltanto, con il link alla pagina della release. Nessun controllo nelle build di sviluppo. */
 const { app, ipcMain, net, shell } = require('electron');
 
-const REPO = 'astropuzzo/skyframe', RELEASES = `https://github.com/${REPO}/releases/latest`, EVERY = 6 * 3600e3;
+const REPO = 'astropuzzo/skyframe', RELEASES = `https://github.com/${REPO}/releases/latest`;
+// primo controllo qualche secondo dopo l'avvio (non rallenta l'apertura), poi ogni 30 minuti e quando torni sulla finestra
+const FIRST = 5000, EVERY = 30 * 60e3, ON_FOCUS = 10 * 60e3;
 const canInstall = () => (process.platform === 'win32' ? !process.env.PORTABLE_EXECUTABLE_DIR : process.platform === 'linux' ? !!process.env.APPIMAGE : false);
 const newer = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
 
@@ -15,8 +17,13 @@ const send = (m) => { last = m; if (win && !win.isDestroyed()) win.webContents.s
 function start(w) {
   win = w;
   w.webContents.on('did-finish-load', () => { if (last.state !== 'idle') send(last); });
-  if (!app.isPackaged || process.env.SKYFRAME_SMOKE) return;
-  if (canInstall()) auto(); else notifyOnly();
+  if (!app.isPackaged || process.env.SKYFRAME_SMOKE || process.env.SKYFRAME_EVAL) return;
+  w.webContents.once('did-finish-load', () => setTimeout(() => {
+    const check = canInstall() ? auto() : notifyOnly();
+    let lastCheck = Date.now(); const run = () => { lastCheck = Date.now(); check(); };
+    setInterval(run, EVERY);
+    w.on('focus', () => { if (Date.now() - lastCheck > ON_FOCUS && last.state !== 'downloading' && last.state !== 'ready') run(); });
+  }, FIRST));
 }
 
 function auto() {
@@ -28,8 +35,9 @@ function auto() {
   autoUpdater.on('update-downloaded', (i) => send({ state: 'ready', version: i.version }));
   autoUpdater.on('error', (e) => { if (last.state === 'downloading') send({ state: 'error', version: last.version, message: String(e && e.message || e), url: RELEASES }); });
   const check = () => autoUpdater.checkForUpdates().catch(() => { /* offline: si riprova più tardi */ });
-  check(); setInterval(check, EVERY);
+  check();
   ipcMain.handle('update:install', () => { setImmediate(() => autoUpdater.quitAndInstall(true, true)); return true; }); // installa in silenzio e riapre
+  return check;
 }
 
 function notifyOnly() {
@@ -41,7 +49,8 @@ function notifyOnly() {
       if (v && newer(v, app.getVersion())) send({ state: 'available', version: v, url: j.html_url || RELEASES });
     } catch { /* offline */ }
   };
-  check(); setInterval(check, EVERY);
+  check();
+  return check;
 }
 
 ipcMain.handle('update:open', () => shell.openExternal(last.url || RELEASES));

@@ -38,6 +38,14 @@ a { color: var(--oiii); }
 .btn[aria-pressed="true"] { border-color: var(--oiii); color: var(--oiii); }
 #nightBtn[aria-pressed="true"] { border-color: var(--ha); color: var(--ha); }
 .sync { font: 500 11px var(--font-m); color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+/* schermata di avvio: solo CSS, visibile finché il primo calcolo non è pronto */
+.boot-screen { position: fixed; inset: 0; z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: radial-gradient(ellipse at 50% 45%, #0B111C, var(--ground) 65%); transition: opacity .45s var(--ease), visibility .45s; }
+.boot-screen.done { opacity: 0; visibility: hidden; }
+.boot-ring { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--line-2); border-top-color: var(--oiii); animation: bootspin 1s linear infinite; }
+.boot-name { font: 700 22px/1 var(--font-d); letter-spacing: .14em; text-transform: uppercase; }
+.boot-name b { color: var(--oiii); }
+.boot-msg { font-size: 12.5px; color: var(--ink-3); }
+@keyframes bootspin { to { transform: rotate(360deg); } }
 .upd { display: flex; align-self: center; align-items: center; gap: 10px; padding: 4px 6px 4px 12px; border: 1px solid rgba(69, 200, 180, .35); border-radius: 999px; background: var(--oiii-dim); font-size: 12.5px; animation: updIn .5s var(--ease); }
 .upd[data-state="error"] { border-color: rgba(227, 176, 74, .4); background: rgba(227, 176, 74, .1); }
 .upd .pbar { width: 90px; height: 4px; border-radius: 2px; background: var(--line-2); overflow: hidden; }

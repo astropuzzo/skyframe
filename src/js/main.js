@@ -193,6 +193,8 @@ async function boot() {
   if (DESK) { try { applyStore(await window.cielo.loadProfiles()); } catch (e) { applyStore(null); } }
   else applyStore({ profiles: LS.get('sf.profiles', []), active: LS.get('sf.active', null) });
   wire(); refresh(true);
+  window.__bootMs = Math.round(performance.now());
+  requestAnimationFrame(() => { const b = $('#bootScreen'); if (b) { b.classList.add('done'); setTimeout(() => b.remove(), 600); } });
 }
 boot();
 

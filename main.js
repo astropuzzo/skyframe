@@ -18,6 +18,8 @@ async function migrateOldProfiles() {
 
 function createWindow() {
   const win = new BrowserWindow({
+    show: false, // si mostra quando la pagina (con la schermata di avvio) è pronta: niente finestra bianca
+    backgroundColor: '#06080D',
     width: 1360,
     height: 900,
     minWidth: 420,
@@ -48,6 +50,7 @@ function createWindow() {
     }
   });
 
+  win.once('ready-to-show', () => win.show());
   win.loadFile(path.join(__dirname, 'src', 'index.html'));
   updater.start(win);
   if (process.env.SKYFRAME_SMOKE) smokeTest(win, process.env.SKYFRAME_SMOKE);
@@ -199,7 +202,7 @@ async function lpmAllSky(lat, lon, year) { // year può essere corretto dal riqu
       return out;
     })()`);
     return { sqm: info.sqm, nelm: /nelm/i.test(info.unit), elev: info.elev, images, year };
-  } finally { w.destroy(); }
+  } finally { const ses = w.webContents.session; w.destroy(); ses.clearCache().catch(() => {}); } // la cache delle tile del sito non serve e non deve accumularsi
 }
 ipcMain.handle('lpm:allsky', async (_e, lat, lon) => {
   // la mappa di un anno esce l'anno dopo: si parte dall'anno scorso (il riquadro del sito conferma quello disponibile)
@@ -295,6 +298,8 @@ app.whenReady().then(async () => {
   });
   if (process.platform !== 'darwin') Menu.setApplicationMenu(null);
   createWindow();
+  // cache delle tile di lightpollutionmap lasciata dalle versioni precedenti: si svuota a app già aperta
+  setTimeout(() => session.fromPartition('persist:lightpollutionmap').clearCache().catch(() => {}), 15000);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

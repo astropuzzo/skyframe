@@ -6,7 +6,7 @@ const Dome = (() => {
   const ST = SKY.stars.map((s, i) => { const d = s[1] * D2R; const c = bvColor(s[3]); return { ra: s[0], sd: Math.sin(d), cd: Math.cos(d), mag: s[2], rgb: `${c[0]},${c[1]},${c[2]}`, ph: (i * 2.399) % 6.283 }; });
   const MW = SKY.mw; const LINES_ = SKY.lines; const NAMES = SKY.names.filter((n) => n.r <= 2);
   let cv, ctx, tipEl, mw, mwx, S = 600, dpr = 1, R = 280, cx = 300, cy = 300;
-  let data = null, time = Date.now(), hover = null, pick = () => {}, dirty = true, t0 = performance.now(), lastDraw = 0, anim = false, markers = [], lpOn = false, lpCache = null; let glowCache = null;
+  let data = null, time = Date.now(), hover = null, pick = () => {}, dirty = true, t0 = performance.now(), lastDraw = 0, anim = false, markers = [], lpOn = false, lpCache = null; let glowCache = null, mwCache = null;
   const HMAX = 96; // raggio del disco = 96° dallo zenit (6° sotto l'orizzonte)
 
   function init(canvas, tip) {
@@ -66,9 +66,16 @@ const Dome = (() => {
     // Via Lattea
     const mwVis = clamp((sqm - 17.6) / 3.8, 0, 1) * (1 - tw) * (1 - moonWash * 0.8) * intro;
     if (mwVis > 0.02 && MW.length) {
-      const k = mw.width / S; mwx.setTransform(1, 0, 0, 1, 0, 0); mwx.clearRect(0, 0, mw.width, mw.height); mwx.globalCompositeOperation = 'lighter';
-      MW.forEach((lvl, li) => { mwx.fillStyle = `rgba(190,200,235,${0.045 + li * 0.012})`; lvl.forEach((poly) => { mwx.beginPath(); poly.forEach((ring) => { ring.forEach(([ra, de], i) => { const [a, z] = altaz(ra, de, lst, sL, cL); const [x, y] = proj(Math.max(a, -40), z); i ? mwx.lineTo(x * k, y * k) : mwx.moveTo(x * k, y * k); }); mwx.closePath(); }); mwx.fill('evenodd'); }); });
-      ctx.save(); ctx.globalAlpha = mwVis; ctx.filter = `blur(${Math.max(2, S / 160)}px)`; ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(mw, 0, 0, S, S); ctx.restore();
+      // la Via Lattea (poligoni + sfocatura) è la parte più cara del disegno: si rifà solo quando il cielo ruota di 0,25°
+      const key = `${Math.round(lst * 4)}|${S}|${dpr}|${data.site.lat}`;
+      if (!mwCache || mwCache.key !== key) {
+        const k = mw.width / S; mwx.setTransform(1, 0, 0, 1, 0, 0); mwx.clearRect(0, 0, mw.width, mw.height); mwx.globalCompositeOperation = 'lighter';
+        MW.forEach((lvl, li) => { mwx.fillStyle = `rgba(190,200,235,${0.045 + li * 0.012})`; lvl.forEach((poly) => { mwx.beginPath(); poly.forEach((ring) => { ring.forEach(([ra, de], i) => { const [a, z] = altaz(ra, de, lst, sL, cL); const [x, y] = proj(Math.max(a, -40), z); i ? mwx.lineTo(x * k, y * k) : mwx.moveTo(x * k, y * k); }); mwx.closePath(); }); mwx.fill('evenodd'); }); });
+        const cv2 = (mwCache && mwCache.cv) || document.createElement('canvas'); cv2.width = Math.round(S * dpr); cv2.height = Math.round(S * dpr);
+        const c2 = cv2.getContext('2d'); c2.clearRect(0, 0, cv2.width, cv2.height); c2.filter = `blur(${Math.max(2, S / 160) * dpr}px)`; c2.drawImage(mw, 0, 0, cv2.width, cv2.height);
+        mwCache = { key, cv: cv2 };
+      }
+      ctx.save(); ctx.globalAlpha = mwVis; ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(mwCache.cv, 0, 0, S, S); ctx.restore();
     }
     // linee delle costellazioni
     ctx.strokeStyle = `rgba(120,150,205,${0.16 * intro * (1 - day)})`; ctx.lineWidth = 1;
