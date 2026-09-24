@@ -104,6 +104,12 @@ const OPTICS = [
   { id: 'tsrc8', name: 'TS-Optics Ritchey-Chrétien 8" f/8', ap: 203, fl: 1624, obs: 45, acc: [['Riduttore/spianatore RC 0,75×', 0.75]] },
   { id: 'tsrc10', name: 'TS-Optics Ritchey-Chrétien 10" f/8', ap: 254, fl: 2000, obs: 45, acc: [['Riduttore/spianatore RC 0,75×', 0.75]] },
   { id: 'tsrc12', name: 'TS-Optics Ritchey-Chrétien 12" f/8', ap: 304, fl: 2432, obs: 45, acc: [['Riduttore/spianatore RC 0,75×', 0.75]] },
+  // quadrupletti TS (campo spianato già nel tubo)
+  { id: 'ts60q', name: 'TS-Optics 60 mm f/5 quadrupletto', ap: 60, fl: 300, obs: 0 },
+  { id: 'ts70q', name: 'TS-Optics 70 mm f/5 quadrupletto', ap: 70, fl: 350, obs: 0 },
+  { id: 'ts71sdq', name: 'TS-Optics 71 mm f/6,3 SDQ quadrupletto', ap: 71, fl: 450, obs: 0 },
+  { id: 'ts65q', name: 'TS-Optics Imaging Star 65 mm f/6,5 quadrupletto', ap: 65, fl: 420, obs: 0 },
+  { id: 'ts100q', name: 'TS-Optics Imaging Star 100 mm f/5,8 quadrupletto', ap: 100, fl: 580, obs: 0 },
   { id: 'tspl60', name: 'TS-Optics Photoline 60 mm f/6', ap: 60, fl: 360, obs: 0, acc: [['Spianatore 1,0×', 1.0]] },
   { id: 'tspl72', name: 'TS-Optics Photoline 72 mm f/6', ap: 72, fl: 432, obs: 0, acc: [['Riduttore TS 0,79×', 0.79]] },
   { id: 'tspl80', name: 'TS-Optics Photoline 80 mm f/6 tripletto', ap: 80, fl: 480, obs: 0, acc: [['Riduttore TS 0,8×', 0.8]] },
