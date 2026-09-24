@@ -4,7 +4,10 @@ let draft = null;
 const F = (id) => document.getElementById(id);
 function fillEditorSelects() {
   F('f_cam').innerHTML = CAMERAS.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
-  F('f_opt').innerHTML = OPTICS.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  // ottiche raggruppate per marca (in ordine alfabetico), "Personalizzato" in fondo
+  const brandOf = (n) => (n.match(/^(William Optics|Sky-Watcher|Explore Scientific|TS-Optics|TS-Photon|GSO \/ TS|Obiettivo)/) || [n.split(' ')[0]])[0].replace(/^TS-Photon|^GSO \/ TS/, 'TS-Optics');
+  const groups = new Map(); OPTICS.filter((c) => c.id !== 'custom').forEach((c) => { const b = brandOf(c.name); if (!groups.has(b)) groups.set(b, []); groups.get(b).push(c); });
+  F('f_opt').innerHTML = [...groups.keys()].sort((a, b) => a.localeCompare(b)).map((b) => `<optgroup label="${esc(b === 'Obiettivo' ? 'Obiettivi fotografici' : b)}">${groups.get(b).map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</optgroup>`).join('') + '<option value="custom">Personalizzato</option>';
   F('f_bortle').innerHTML = Object.keys(BORTLE_SQM).map((b) => `<option value="${b}">${b} · SQM ≈ ${it(BORTLE_SQM[b], 1)}</option>`).join('');
   F('accPreset').innerHTML = ACCESSORY_PRESETS.map(([n, f], i) => `<option value="${i}">${esc(n)}</option>`).join('') + '<option value="custom">Personalizzato…</option>';
 }

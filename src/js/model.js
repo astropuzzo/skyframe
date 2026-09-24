@@ -70,8 +70,52 @@ const OPTICS = [
   { id: 'quattro150', name: 'Sky-Watcher Quattro 150P', ap: 150, fl: 600, obs: 42, acc: [['Correttore di coma 0,9×', 0.9]] },
   { id: 'quattro250', name: 'Sky-Watcher Quattro 250P', ap: 254, fl: 1000, obs: 32, acc: [['Correttore di coma 0,9×', 0.9]] },
   { id: 'quattro300', name: 'Sky-Watcher Quattro 300P', ap: 305, fl: 1200, obs: 33, acc: [['Correttore di coma 0,9×', 0.9]] },
-  { id: 'tsontc8', name: 'TS-Optics ONTC 8" f/4', ap: 200, fl: 800, obs: 35, acc: [['Correttore di coma 0,95×', 0.95]] },
   { id: 'gso8f4', name: 'GSO / TS Photon 8" f/4', ap: 200, fl: 800, obs: 35, acc: [['Correttore di coma 0,9×', 0.9]] },
+  { id: 'tsontc6f4', name: 'TS-Optics ONTC/UNC 6" f/4', ap: 150, fl: 600, obs: 35, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
+  { id: 'tsontc6f5', name: 'TS-Optics ONTC/UNC 6" f/5', ap: 150, fl: 750, obs: 30, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
+  { id: 'tsontc8', name: 'TS-Optics ONTC/UNC 8" f/4', ap: 203, fl: 812, obs: 35, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
+  { id: 'tsontc8f45', name: 'TS-Optics ONTC/UNC 8" f/4,5', ap: 203, fl: 914, obs: 32, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
+  { id: 'tsontc8f5', name: 'TS-Optics ONTC/UNC 8" f/5', ap: 203, fl: 1015, obs: 30, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
+  { id: 'tsontc8f6', name: 'TS-Optics ONTC/UNC 8" f/6', ap: 203, fl: 1218, obs: 25, acc: [['Correttore di coma GPU 1,0×', 1.0]] },
+  { id: 'tsontc10f4', name: 'TS-Optics ONTC/UNC 10" f/4', ap: 254, fl: 1016, obs: 35, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
+  { id: 'tsontc10f47', name: 'TS-Optics ONTC/UNC 10" f/4,7', ap: 254, fl: 1194, obs: 32, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
+  { id: 'tsontc10f5', name: 'TS-Optics ONTC/UNC 10" f/5 (UNC)', ap: 254, fl: 1270, obs: 30, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
+  { id: 'tsontc10f64', name: 'TS-Optics ONTC/UNC 10" f/6,4', ap: 254, fl: 1626, obs: 25, acc: [['Correttore di coma GPU 1,0×', 1.0]] },
+  { id: 'tsontc12f4', name: 'TS-Optics ONTC/UNC 12" f/4', ap: 305, fl: 1220, obs: 35, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
+  { id: 'tsontc12f5', name: 'TS-Optics ONTC/UNC 12" f/5', ap: 305, fl: 1525, obs: 30, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
+  { id: 'tsontc12f53', name: 'TS-Optics ONTC/UNC 12" f/5,3', ap: 305, fl: 1616, obs: 30, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
+  { id: 'tsontc14', name: 'TS-Optics ONTC/UNC 14" f/4,6', ap: 355, fl: 1633, obs: 32, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
+  { id: 'tshg8', name: 'TS-Optics Hypergraph 8" f/3,4 (correttore integrato)', ap: 203, fl: 690, obs: 43 },
+  { id: 'tshg10', name: 'TS-Optics Hypergraph 10" f/3,4 (correttore integrato)', ap: 254, fl: 864, obs: 40 },
+  { id: 'tshg12', name: 'TS-Optics Hypergraph 12" f/3,4 (correttore integrato)', ap: 305, fl: 1037, obs: 37 },
+  { id: 'tsag8', name: 'TS-Optics Astrograph 8" f/4,56 (correttore integrato)', ap: 203, fl: 926, obs: 30 },
+  { id: 'tsag10', name: 'TS-Optics Astrograph 10" f/4,56 (correttore integrato)', ap: 254, fl: 1158, obs: 30 },
+  { id: 'tsag12', name: 'TS-Optics Astrograph 12" f/4,56 (correttore integrato)', ap: 305, fl: 1391, obs: 30 },
+  { id: 'tsag14', name: 'TS-Optics Astrograph 14" f/5,13 (correttore integrato)', ap: 355, fl: 1821, obs: 30 },
+  { id: 'tsag16', name: 'TS-Optics Astrograph 16" f/5,13 (correttore integrato)', ap: 406, fl: 2083, obs: 30 },
+  { id: 'tsag8f38', name: 'TS-Optics Astrograph 8" f/3,8', ap: 203, fl: 760, obs: 38, acc: [['Correttore/riduttore 0,95×', 0.95]] },
+  { id: 'tsphoton6', name: 'TS-Photon 6" f/4', ap: 150, fl: 600, obs: 35, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
+  { id: 'gso8f4', name: 'TS-Photon 8" f/4', ap: 200, fl: 800, obs: 35, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
+  { id: 'tsphoton10f4', name: 'TS-Photon 10" f/4', ap: 254, fl: 1016, obs: 35, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
+  { id: 'tsphoton10f5', name: 'TS-Photon 10" f/5', ap: 254, fl: 1270, obs: 30, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
+  { id: 'tshnt130', name: 'TS-Optics 130 mm f/2,8 iperbolico (correttore integrato)', ap: 130, fl: 364, obs: 48 },
+  { id: 'tshnt150', name: 'TS-Optics 150 mm f/2,8 iperbolico (correttore integrato)', ap: 150, fl: 420, obs: 47 },
+  { id: 'tsrc6', name: 'TS-Optics Ritchey-Chrétien 6" f/9', ap: 154, fl: 1370, obs: 47, acc: [['Riduttore/spianatore RC 0,75×', 0.75]] },
+  { id: 'tsrc8', name: 'TS-Optics Ritchey-Chrétien 8" f/8', ap: 203, fl: 1624, obs: 45, acc: [['Riduttore/spianatore RC 0,75×', 0.75]] },
+  { id: 'tsrc10', name: 'TS-Optics Ritchey-Chrétien 10" f/8', ap: 254, fl: 2000, obs: 45, acc: [['Riduttore/spianatore RC 0,75×', 0.75]] },
+  { id: 'tsrc12', name: 'TS-Optics Ritchey-Chrétien 12" f/8', ap: 304, fl: 2432, obs: 45, acc: [['Riduttore/spianatore RC 0,75×', 0.75]] },
+  { id: 'tspl60', name: 'TS-Optics Photoline 60 mm f/6', ap: 60, fl: 360, obs: 0, acc: [['Spianatore 1,0×', 1.0]] },
+  { id: 'tspl72', name: 'TS-Optics Photoline 72 mm f/6', ap: 72, fl: 432, obs: 0, acc: [['Riduttore TS 0,79×', 0.79]] },
+  { id: 'tspl80', name: 'TS-Optics Photoline 80 mm f/6 tripletto', ap: 80, fl: 480, obs: 0, acc: [['Riduttore TS 0,8×', 0.8]] },
+  { id: 'tspl90', name: 'TS-Optics Photoline 90 mm f/6,7', ap: 90, fl: 600, obs: 0, acc: [['Riduttore TS 0,79×', 0.79]] },
+  { id: 'tspl102', name: 'TS-Optics Photoline 102 mm f/7', ap: 102, fl: 714, obs: 0, acc: [['Riduttore TS 0,79×', 0.79]] },
+  { id: 'tspl107', name: 'TS-Optics Photoline 107 mm f/6,5 tripletto', ap: 107, fl: 700, obs: 0, acc: [['Riduttore TS 0,79×', 0.79]] },
+  { id: 'tspl115', name: 'TS-Optics Photoline 115 mm f/7 tripletto', ap: 115, fl: 800, obs: 0, acc: [['Riduttore TS 0,79×', 0.79]] },
+  { id: 'tscf130', name: 'TS-Optics CF-APO 130 mm f/7 tripletto', ap: 130, fl: 910, obs: 0, acc: [['Riduttore TS 0,79×', 0.79]] },
+  { id: 'tspl140', name: 'TS-Optics Photoline 140 mm f/6,5 tripletto', ap: 140, fl: 910, obs: 0, acc: [['Riduttore TS 0,79×', 0.79]] },
+  { id: 'tspl155', name: 'TS-Optics Photoline 155 mm f/8 tripletto', ap: 155, fl: 1240, obs: 0, acc: [['Riduttore TS 0,79×', 0.79]] },
+  { id: 'ts110ff', name: 'TS-Optics 110 mm f/4,8 Flatfield APO', ap: 110, fl: 528, obs: 0 },
+  { id: 'ts152ed', name: 'TS-Optics 152 mm f/5 ED rich field', ap: 152, fl: 760, obs: 0 },
   { id: 'eps130', name: 'Takahashi Epsilon-130D', ap: 130, fl: 430, obs: 48 },
   { id: 'eps160', name: 'Takahashi Epsilon-160ED', ap: 160, fl: 530, obs: 44 },
   { id: 'fsq85', name: 'Takahashi FSQ-85EDP', ap: 85, fl: 450, obs: 0, acc: [['Riduttore 0,73×', 0.73]] },
@@ -90,7 +134,7 @@ const OPTICS = [
   { id: 'lens85', name: 'Obiettivo 85 mm f/1,8 (a f/2,8)', ap: 30.4, fl: 85, obs: 0 },
   { id: 'lens50', name: 'Obiettivo 50 mm (a f/2,8)', ap: 17.9, fl: 50, obs: 0 },
   { id: 'custom', name: 'Personalizzato' }];
-const ACCESSORY_PRESETS = [['Correttore di coma 0,9×', 0.9], ['Correttore di coma GPU 1,0×', 1.0], ['Correttore di coma 0,95×', 0.95], ['Spianatore 1,0×', 1.0], ['Riduttore 0,85×', 0.85], ['Riduttore 0,8×', 0.8], ['Riduttore 0,77×', 0.77], ['Riduttore 0,7×', 0.7], ['Riduttore 0,63×', 0.63], ['Extender 1,4×', 1.4], ['Barlow 2×', 2]];
+const ACCESSORY_PRESETS = [['Correttore di coma 0,9×', 0.9], ['Correttore di coma GPU 1,0×', 1.0], ['Correttore di coma 0,95×', 0.95], ['Starizona Nexus 0,75× (Newton)', 0.75], ['Baader MPCC Mk III 1,0×', 1.0], ['Tele Vue Paracorr 1,15×', 1.15], ['Riduttore TS 0,79×', 0.79], ['Riduttore/spianatore RC 0,75×', 0.75], ['Starizona Apex 0,65× (SCT)', 0.65], ['Starizona SCT Corrector LF 0,63×', 0.63], ['Spianatore 1,0×', 1.0], ['Riduttore 0,85×', 0.85], ['Riduttore 0,8×', 0.8], ['Riduttore 0,77×', 0.77], ['Riduttore 0,7×', 0.7], ['Riduttore 0,63×', 0.63], ['Extender 1,4×', 1.4], ['Barlow 2×', 2]];
 const BORTLE_SQM = { 1: 21.95, 2: 21.7, 3: 21.45, 4: 20.8, 5: 20.0, 6: 19.2, 7: 18.6, 8: 18.1, 9: 17.6 };
 const sqmToBortle = (s) => (s >= 21.9 ? 1 : s >= 21.6 ? 2 : s >= 21.3 ? 3 : s >= 20.4 ? 4 : s >= 19.5 ? 5 : s >= 18.9 ? 6 : s >= 18.4 ? 7 : s >= 17.8 ? 8 : 9);
 const QLABEL = { quick: 'rapida', good: 'buona', great: 'eccellente' };
@@ -624,22 +668,44 @@ function darkWindows(cal) { // notti consecutive in cui la Luna pesa poco
   cal.forEach((n) => { const good = n.moon < 0.12 && n.darkH > 0.5; if (good) { if (!cur) cur = { from: n.t0, to: n.t0, n: 0 }; cur.to = n.t0; cur.n++; } else if (cur) { w.push(cur); cur = null; } });
   if (cur) w.push(cur); return w;
 }
-/* ore utili (buio, sopra altezza minima e orizzonte, senza Luna) per il 15 di ogni mese dei prossimi 12 */
+/* ore utili (buio, sopra altezza minima e orizzonte, senza Luna) nella notte che inizia a mezzogiorno t0 */
+function nightHoursFor(o, p, lut, t0) {
+  const lat = p.site.lat * D2R, sL = Math.sin(lat), cL = Math.cos(lat), lon = +p.site.lon, thr = +p.session.sunThr, minAlt = +p.session.minAlt || 0;
+  const pr = precess(o.ra, o.dec, jd(t0)); let h = 0;
+  for (let i = 0; i <= 144; i++) {
+    const ms = t0 + i * 600000, J = jd(ms), lst = lstDeg(ms, lon), s = sunPos(J);
+    if (altaz(s.ra, s.dec, lst, sL, cL)[0] >= thr) continue;
+    const [a, z] = altaz(pr.ra, pr.dec, lst, sL, cL);
+    if (a >= Math.max(minAlt, lut[Math.round(z) % 360])) h += 1 / 6;
+  }
+  return h;
+}
+/* per il 15 di ogni mese dei prossimi 12 */
 function seasonality(o, p, lut) {
   const now = new Date(), res = [];
-  const lat = p.site.lat * D2R, sL = Math.sin(lat), cL = Math.cos(lat), lon = +p.site.lon, thr = +p.session.sunThr, minAlt = +p.session.minAlt || 0;
   for (let k = 0; k < 12; k++) {
-    const t0 = new Date(now.getFullYear(), now.getMonth() + k, 15, 12, 0, 0).getTime(); let h = 0;
-    const pr = precess(o.ra, o.dec, jd(t0));
-    for (let i = 0; i <= 144; i++) {
-      const ms = t0 + i * 600000, J = jd(ms), lst = lstDeg(ms, lon), s = sunPos(J);
-      if (altaz(s.ra, s.dec, lst, sL, cL)[0] >= thr) continue;
-      const [a, z] = altaz(pr.ra, pr.dec, lst, sL, cL);
-      if (a >= Math.max(minAlt, lut[Math.round(z) % 360])) h += 1 / 6;
-    }
-    res.push({ t0, h, label: new Date(t0).toLocaleDateString('it-IT', { month: 'short' }) });
+    const d = new Date(now.getFullYear(), now.getMonth() + k, 15, 12, 0, 0), t0 = d.getTime();
+    res.push({ t0, y: d.getFullYear(), m: d.getMonth(), h: nightHoursFor(o, p, lut, t0), label: d.toLocaleDateString('it-IT', { month: 'short' }) });
   }
   return res;
+}
+/* Periodo giusto di un target: le notti (campionate ogni 3 giorni per un anno) con almeno il 75% delle ore massime.
+   Restituisce il primo periodo da oggi in avanti (o quello in corso) e la prima notte senza Luna al suo interno. */
+function bestPeriod(o, p, lut, fromDs) {
+  const [y, m, d] = fromDs.split('-').map(Number), pts = [];
+  for (let k = 0; k <= 366; k += 3) { const t0 = new Date(y, m - 1, d + k, 12, 0, 0).getTime(); pts.push({ t0, k, h: nightHoursFor(o, p, lut, t0) }); }
+  const max = Math.max(...pts.map((x) => x.h)), now = pts[0].h;
+  if (max < 0.5) return { max, now, none: true };
+  const thr = Math.max(0.5, 0.75 * max);
+  let i = pts.findIndex((x) => x.h >= thr); const inNow = i === 0;
+  let j = i; while (j + 1 < pts.length && pts[j + 1].h >= thr) j++;
+  // dentro il periodo in corso si guarda anche fino a quando dura; se inizia fra poco si affina al giorno
+  let fromT = pts[i].t0;
+  if (!inNow) for (let k = pts[i].k - 2; k < pts[i].k; k++) { const t0 = new Date(y, m - 1, d + k, 12, 0, 0).getTime(); if (nightHoursFor(o, p, lut, t0) >= thr) { fromT = t0; break; } }
+  const toT = pts[j].t0, peak = pts.slice(i, j + 1).reduce((a, x) => (x.h > a.h ? x : a), pts[i]);
+  const cal = moonCalendar(p, dateStr(new Date(fromT)), Math.min(45, Math.round((toT - fromT) / 864e5) + 1));
+  const dark = cal.find((n) => n.moon < 0.03 && n.darkH > 0.5); // Luna assente o quasi (sotto l'orizzonte o sottile)
+  return { max, now, inNow, thr, from: fromT, to: toT, peak: peak.t0, peakH: peak.h, dark: dark ? dark.t0 : null, darkH: dark ? nightHoursFor(o, p, lut, dark.t0) : 0 };
 }
 const NICE_SUBS = [10, 15, 20, 30, 45, 60, 90, 120, 180, 240, 300, 420, 600, 900];
 const niceSub = (s) => NICE_SUBS.reduce((b, v) => (Math.abs(Math.log(v / s)) < Math.abs(Math.log(b / s)) ? v : b), 180);

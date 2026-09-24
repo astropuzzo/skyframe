@@ -55,6 +55,7 @@ function createWindow() {
 
 // `npm run smoke`: apre un target, aspetta l'anteprima e salva uno screenshot. Serve a verificare le build.
 function smokeTest(win, out) {
+  win.webContents.on('console-message', (e) => { if (e.level === 'error' || e.level === 3) console.log('[renderer]', e.message); });
   win.webContents.once('did-finish-load', async () => {
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     try {
@@ -82,6 +83,15 @@ function smokeTest(win, out) {
       const img = await win.webContents.capturePage();
       await fs.writeFile(out, img.toPNG());
       // editor del profilo: luogo reale via mappa, atlante, altitudine
+      // periodo giusto di un target fuori stagione e grafici interattivi
+      await win.webContents.executeJavaScript(`(() => { try { closeDetail(); state.byId.has('M 51') ? openDetail('M 51') : openDetail(state.res.results.find((x) => x.usableH < 0.5).o.id); return 1; } catch (e) { return e.stack; } })()`).then((v) => { if (v !== 1) console.log('ERR1', v); });
+      await wait(1500);
+      const period = await win.webContents.executeJavaScript(`(() => { try { document.querySelector('#altBox').scrollIntoView({ block: 'center' }); const b = document.querySelector('#altBox svg').getBoundingClientRect(); document.querySelector('#altBox').dispatchEvent(new PointerEvent('pointermove', { clientX: b.left + b.width * 0.6, clientY: b.top + 40, bubbles: true })); return { periodo: document.querySelector('#period').textContent, tip: (document.querySelector('#altBox .ctip') || {}).textContent }; } catch (e) { return { err: e.stack }; } })()`);
+      await wait(400);
+      await fs.writeFile(out.replace(/\.png$/, '-period.png'), (await win.webContents.capturePage()).toPNG());
+      await win.webContents.executeJavaScript(`document.querySelector('#period').scrollIntoView({ block: 'center' })`);
+      await wait(300);
+      await fs.writeFile(out.replace(/\.png$/, '-period2.png'), (await win.webContents.capturePage()).toPNG());
       // un clic fuori dal pannello e "Chiudi" con modifiche non devono perdere il profilo
       const guard = await win.webContents.executeJavaScript(`closeDetail(); openEditor(state.activeId); F('f_name').value = 'prova'; F('f_name').dispatchEvent(new Event('input', { bubbles: true })); F('editor').click(); F('edClose').click(); const r = { aperto: !F('editor').hidden, conferma: !F('leaveConfirm').hidden, lacerta: OPTICS.some((o) => o.id === 'lacerta2008') }; F('leaveYes').click(); r`);
       if (!guard.aperto || !guard.conferma) throw new Error('editor chiuso senza conferma ' + JSON.stringify(guard));
@@ -94,7 +104,7 @@ function smokeTest(win, out) {
       await win.webContents.executeJavaScript(`document.querySelector('#geoMap').scrollIntoView({block:'center'})`);
       await wait(1500);
       await fs.writeFile(out.replace(/\.png$/, '-map.png'), (await win.webContents.capturePage()).toPNG());
-      console.log(JSON.stringify({ ...info, anteprima: note, geo, guard }));
+      console.log(JSON.stringify({ ...info, anteprima: note, geo, guard, period }));
     } catch (e) {
       console.error('SMOKE FAIL', e);
       process.exitCode = 1;

@@ -125,7 +125,7 @@ function initTime() {
 }
 let lastCells = 0;
 function onTime() {
-  renderClock(); drawStrip();
+  renderClock(); drawStrip(); updateNightCharts();
   const now = performance.now(); if (now - lastCells > 350) { lastCells = now; refreshNowCells(); }
 }
 function setLive() {
