@@ -78,14 +78,14 @@ export const CLASSIC = new Set([
 
 // Note di ripresa: concrete, verificabili, niente frasi da brochure.
 export const TIPS = {
-  'M 31': ['Il nucleo satura molto prima dei bracci: aggiungi 30–60 pose da 10–30 s per un HDR del centro.', 'Le regioni HII rosse lungo i bracci escono meglio con un canale Hα aggiunto (HaRGB).', 'M 32 e M 110 sono nel campo: non tagliarle con la rotazione.'],
-  'M 33': ['Luminosità superficiale bassa: è tra le prime galassie a sparire con cielo chiaro o Luna.', 'NGC 604, la grande regione HII, risponde benissimo a un canale Hα.'],
+  'M 31': ['Il nucleo satura molto prima dei bracci: aggiungi 30–60 pose da 10–30 s per un HDR del centro.', 'Le nebulose rosse lungo i bracci (idrogeno che brilla in Hα) escono meglio con un canale Hα aggiunto (HaRGB).', 'M 32 e M 110 sono nel campo: non tagliarle con la rotazione.'],
+  'M 33': ['Luminosità superficiale bassa: è tra le prime galassie a sparire con cielo chiaro o Luna.', 'NGC 604, la grande nebulosa a emissione della galassia, risponde benissimo a un canale Hα.'],
   'M 42': ['Il Trapezio satura in pochi secondi: fai serie HDR da 5, 30 e 180 s.', 'Con meno di 400 mm entra anche NGC 1977 (Running Man) a nord.'],
   'M 45': ['È luce stellare riflessa: la banda stretta non serve a niente.', 'La polvere del Toro attorno alle Pleiadi vuole cielo buio e tante ore; in città accontentati delle nebulose vicine alle stelle.', 'Stelle di mag 3: attenzione agli aloni dei filtri economici.'],
   'M 51': ['Solo 11′: sotto i 600 mm sarà un ritaglio.', 'Il ponte di marea verso NGC 5195 è debole: serve integrazione, non esposizioni più lunghe.'],
   'M 81 + M 82': ['M 82 ha filamenti Hα spettacolari: se hai la mono, aggiungi Hα.', 'Attorno c’è la nebulosità integrata (IFN): esce solo con cieli sotto SQM 21 e molte ore.'],
   'M 82': ['I filamenti Hα perpendicolari al disco sono il dettaglio da cercare: canale Hα dedicato.'],
-  'M 101': ['Grande e diffusa: soffre molto la Luna e il cielo chiaro.', 'Le regioni HII (NGC 5461, 5462, 5471) meritano un canale Hα.'],
+  'M 101': ['Grande e diffusa: soffre molto la Luna e il cielo chiaro.', 'Le nebulose a emissione nei bracci (NGC 5461, 5462, 5471) meritano un canale Hα.'],
   'M 27': ['Luminosa in OIII e Hα: ottima anche in città e con la Luna.', 'L’alone esterno “a orecchie” è debole: servono molte ore.'],
   'M 57': ['Piccolissima (1,4′): serve focale lunga o è un puntino.', 'L’alone esterno in Hα è molto più debole del corpo principale.'],
   'M 1': ['Filamenti Hα su un nucleo di luce di sincrotrone: HOO o HaRGB.', 'Piccola (6′): punta a focali oltre i 700 mm.'],
@@ -102,7 +102,7 @@ export const TIPS = {
   'IC 1805': ['Hα molto forte, OIII e SII deboli: in città l’Hα da solo regge già bene.', 'Melotte 15 al centro e la Fish Head (IC 1795) sul bordo.'],
   'IC 1848': ['Stessa firma dell’Heart: Hα forte, OIII debole.'],
   'Heart & Soul': ['5° × 2,5°: entra con 135 mm su APS-C o 200 mm su full frame.'],
-  'NGC 281': ['OIII buono per una HII: SHO dà ottimi risultati.', 'Globuli di Bok al centro: servono focali oltre i 600 mm per vederli.'],
+  'NGC 281': ['Per una nebulosa a idrogeno ha parecchio OIII: in SHO dà ottimi risultati.', 'Globuli di Bok al centro: servono focali oltre i 600 mm per vederli.'],
   'NGC 7635': ['La bolla è piccola (15′): a focali corte inquadrala con M 52 e la regione Sh2-157.'],
   'Sh2-155': ['Hα debole con tanta polvere: serve tempo e un buon controllo del fondo cielo.'],
   'NGC 6888': ['Guscio esterno in OIII, filamenti interni in Hα: HOO consigliato.', 'Il guscio OIII è debolissimo: dagli almeno il 50% del tempo.'],

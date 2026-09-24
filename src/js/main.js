@@ -2,11 +2,15 @@
 /* ============================ stato ============================ */
 const F_DEFAULT = { types: [], srcs: [], minUse: 0.25, maxNights: 11, maxSb: 26, fill: 'any', band: 'any', con: '', hideClassic: false, showAll: false };
 const state = {
-  profiles: [], activeId: null, cfgFilter: '', res: null, cfgs: [], byId: new Map(), filtered: [], page: 60,
+  profiles: [], activeId: null, locs: [], locId: null, cfgFilter: '', res: null, cfgs: [], byId: new Map(), filtered: [], page: 60,
   sel: null, selCfg: null, rot: 90, mosaic: true, realSky: LS.get('sf.realSky', true), live: true, playing: false,
   f: Object.assign({}, F_DEFAULT, LS.get('sf.filters', {})), q: '', sort: LS.get('sf.sort', 'score'), computeKey: '', windows: null, nextDarkTxt: '', calKey: '',
 };
-const active = () => state.profiles.find((p) => p.id === state.activeId) || state.profiles[0];
+const activeProfile = () => state.profiles.find((p) => p.id === state.activeId) || state.profiles[0];
+const activeLoc = () => state.locs.find((l) => l.id === state.locId) || state.locs[0];
+/* profilo attivo nel luogo attivo (è quello che usa il calcolo); si ricrea solo quando cambia uno dei due */
+let effMemo = null;
+function active() { const p = activeProfile(), l = activeLoc(); if (!effMemo || effMemo.p !== p || effMemo.l !== l) effMemo = { p, l, e: effectiveProfile(p, l) }; return effMemo.e; }
 function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3200); }
 async function copyText(txt) {
   try { if (window.cielo && window.cielo.copy) await window.cielo.copy(txt); else await navigator.clipboard.writeText(txt); toast(tx('Copiato negli appunti')); }
@@ -15,25 +19,46 @@ async function copyText(txt) {
 
 /* ============================ archiviazione ============================ */
 const DESK = !!(window.cielo && window.cielo.loadProfiles);
-/* nel file restano anche i campi del formato precedente (primo telescopio): una versione più vecchia, prima di
-   aggiornarsi, legge ancora il profilo invece di scartarlo */
-const withLegacy = (p) => { const o = (p.optics || [])[0]; if (!o) return p; const { id, useNative, accessories, ...optic } = o; return { ...p, optic, useNative, accessories }; };
+/* Nel file restano anche i campi del formato precedente (primo telescopio, luogo e orizzonte dentro il profilo, presi
+   dal luogo attivo): una versione più vecchia, prima di aggiornarsi, legge ancora il profilo invece di scartarlo. */
+const withLegacy = (p) => {
+  const l = activeLoc(), o = (p.optics || [])[0], out = { ...p, site: l.site, horizon: l.horizon, session: { ...p.session, minAlt: l.minAlt } };
+  if (!o) return out; const { id, useNative, accessories, ...optic } = o; return { ...out, optic, useNative, accessories };
+};
+const validProfile = (p) => p && p.camera && (p.optic || p.optics);
+const stripSite = (p) => { delete p.site; delete p.horizon; return p; };
+const storeData = () => ({ version: 3, active: state.activeId, activeLoc: state.locId, profiles: state.profiles.filter((p) => !p.unsaved).map(withLegacy), locations: state.locs.filter((l) => !l.unsaved) });
 function saveStore() {
-  const saved = state.profiles.filter((p) => !p.unsaved).map(withLegacy);
-  LS.set('sf.profiles', saved); LS.set('sf.active', state.activeId);
-  if (DESK) window.cielo.saveProfiles({ version: 2, active: state.activeId, profiles: saved }).catch(() => toast(tx('Salvataggio su file non riuscito')));
+  const d = storeData();
+  LS.set('sf.profiles', d.profiles); LS.set('sf.active', state.activeId); LS.set('sf.locs', d.locations); LS.set('sf.loc', state.locId);
+  if (DESK) window.cielo.saveProfiles(d).catch(() => toast(tx('Salvataggio su file non riuscito')));
 }
-function persistProfile(p) { p = clone(p); delete p.unsaved; p.updated = Date.now(); const i = state.profiles.findIndex((x) => x.id === p.id); if (i >= 0) state.profiles[i] = p; else state.profiles.push(p); state.profiles = state.profiles.filter((x) => !x.unsaved); saveStore(); return p; }
-function removeProfile(id) { state.profiles = state.profiles.filter((p) => p.id !== id); if (!state.profiles.length) state.profiles = [templateProfile()]; if (!state.profiles.some((p) => p.id === state.activeId)) state.activeId = state.profiles[0].id; saveStore(); }
+function persistProfile(p) { p = clone(p); delete p.unsaved; stripSite(p); p.updated = Date.now(); const i = state.profiles.findIndex((x) => x.id === p.id); if (i >= 0) state.profiles[i] = p; else state.profiles.push(p); state.profiles = state.profiles.filter((x) => !x.unsaved); saveStore(); return p; }
+function removeProfile(id) { state.profiles = state.profiles.filter((p) => p.id !== id); if (!state.profiles.length) state.profiles = [stripSite(templateProfile())]; if (!state.profiles.some((p) => p.id === state.activeId)) state.activeId = state.profiles[0].id; saveStore(); }
+function persistLoc(l) { l = clone(l); delete l.unsaved; l.updated = Date.now(); const i = state.locs.findIndex((x) => x.id === l.id); if (i >= 0) state.locs[i] = l; else state.locs.push(l); state.locs = state.locs.filter((x) => !x.unsaved); saveStore(); return l; }
+function removeLoc(id) { state.locs = state.locs.filter((l) => l.id !== id); if (!state.locs.length) state.locs = [templateLoc()]; if (!state.locs.some((l) => l.id === state.locId)) state.locId = state.locs[0].id; saveStore(); }
+/* profili e luoghi da un file: formato 3 con i luoghi a parte, oppure i formati precedenti con il luogo dentro ogni profilo */
+function readData(data) {
+  const list = (data && Array.isArray(data.profiles) ? data.profiles : []).filter(validProfile).map(migrateProfile);
+  let locs, byProfile = new Map();
+  if (data && Array.isArray(data.locations)) locs = data.locations.map(migrateLoc).filter(Boolean);
+  else ({ locs, byProfile } = locsFromProfiles(list));
+  list.forEach(stripSite);
+  return { list, locs, byProfile, old: !(data && Array.isArray(data.locations)) };
+}
 function applyStore(data) {
-  const list = (data && Array.isArray(data.profiles) ? data.profiles : []).filter((p) => p && p.camera && (p.optic || p.optics) && p.site).map(migrateProfile);
-  state.profiles = list.length ? list : [templateProfile()];
+  const { list, locs, byProfile, old } = readData(data);
+  state.profiles = list.length ? list : [stripSite(templateProfile())];
+  state.locs = locs.length ? locs : [templateLoc()];
   state.activeId = (data && data.active) || state.profiles[0].id;
   if (!state.profiles.some((p) => p.id === state.activeId)) state.activeId = state.profiles[0].id;
+  state.locId = (data && data.activeLoc) || byProfile.get(state.activeId) || state.locs[0].id;
+  if (!state.locs.some((l) => l.id === state.locId)) state.locId = state.locs[0].id;
+  if (old && list.length) saveStore(); // si passa subito al formato con i luoghi
 }
 async function exportProfiles() {
-  const data = { version: 2, active: state.activeId, profiles: state.profiles.filter((p) => !p.unsaved) };
-  if (DESK) { const r = await window.cielo.exportProfiles(data); if (r) toast(tx('Profili esportati in {f}', { f: r })); } else copyText(JSON.stringify(data, null, 2));
+  const data = storeData();
+  if (DESK) { const r = await window.cielo.exportProfiles(data); if (r) toast(tx('Profili e luoghi esportati in {f}', { f: r })); } else copyText(JSON.stringify(data, null, 2));
 }
 async function importProfiles() {
   let data;
@@ -44,10 +69,16 @@ async function importProfiles() {
     inp.click();
   });
   if (!data) return;
-  const list = (data.profiles || []).filter((p) => p && p.camera && (p.optic || p.optics) && p.site).map(migrateProfile);
-  if (!list.length) { toast(tx('Il file non contiene profili validi')); return; }
+  const { list, locs } = readData(data);
+  if (!list.length && !locs.length) { toast(tx('Il file non contiene profili o luoghi validi')); return; }
   list.forEach((p) => { const i = state.profiles.findIndex((x) => x.id === p.id); if (i >= 0) state.profiles[i] = p; else state.profiles.push(p); });
-  state.profiles = state.profiles.filter((p) => !p.unsaved); saveStore(); if (typeof closeEditor === 'function') closeEditor(); refresh(true); toast(tx('{n} profili importati', { n: list.length }));
+  // un luogo già presente (stesso id, oppure stesso nome a meno di 500 m) si aggiorna invece di duplicarsi
+  locs.forEach((l) => { let i = state.locs.findIndex((x) => x.id === l.id); if (i < 0) i = state.locs.findIndex((x) => !x.unsaved && x.site.name === l.site.name && kmBetween(x.site, l.site) < 0.5); if (i >= 0) state.locs[i] = { ...l, id: state.locs[i].id }; else state.locs.push(l); });
+  state.profiles = state.profiles.filter((p) => !p.unsaved); if (!state.profiles.length) state.profiles = [stripSite(templateProfile())];
+  state.locs = state.locs.filter((l) => !l.unsaved); if (!state.locs.length) state.locs = [templateLoc()];
+  if (!state.profiles.some((p) => p.id === state.activeId)) state.activeId = state.profiles[0].id;
+  if (!state.locs.some((l) => l.id === state.locId)) state.locId = state.locs[0].id;
+  saveStore(); if (typeof closeEditor === 'function') closeEditor(); refresh(true); toast(tx('{n} profili e {m} luoghi importati', { n: list.length, m: locs.length }));
 }
 
 /* ============================ calcolo ============================ */
@@ -66,6 +97,65 @@ function recompute(force) {
   const w = state.windows && state.windows[0]; state.nextDarkTxt = w ? `${fmtDay(w.from)}–${fmtDay(w.to)}` : '';
   return true;
 }
+/* ============================ confronto fra luoghi ============================ */
+/* Stesso profilo e stessa notte negli altri luoghi salvati. Dopo il luogo attivo si calcolano gli altri a pezzi da ~10 ms,
+   così l'interfaccia resta libera; i risultati restano in memoria finché non cambiano profilo, notte o luogo. */
+const cmp = { cache: new Map(), keys: new Map(), job: 0, pending: 0 };
+const cmpSum = (r) => ({ h: hoursOf(r.e.best), nights: r.e.best ? r.e.best.nights : Infinity, usableH: r.usableH, score: r.score, cfg: r.e.cfg.key, maxA: r.maxA });
+const cmpSums = (l) => { const c = cmp.cache.get(cmp.keys.get(l.id)); return c && c.sums; };
+function scheduleCompare() {
+  const job = ++cmp.job, p = activeProfile(), ds = state.res.night.ds, pk = JSON.stringify(p) + ds;
+  cmp.keys = new Map(state.locs.map((l) => [l.id, pk + JSON.stringify(l)]));
+  const live = new Set(cmp.keys.values()); for (const k of cmp.cache.keys()) if (!live.has(k)) cmp.cache.delete(k);
+  const ak = cmp.keys.get(activeLoc().id), ac = cmp.cache.get(ak) || {};
+  if (!ac.sums) cmp.cache.set(ak, { ...ac, sums: new Map(state.res.results.map((r) => [r.o.id, cmpSum(r)])) });
+  const todo = state.locs.filter((l) => !cmpSums(l));
+  cmp.pending = todo.length;
+  if (!todo.length) return;
+  let li = 0, i = 0, C = null, sums = null;
+  const step = () => {
+    if (job !== cmp.job) return;
+    const t0 = performance.now();
+    while (li < todo.length && performance.now() - t0 < 10) {
+      const l = todo[li];
+      if (!C) { const e = effectiveProfile(p, l); C = computePrep(profileConfigs(e), e, ds, Date.now()); sums = new Map(); i = 0; }
+      const r = computeObj(C, CAT[i++]); if (r) sums.set(r.o.id, cmpSum(r));
+      if (i >= CAT.length) { cmp.cache.set(cmp.keys.get(l.id), { C, sums }); C = null; li++; cmp.pending = todo.length - li; }
+    }
+    if (li < todo.length) setTimeout(step, 0); else onCompare();
+  };
+  setTimeout(step, 200);
+}
+/* un target in un altro luogo, calcolato per intero (serve al dettaglio) */
+function cmpFull(l, o) {
+  if (l.id === activeLoc().id) return state.byId.get(o.id) || null;
+  const k = cmp.keys.get(l.id); let c = cmp.cache.get(k); if (!c) { c = {}; cmp.cache.set(k, c); }
+  if (!c.C) { const e = effectiveProfile(activeProfile(), l); c.C = computePrep(profileConfigs(e), e, state.res.night.ds, Date.now()); }
+  return computeObj(c.C, o);
+}
+/* il luogo più rapido per un target, se conviene davvero (almeno il 25% di tempo in meno, o qui non si riprende) */
+function betterLoc(r) {
+  if (state.locs.length < 2) return null;
+  const here = r.usableH >= 0.25 ? hoursOf(r.e.best) : Infinity; let best = null;
+  for (const l of state.locs) {
+    if (l.id === state.locId) continue; const m = cmpSums(l), s = m && m.get(r.o.id);
+    if (!s || s.usableH < 0.25 || !isFinite(s.h)) continue;
+    if (!best || s.h < best.s.h) best = { l, s };
+  }
+  if (!best || (isFinite(here) && best.s.h > here * 0.75)) return null;
+  return { ...best, here, gain: isFinite(here) ? 1 - best.s.h / here : null };
+}
+function onCompare() {
+  cmp.pending = 0;
+  $$('#list .row[data-id]').forEach((el) => { const r = state.byId.get(el.dataset.id), x = el.querySelector('.lh'); if (r && x) x.innerHTML = locHint(r); });
+  renderLocs();
+  if (state.sort === 'gain') { applyFilters(); renderList(); pushDome(); }
+  if (state.sel && !$('#drawer').hidden) renderLocCmp();
+}
+function setLoc(id) {
+  if (!state.locs.some((l) => l.id === id) || id === state.locId) return;
+  state.locId = id; saveStore(); refresh(); toast(tx('Luogo: {n}', { n: activeLoc().site.name }));
+}
 function applyFilters() {
   const f = state.f, q = state.q.trim().toLowerCase().replace(/\s+/g, '');
   let L = state.res.results;
@@ -81,11 +171,14 @@ function applyFilters() {
   if (state.cfgFilter) L = L.filter((r) => r.e.cfg.key === state.cfgFilter);
   if (q) L = L.filter((r) => r.o.search.includes(q));
   const hrs = (r) => (r.e.best && isFinite(r.e.best.tonight) ? r.e.best.tonight : 1e9);
+  // conviene andare altrove: target buoni nell'altro luogo e con molto tempo risparmiato (o che qui non si riprendono)
+  const gain = (r) => { const b = betterLoc(r); return b ? b.s.score * (0.5 + (b.gain == null ? 1 : b.gain)) : -1; };
   const t = Dome.time;
   const cmp = {
     score: (a, b) => b.score - a.score || b.usableH - a.usableH, usable: (a, b) => b.usableH - a.usableH, hours: (a, b) => hrs(a) - hrs(b),
     fill: (a, b) => b.e.fill.score - a.e.fill.score || b.score - a.score, transit: (a, b) => (a.maxI < 0 ? 1e9 : a.maxI) - (b.maxI < 0 ? 1e9 : b.maxI),
     now: (a, b) => altAt(b, t)[0] - altAt(a, t)[0], sb: (a, b) => b.o.sb - a.o.sb || b.score - a.score,
+    gain: (a, b) => gain(b) - gain(a) || b.score - a.score,
   }[state.sort] || ((a, b) => b.score - a.score);
   state.filtered = L.slice().sort(cmp);
   LS.set('sf.filters', state.f);
@@ -100,17 +193,21 @@ function pushDome() {
 function refresh(force) {
   const changed = recompute(force);
   if (changed) initTime();
+  if (changed || cmp.keys.size !== state.locs.length) scheduleCompare();
   applyFilters();
-  renderHeader(); renderFacts(); renderSetups(); renderChips(); state.page = Math.max(60, state.page); renderList(); pushDome(); drawStrip(); renderClock();
+  renderHeader(); renderFacts(); renderSetups(); renderLocs(); renderChips(); state.page = Math.max(60, state.page); renderList(); pushDome(); drawStrip(); renderClock();
   if (state.sel && !$('#drawer').hidden) { if (state.byId.has(state.sel)) { const sc = $('#drawer').scrollTop; renderDetail(); $('#drawer').scrollTop = sc; } else closeDetail(); }
 }
 function renderHeader() {
-  const a = active();
-  $('#profileSel').innerHTML = state.profiles.map((p) => `<option value="${esc(p.id)}" ${p.id === state.activeId ? 'selected' : ''}>${esc(p.name)}${p.unsaved ? ' (esempio)' : ''}</option>`).join('');
+  const a = active(), ex = ' (' + tx('esempio') + ')';
+  $('#profileSel').innerHTML = state.profiles.map((p) => `<option value="${esc(p.id)}" ${p.id === state.activeId ? 'selected' : ''}>${esc(p.name)}${p.unsaved ? ex : ''}</option>`).join('') + `<option value="__new">＋ ${tx('Nuovo profilo…')}</option>`;
+  $('#locSel').innerHTML = state.locs.map((l) => `<option value="${esc(l.id)}" ${l.id === state.locId ? 'selected' : ''}>${esc(l.site.name)}${l.unsaved ? ex : ''}</option>`).join('') + `<option value="__new">＋ ${tx('Nuovo luogo…')}</option>`;
   $('#brandSub').textContent = `${a.site.name} · ${it(a.site.lat, 2)}°, ${it(a.site.lon, 2)}°`;
   $('#sync').querySelector('span').textContent = DESK ? tx('profili salvati su file') : tx('profili nel browser');
   $('#notice').innerHTML = a.site.example ? `<div class="notice"><span>${tx('Luogo e orizzonte sono di esempio (Milano, Bortle 7). Inserisci coordinate, SQM e orizzonte del tuo terrazzo.')}</span><button class="btn sm" id="noticeEdit">${tx('Imposta il mio luogo')}</button></div>` : '';
-  const b = $('#noticeEdit'); if (b) b.onclick = () => openEditor(a.id);
+  const b = $('#noticeEdit'); if (b) b.onclick = () => openLocEditor(state.locId);
+  const gs = $('#sortSel option[value="gain"]'); if (gs) gs.hidden = state.locs.length < 2;
+  if (state.sort === 'gain' && state.locs.length < 2) { state.sort = 'score'; $('#sortSel').value = 'score'; }
 }
 function renderChips() {
   const f = state.f;
@@ -170,8 +267,11 @@ function wire() {
   const ls = $('#langSel'); ls.innerHTML = Object.entries(LANGS).map(([k, v]) => `<option value="${k}">${v}</option>`).join(''); ls.value = LANG; ls.onchange = () => setLang(ls.value);
   $('#toList').onclick = () => $('.work').scrollIntoView({ behavior: 'smooth' });
   lp(LS.get('sf.lp', false)); $('#lpToggle').onclick = () => lp($('#lpToggle').getAttribute('aria-pressed') !== 'true');
-  $('#profileSel').onchange = (e) => { state.activeId = e.target.value; saveStore(); closeDetail(); state.sel = null; refresh(); };
-  $('#editBtn').onclick = () => openEditor(state.activeId); $('#newBtn').onclick = () => openEditor(state.activeId, true);
+  $('#profileSel').onchange = (e) => { if (e.target.value === '__new') { e.target.value = state.activeId; openEditor(state.activeId, true); return; } state.activeId = e.target.value; saveStore(); closeDetail(); state.sel = null; refresh(); };
+  $('#editBtn').onclick = () => openEditor(state.activeId);
+  $('#locSel').onchange = (e) => { if (e.target.value === '__new') { e.target.value = state.locId; openLocEditor(null, true); return; } setLoc(e.target.value); };
+  $('#locBtn').onclick = () => openLocEditor(state.locId);
+  $('#locs').onclick = (e) => { const b = e.target.closest('[data-loc]'); if (b) setLoc(b.dataset.loc); };
   $('#typeChips').onclick = (e) => { const b = e.target.closest('[data-type]'); if (!b) return; const t = b.dataset.type, f = state.f; f.types = !t ? [] : f.types.includes(t) ? f.types.filter((x) => x !== t) : f.types.concat(t); state.page = 60; applyFilters(); renderChips(); renderList(); renderSetups(); pushDome(); };
   $('#srcChips').onclick = (e) => { const b = e.target.closest('[data-src]'); if (!b) return; const s = b.dataset.src, f = state.f; f.srcs = f.srcs.includes(s) ? f.srcs.filter((x) => x !== s) : f.srcs.concat(s); state.page = 60; applyFilters(); renderChips(); renderList(); renderSetups(); pushDome(); };
   const upd = () => { state.page = 60; applyFilters(); syncAdv(); renderList(); renderSetups(); pushDome(); };

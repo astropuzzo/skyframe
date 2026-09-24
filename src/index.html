@@ -15,9 +15,8 @@
   <header class="top">
     <div class="brand"><h1>Sky<b>frame</b></h1><small id="brandSub"></small><div class="upd" id="upd" role="status" aria-live="polite" hidden></div></div>
     <div class="tools">
-      <select id="profileSel" class="sel" aria-label="Profilo attivo"></select>
-      <button id="editBtn" class="btn">Modifica profilo</button>
-      <button id="newBtn" class="btn ghost">Nuovo profilo</button>
+      <div class="pick"><span class="pk">Profilo</span><select id="profileSel" class="sel" aria-label="Profilo attivo"></select><button id="editBtn" class="btn" title="Modifica il profilo: camera, telescopi, filtri">Modifica</button></div>
+      <div class="pick"><span class="pk">Luogo</span><select id="locSel" class="sel" aria-label="Luogo attivo"></select><button id="locBtn" class="btn" title="Modifica il luogo: cielo, mappa all-sky, orizzonte">Modifica</button></div>
       <input id="nightDate" type="date" class="inp num" aria-label="Notte del">
       <button id="todayBtn" class="btn ghost">Stanotte</button>
       <button id="nightBtn" class="btn ghost" aria-pressed="false" title="Visione notturna: tinge tutto di rosso">Luce rossa</button>
@@ -41,6 +40,7 @@
       <div class="strip" id="strip" aria-label="Notte: trascina per cambiare ora"><canvas id="stripCv"></canvas></div>
       <div class="facts" id="facts"></div>
       <div class="setups" id="setups" hidden></div>
+      <div class="setups locs" id="locs" hidden></div>
       <button class="tolist" id="toList" type="button"><span id="toListN" class="num">–</span> target per questa notte <i aria-hidden="true">↓</i></button>
       </div>
     </aside>
@@ -57,6 +57,7 @@
             <option value="transit">Orario di culmine</option>
             <option value="now">Più alto all'ora scelta</option>
             <option value="sb">Più debole (sfida)</option>
+            <option value="gain" hidden>Più rapidi in un altro luogo</option>
           </select>
           <button class="btn" id="advBtn" aria-expanded="false">Filtri <span class="badge" id="advCount" hidden>0</span></button>
         </div>
@@ -90,8 +91,8 @@
   <div class="sheet">
     <header class="sheet-head"><h2 id="edTitle">Profilo</h2><button class="btn ghost" id="edClose">Chiudi</button></header>
     <div class="sheet-body">
-      <section class="fs"><div class="grid"><label class="field wide"><span>Nome profilo</span><input id="f_name" maxlength="80"></label></div></section>
-      <section class="fs">
+      <section class="fs ed-prof"><div class="grid"><label class="field wide"><span>Nome profilo</span><input id="f_name" maxlength="80"></label></div></section>
+      <section class="fs ed-prof">
         <h3>Camera</h3>
         <div class="grid">
           <label class="field w2"><span>Modello</span><select id="f_cam"></select></label>
@@ -104,18 +105,18 @@
           <label class="field"><span>Rumore di lettura (e⁻)</span><input id="f_rn" type="number" min="0.3" step="0.1"></label>
         </div>
       </section>
-      <section class="fs">
+      <section class="fs ed-prof">
         <h3>Telescopi e accessori</h3>
         <div id="optics" class="optics"></div>
         <button class="btn sm" id="opticAdd" type="button">Aggiungi telescopio</button>
         <p class="hint">Ogni telescopio ha i suoi correttori e riduttori: a ciascuno si propongono solo quelli che ci vanno (Newton, rifrattore, SCT, RC). Ogni combinazione è una configurazione e Skyframe, per ogni target, ti dice quale conviene fra quelle di questo profilo.</p>
       </section>
-      <section class="fs">
+      <section class="fs ed-prof">
         <h3>Filtri che possiedi</h3>
         <div id="filterPick"></div>
         <p class="hint">Bande prese dalle schede dei produttori (link su ogni filtro). Quelli segnati “stima” non hanno bande pubblicate in numeri.</p>
       </section>
-      <section class="fs">
+      <section class="fs ed-loc">
         <h3>Luogo e inquinamento luminoso</h3>
         <div class="geo">
           <div class="geosearch">
@@ -164,10 +165,9 @@
           </div>
         </div>
       </section>
-      <section class="fs">
+      <section class="fs ed-prof">
         <h3>Sessione</h3>
         <div class="grid">
-          <label class="field"><span>Altezza minima (°)</span><input id="f_minalt" type="number" min="0" max="80" step="1"></label>
           <label class="field"><span>Inizio del buio</span><select id="f_thr"><option value="-12">Sole a −12° (nautico)</option><option value="-15">Sole a −15°</option><option value="-18">Sole a −18° (astronomico)</option></select></label>
           <label class="field"><span>Dalle (facoltativo)</span><input id="f_from" type="time"></label>
           <label class="field"><span>Alle (facoltativo)</span><input id="f_to" type="time"></label>
@@ -175,9 +175,11 @@
         </div>
         <p class="hint">Qualità = SNR sulla parte principale / sulle parti deboli e sulle polveri. I sub non si impostano qui: Skyframe li sceglie per ogni filtro (banda larga 60–180 s, dual-band 180–600 s, banda stretta 300–900 s) in base al cielo e alla Luna.</p>
       </section>
-      <section class="fs">
+      <section class="fs ed-loc">
         <h3>Orizzonte</h3>
-        <div class="hz"><svg id="hzSvg" viewBox="0 0 720 196" aria-label="Editor dell'orizzonte"></svg></div>
+        <div class="grid"><label class="field"><span>Altezza minima (°)</span><input id="f_minalt" type="number" min="0" max="80" step="1"></label></div>
+        <div class="hz"><svg id="hzSvg" viewBox="0 0 720 204" aria-label="Editor dell'orizzonte"></svg></div>
+        <div class="hzbar" style="margin-top:4px"><span id="hzSrc" class="hint" style="margin:0"></span><button class="btn sm" id="hzUseMap" type="button" hidden>Usa il terreno della mappa</button></div>
         <p class="hint" data-t>Clic o trascina per disegnare l’orizzonte. <b>Shift+clic</b> o clic destro toglie il punto più vicino. Tratteggio = altezza minima.</p>
         <div class="hzbar">
           <label class="btn sm" for="hzFile">Importa .hrz (N.I.N.A.) o Stellarium</label><input id="hzFile" type="file" accept=".hrz,.txt,.csv,.ini,.dat" hidden>
@@ -197,8 +199,8 @@
       <span id="delConfirm" hidden>Eliminare davvero? <button class="btn danger sm" id="delYes">Elimina</button> <button class="btn ghost sm" id="delNo">Annulla</button></span>
       <span id="leaveConfirm" class="leave" hidden>Modifiche non salvate. <button class="btn primary sm" id="leaveSave">Salva</button> <button class="btn danger sm" id="leaveYes">Esci senza salvare</button> <button class="btn ghost sm" id="leaveNo">Continua a modificare</button></span>
       <span class="sp"></span>
-      <button class="btn ghost" id="edImport">Importa profili</button>
-      <button class="btn ghost" id="edExport">Esporta profili</button>
+      <button class="btn ghost" id="edImport" title="Importa profili e luoghi da un file">Importa</button>
+      <button class="btn ghost" id="edExport" title="Esporta profili e luoghi in un file">Esporta</button>
       <button class="btn ghost" id="edDup">Duplica</button>
       <button class="btn primary" id="edSave">Salva profilo</button>
     </footer>

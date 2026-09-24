@@ -123,9 +123,21 @@ function smokeTest(win, out) {
       // un clic fuori dal pannello e "Chiudi" con modifiche non devono perdere il profilo
       const guard = await win.webContents.executeJavaScript(`closeDetail(); openEditor(state.activeId); F('f_name').value = 'prova'; F('f_name').dispatchEvent(new Event('input', { bubbles: true })); F('editor').click(); F('edClose').click(); const r = { aperto: !F('editor').hidden, conferma: !F('leaveConfirm').hidden, lacerta: OPTICS.some((o) => o.id === 'lacerta2008') }; F('leaveYes').click(); r`);
       if (!guard.aperto || !guard.conferma) throw new Error('editor chiuso senza conferma ' + JSON.stringify(guard));
-      await win.webContents.executeJavaScript(`closeDetail(); openEditor(state.activeId); setGeo(41.9109, 12.4764, 'Roma, Piazza del Popolo', 12);`);
+      // luoghi: un secondo luogo (non salvato) si confronta con quello attivo senza bloccare l'interfaccia
+      const locs = await win.webContents.executeJavaScript(`(async () => { try {
+        const saved = state.locs; const far = { ...clone(activeLoc()), id: 'l-smoke', site: { name: 'Prova buia', lat: activeLoc().site.lat + 0.3, lon: activeLoc().site.lon, bortle: 3, sqm: 21.4 }, horizon: [], hzSrc: 'none' };
+        state.locs = saved.concat(far); refresh(true);
+        for (let i = 0; i < 100 && cmp.pending; i++) await new Promise((r) => setTimeout(r, 100));
+        const hints = state.filtered.slice(0, 60).filter((r) => betterLoc(r)).length, r0 = state.filtered[0]; openDetail(r0.o.id);
+        const out = { luoghi: state.locs.length, pending: cmp.pending, suggerimenti: hints, righe: document.querySelectorAll('#locCmp .lr').length, pannello: !$('#locs').hidden };
+        closeDetail(); state.locs = saved; refresh(true); return out; } catch (e) { return { err: e.stack }; } })()`);
+      if (locs.err || locs.righe !== 2 || locs.pending) throw new Error('confronto luoghi ' + JSON.stringify(locs));
+      await win.webContents.executeJavaScript(`closeDetail(); openLocEditor(state.locId); setGeo(41.9109, 12.4764, 'Roma, Piazza del Popolo', 12);`);
       // la mappa all-sky di lightpollutionmap arriva in 10–20 s
       for (let i = 0; i < 60; i++) { await wait(1000); if (await win.webContents.executeJavaScript(`!lpmBusy && !!draft.site.skyMap`)) break; }
+      // senza un orizzonte tuo, quello della mappa nuova sostituisce il precedente
+      const hz = await win.webContents.executeJavaScript(`({ src: draft.hzSrc, punti: draft.horizon.length, terreno: !!draft.site.skyMap.terr })`);
+      if (hz.src === 'map' && hz.punti !== 180) throw new Error('orizzonte dalla mappa ' + JSON.stringify(hz));
       const geo = await win.webContents.executeJavaScript(`document.querySelector('#lpSky').scrollIntoView({block:'center'}); ({ sqm: F('f_sqm').value, quota: F('f_elev').value, atlante: F('lpMsg').textContent, allsky: F('skyMsg').textContent })`);
       await wait(600);
       // tutte e due le immagini del sito (fisheye e panoramica) devono dare una mappa completa, con scala ricavata da sola
@@ -138,7 +150,7 @@ function smokeTest(win, out) {
       await win.webContents.executeJavaScript(`document.querySelector('#geoMap').scrollIntoView({block:'center'})`);
       await wait(1500);
       await fs.writeFile(out.replace(/\.png$/, '-map.png'), (await win.webContents.capturePage()).toPNG());
-      console.log(JSON.stringify({ ...info, anteprima: note, geo, guard, period, domeTip }));
+      console.log(JSON.stringify({ ...info, anteprima: note, geo, guard, period, domeTip, locs, hz }));
     } catch (e) {
       console.error('SMOKE FAIL', e);
       process.exitCode = 1;
@@ -259,6 +271,10 @@ ipcMain.handle('profiles:load', async () => {
 ipcMain.handle('profiles:save', async (_e, data) => {
   const file = dataFile();
   await fs.mkdir(path.dirname(file), { recursive: true });
+  try { // prima di passare a un formato nuovo si tiene una copia del file com'era
+    const old = JSON.parse(await fs.readFile(file, 'utf8'));
+    if ((old.version || 1) < (data.version || 1)) await fs.copyFile(file, file.replace(/\.json$/, `-v${old.version || 1}-backup.json`));
+  } catch { /* nessun file precedente */ }
   const tmp = file + '.tmp';
   await fs.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
   await fs.rename(tmp, file);

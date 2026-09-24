@@ -200,6 +200,55 @@ function migrateProfile(p) {
 }
 const ownedFilters = (p) => (p.filters && p.filters.owned) || [];
 
+/* ============================ luoghi ============================ */
+/* Il profilo è l'attrezzatura; il luogo ha il suo cielo (SQM, atlante, mappa all-sky), il suo orizzonte e la sua
+   altezza minima. Il calcolo usa il profilo attivo nel luogo attivo. */
+const EXAMPLE_HZ = JSON.stringify(templateProfile().horizon);
+const locId = () => 'l-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+function templateLoc() { const p = templateProfile(); return { id: 'luogo-esempio', unsaved: true, site: p.site, horizon: p.horizon, hzSrc: 'example', minAlt: p.session.minAlt }; }
+/* origine di un orizzonte salvato prima che la si annotasse: esempio, sagoma del terreno di una mappa all-sky
+   (180 punti ogni 2°) oppure tuo (disegnato o importato) */
+function hzOrigin(h, site) {
+  if (!Array.isArray(h) || !h.length) return 'none';
+  if (JSON.stringify(h) === EXAMPLE_HZ) return 'example';
+  if (site && site.skyMap && h.length === 180 && h.every((q, i) => q[0] === i * 2)) return 'map';
+  return 'user';
+}
+function migrateLoc(l) {
+  if (!l || !l.site || !isFinite(+l.site.lat) || !isFinite(+l.site.lon)) return null;
+  if (!l.id) l.id = locId();
+  if (!Array.isArray(l.horizon)) l.horizon = [];
+  if (!l.hzSrc) l.hzSrc = hzOrigin(l.horizon, l.site);
+  if (!isFinite(+l.minAlt)) l.minAlt = 25;
+  return l;
+}
+const kmBetween = (a, b) => Math.hypot((a.lat - b.lat) * 111.2, (a.lon - b.lon) * 111.2 * Math.cos(a.lat * D2R));
+/* il profilo attivo nel luogo attivo, nella forma che si aspetta il calcolo */
+function effectiveProfile(p, l) {
+  return { ...p, site: l.site, horizon: l.horizon || [], session: { ...p.session, minAlt: +l.minAlt || 0 }, locId: l.id };
+}
+/* Profili salvati prima dei luoghi: ognuno aveva il suo luogo. Si raccolgono i luoghi distinti (entro 500 m è lo stesso),
+   tenendo il cielo più completo e recente e, se c'è, l'orizzonte inserito da te; la sagoma della mappa resta a parte. */
+function locsFromProfiles(list) {
+  const out = [], byProfile = new Map(), rank = { user: 3, map: 2, example: 1, none: 0 };
+  const skyRank = (s) => (s.skyMap ? 2e13 + Date.parse(s.skyMap.date || 0) / 1e3 : s.lpGrid ? 1e13 : 0);
+  for (const p of list) {
+    if (!p.site || !isFinite(+p.site.lat) || !isFinite(+p.site.lon)) continue;
+    const c = { site: clone(p.site), horizon: clone(p.horizon || []), hzSrc: hzOrigin(p.horizon, p.site), minAlt: p.session && isFinite(+p.session.minAlt) ? +p.session.minAlt : 25, t: p.updated || 0 };
+    let l = out.find((x) => kmBetween(x.site, c.site) < 0.5);
+    if (!l) { l = { id: locId(), site: c.site, horizon: c.horizon, hzSrc: c.hzSrc, minAlt: c.minAlt, t: c.t, terr: null }; out.push(l); }
+    else {
+      if (skyRank(c.site) > skyRank(l.site) || (skyRank(c.site) === skyRank(l.site) && c.t > l.t)) l.site = c.site;
+      if (rank[c.hzSrc] > rank[l.hzSrc] || (rank[c.hzSrc] === rank[l.hzSrc] && c.t > l.t)) Object.assign(l, { horizon: c.horizon, hzSrc: c.hzSrc, minAlt: c.minAlt });
+      l.t = Math.max(l.t, c.t);
+    }
+    if (c.hzSrc === 'map') l.terr = c.horizon;
+    byProfile.set(p.id, l.id);
+  }
+  out.forEach((l) => { if (l.terr && l.site.skyMap && !l.site.skyMap.terr) l.site.skyMap.terr = l.terr; delete l.terr; delete l.t; });
+  return { locs: out, byProfile };
+}
+
 /* ============================ configurazioni ============================ */
 function setupGeom(cam, optic, fac, bin) {
   const fEff = optic.fl * fac, D = optic.ap, fr = fEff / D, px = 206.265 * cam.pix * bin / fEff;
@@ -636,57 +685,66 @@ function scalePanels(strat, n) {
   return strat;
 }
 
-function computeAll(cfgs, active, ds, now) {
+/* Il calcolo di una notte si prepara una volta (notte, orizzonte, cielo, configurazioni) e poi si fa oggetto per oggetto:
+   così il confronto con gli altri luoghi può girare a piccoli pezzi senza bloccare l'interfaccia. */
+function computePrep(cfgs, active, ds, now) {
   const night = computeNight(active, ds);
   const lut = horizonLUT(active.horizon), minAlt = +active.session.minAlt || 0;
   const sky = skyModel(active.site);
-  const Q = QUALITY[active.session.quality] || QUALITY.good;
-  const consts = cfgs.map(configConst);
-  const nowIn = now >= night.t[0] && now <= night.t[N], nowLst = lstDeg(now, +active.site.lon);
-  const minDec = active.site.lat - 90 + minAlt;
-  const out = [];
-  const alt = new Float32Array(N + 1), az = new Float32Array(N + 1);
-  const U = { X: new Float32Array(N + 1), art: new Float32Array(N + 1), nat: new Float32Array(N + 1), mf: new Float32Array(N + 1), n: 0, h: 0 };
-  for (const o of CAT) {
-    if (active.site.lat >= 0 ? o.dec < minDec - 0.5 : o.dec > -minDec + 0.5) continue; // non sale mai sopra l'altezza minima
-    const pr = precess(o.ra, o.dec, night.J), v = unit(pr.ra, pr.dec);
-    const use = new Uint8Array(N + 1), blk = new Float32Array(N + 1);
-    let maxA = -99, maxI = -1, first = -1, last = -1, minSep = 180, maxAll = -99, riseBlocked = -1; U.n = 0;
-    for (let i = 0; i <= N; i++) {
-      const aa = altaz(pr.ra, pr.dec, night.lst[i], night.sL, night.cL), a = aa[0], z = aa[1];
-      alt[i] = a; az[i] = z; if (a > maxAll) maxAll = a;
-      const b = Math.max(minAlt, lut[Math.round(z) % 360]); blk[i] = b;
-      if (i >= night.w0 && i <= night.w1 && night.darkAll[i] && a > maxA) { maxA = a; maxI = i; }
-      if (night.dark[i] && a >= minAlt && a < b && first < 0 && riseBlocked < 0) riseBlocked = i;
-      if (night.dark[i] && a >= b) {
-        use[i] = 1; if (first < 0) first = i; last = i;
-        const [mf, sp] = moonFlux(night, i, v); if (mf > 0 && sp < minSep) minSep = sp;
-        U.X[U.n] = airmass(a); U.art[U.n] = sky.art(a, z); U.nat[U.n] = sky.nat(a); U.mf[U.n] = mf; U.n++;
-      }
-    }
-    if (maxAll < minAlt) continue;
-    if (maxI < 0) for (let i = night.w0; i <= night.w1; i++) if (alt[i] > maxA) { maxA = alt[i]; maxI = i; }
-    U.h = U.n * STEP / 60;
-    const usableH = U.h, altT = clamp(maxA, 20, 90), azT = maxI >= 0 ? az[maxI] : 180;
-    const T = { X: airmass(altT), art: sky.art(altT, azT), nat: sky.nat(altT), ef: Math.exp(-(+active.site.elev || 0) / 8000) };
-    const field = fieldOf(o);
-    const vis = usableH > 0 ? Math.pow(Math.min(1, usableH / 4.5), 0.7) : 0;
-    const evals = cfgs.map((cfg, ci) => {
-      const fill = fillInfo(o, cfg.geom, field);
-      const strat = scalePanels(evalStrategies(o, cfg.strategies, consts[ci], U, Q, T, field), fill.nx * fill.ny);
-      const best = pickBest(strat, !!LINES[o.lk] && sky.sqm < 21);
-      let effort = 0.05; if (best) { const n = isFinite(best.nights) ? best.nights : 99; effort = n <= 1 ? 1 : 1 / Math.sqrt(n); }
-      const score = vis > 0 ? Math.round(100 * Math.pow(fill.score, 0.45) * Math.pow(vis, 0.35) * Math.pow(effort, 0.3)) : 0;
-      return { cfg, ci, strat, best, fill, effort, score, K: consts[ci] };
-    });
-    let bestE = evals[0]; for (const e of evals) if (e.score > bestE.score) bestE = e;
-    let nowAlt = null, nowAz = null, nowUse = false;
-    if (nowIn) { const aa = altaz(pr.ra, pr.dec, nowLst, night.sL, night.cL); nowAlt = aa[0]; nowAz = aa[1]; nowUse = nowAlt >= Math.max(minAlt, lut[Math.round(nowAz) % 360]); }
-    const skyMag = U.n ? -2.5 * Math.log10(U.art.slice(0, U.n).reduce((a, x) => a + x, 0) / U.n + U.nat.slice(0, U.n).reduce((a, x) => a + x, 0) / U.n) : null;
-    out.push({ o, pr, v, alt: alt.slice(), az: az.slice(), use, blk, usableH, maxA, maxI, maxAll, first, last, minSep, riseBlocked, vis, evals, e: bestE, score: bestE.score, nowAlt, nowAz, nowUse, T, field, skyMag });
-  }
-  return { night, results: out, lut, sky, sqm: sky.sqm, Q };
+  const nowIn = now >= night.t[0] && now <= night.t[N];
+  return {
+    cfgs, active, night, lut, minAlt, sky, Q: QUALITY[active.session.quality] || QUALITY.good, consts: cfgs.map(configConst),
+    nowIn, nowLst: lstDeg(now, +active.site.lon), minDec: active.site.lat - 90 + minAlt,
+    alt: new Float32Array(N + 1), az: new Float32Array(N + 1),
+    U: { X: new Float32Array(N + 1), art: new Float32Array(N + 1), nat: new Float32Array(N + 1), mf: new Float32Array(N + 1), n: 0, h: 0 },
+  };
 }
+function computeObj(C, o) {
+  const { cfgs, active, night, lut, minAlt, sky, Q, consts, alt, az, U } = C;
+  if (active.site.lat >= 0 ? o.dec < C.minDec - 0.5 : o.dec > -C.minDec + 0.5) return null; // non sale mai sopra l'altezza minima
+  const pr = precess(o.ra, o.dec, night.J), v = unit(pr.ra, pr.dec);
+  const use = new Uint8Array(N + 1), blk = new Float32Array(N + 1);
+  let maxA = -99, maxI = -1, first = -1, last = -1, minSep = 180, maxAll = -99, riseBlocked = -1; U.n = 0;
+  for (let i = 0; i <= N; i++) {
+    const aa = altaz(pr.ra, pr.dec, night.lst[i], night.sL, night.cL), a = aa[0], z = aa[1];
+    alt[i] = a; az[i] = z; if (a > maxAll) maxAll = a;
+    const b = Math.max(minAlt, lut[Math.round(z) % 360]); blk[i] = b;
+    if (i >= night.w0 && i <= night.w1 && night.darkAll[i] && a > maxA) { maxA = a; maxI = i; }
+    if (night.dark[i] && a >= minAlt && a < b && first < 0 && riseBlocked < 0) riseBlocked = i;
+    if (night.dark[i] && a >= b) {
+      use[i] = 1; if (first < 0) first = i; last = i;
+      const [mf, sp] = moonFlux(night, i, v); if (mf > 0 && sp < minSep) minSep = sp;
+      U.X[U.n] = airmass(a); U.art[U.n] = sky.art(a, z); U.nat[U.n] = sky.nat(a); U.mf[U.n] = mf; U.n++;
+    }
+  }
+  if (maxAll < minAlt) return null;
+  if (maxI < 0) for (let i = night.w0; i <= night.w1; i++) if (alt[i] > maxA) { maxA = alt[i]; maxI = i; }
+  U.h = U.n * STEP / 60;
+  const usableH = U.h, altT = clamp(maxA, 20, 90), azT = maxI >= 0 ? az[maxI] : 180;
+  const T = { X: airmass(altT), art: sky.art(altT, azT), nat: sky.nat(altT), ef: Math.exp(-(+active.site.elev || 0) / 8000) };
+  const field = fieldOf(o);
+  const vis = usableH > 0 ? Math.pow(Math.min(1, usableH / 4.5), 0.7) : 0;
+  const evals = cfgs.map((cfg, ci) => {
+    const fill = fillInfo(o, cfg.geom, field);
+    const strat = scalePanels(evalStrategies(o, cfg.strategies, consts[ci], U, Q, T, field), fill.nx * fill.ny);
+    const best = pickBest(strat, !!LINES[o.lk] && sky.sqm < 21);
+    let effort = 0.05; if (best) { const n = isFinite(best.nights) ? best.nights : 99; effort = n <= 1 ? 1 : 1 / Math.sqrt(n); }
+    const score = vis > 0 ? Math.round(100 * Math.pow(fill.score, 0.45) * Math.pow(vis, 0.35) * Math.pow(effort, 0.3)) : 0;
+    return { cfg, ci, strat, best, fill, effort, score, K: consts[ci] };
+  });
+  let bestE = evals[0]; for (const e of evals) if (e.score > bestE.score) bestE = e;
+  let nowAlt = null, nowAz = null, nowUse = false;
+  if (C.nowIn) { const aa = altaz(pr.ra, pr.dec, C.nowLst, night.sL, night.cL); nowAlt = aa[0]; nowAz = aa[1]; nowUse = nowAlt >= Math.max(minAlt, lut[Math.round(nowAz) % 360]); }
+  const skyMag = U.n ? -2.5 * Math.log10(U.art.slice(0, U.n).reduce((a, x) => a + x, 0) / U.n + U.nat.slice(0, U.n).reduce((a, x) => a + x, 0) / U.n) : null;
+  return { o, pr, v, alt: alt.slice(), az: az.slice(), use, blk, usableH, maxA, maxI, maxAll, first, last, minSep, riseBlocked, vis, evals, e: bestE, score: bestE.score, nowAlt, nowAz, nowUse, T, field, skyMag };
+}
+function computeAll(cfgs, active, ds, now) {
+  const C = computePrep(cfgs, active, ds, now), out = [];
+  for (const o of CAT) { const r = computeObj(C, o); if (r) out.push(r); }
+  return { night: C.night, results: out, lut: C.lut, sky: C.sky, sqm: C.sky.sqm, Q: C.Q };
+}
+/* ore per un target in una configurazione: quelle con le condizioni di stanotte, altrimenti senza Luna e al transito */
+const hoursOf = (b) => (b ? (isFinite(b.tonight) ? b.tonight : b.ideal) : Infinity);
 /* ricostruisce i passi utili di un oggetto (per le valutazioni "e se…" nel dettaglio) */
 function usableSteps(r, night, sky) {
   const U = { X: new Float32Array(N + 1), art: new Float32Array(N + 1), nat: new Float32Array(N + 1), mf: new Float32Array(N + 1), n: 0, h: 0 };

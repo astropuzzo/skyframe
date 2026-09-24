@@ -93,8 +93,8 @@ a { color: var(--oiii); }
 .su:first-of-type { border-top: 0; }
 .su .n { font-size: 13px; font-weight: 500; }
 .su .d { font: 500 11.5px var(--font-m); color: var(--ink-3); }
-.su .bar { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
-.su .bar i { display: block; height: 100%; background: var(--oiii); border-radius: 2px; transition: width .6s var(--ease); }
+.su .meter { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.su .meter i { display: block; height: 100%; background: var(--oiii); border-radius: 2px; transition: width .6s var(--ease); }
 .su .w { font: 600 13px var(--font-m); }
 
 /* ---------- barra filtri ---------- */
@@ -342,3 +342,40 @@ details.how p { max-width: 72ch; }
 .native .modal { padding-top: var(--sat); }
 .native .sheet-foot { padding-bottom: calc(8px + var(--sab)); }
 .native .list { padding-bottom: calc(40px + var(--sab)); }
+
+/* ---------- profili e luoghi ---------- */
+.pick { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.pick .pk { font: 600 10px var(--font-d); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+.pick .sel { max-width: 230px; }
+#editor[data-mode="prof"] .ed-loc, #editor[data-mode="loc"] .ed-prof { display: none; }
+.plan .lh { display: block; }
+.lochint { display: inline-flex; align-items: center; gap: 5px; margin: 3px 0 1px; font-size: 12px; font-weight: 500; color: var(--sii); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.lochint i { flex: none; width: 7px; height: 7px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--sii); box-shadow: 0 0 6px rgba(227, 167, 62, .5); }
+.lochint em { font: 500 11px var(--font-m); font-style: normal; color: var(--good); }
+.locs .lc { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 2px 12px; align-items: center; width: 100%; padding: 7px 4px; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.locs .lc:hover { background: var(--panel-2); }
+.locs .lc .n { font-size: 13px; font-weight: 500; min-width: 0; }
+.locs .lc.on .n { color: var(--sii); }
+.locs .lc .n small { display: block; font: 500 11px var(--font-m); color: var(--ink-3); }
+.locs .lc .r { font: 500 12px var(--font-m); color: var(--ink-2); text-align: right; }
+.locs .lc .w { font: 600 13px var(--font-m); min-width: 2ch; text-align: right; }
+.loccmp { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
+.loccmp .lr { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-areas: "n v p b"; gap: 4px 14px; align-items: center; padding: 9px 12px; border-top: 1px solid var(--line); font-size: 13px; }
+.loccmp .lr:first-child { border-top: 0; }
+.loccmp .lr.cur { background: var(--panel-2); box-shadow: inset 3px 0 0 var(--sii); }
+.loccmp .lr.best .p b { color: var(--good); }
+.loccmp .n { grid-area: n; font-weight: 500; min-width: 0; }
+.loccmp .v { grid-area: v; font: 500 12px var(--font-m); color: var(--ink-2); }
+.loccmp .p { grid-area: p; font: 500 12px var(--font-m); }
+.loccmp .p b { font: 500 15px var(--font-m); }
+.loccmp .lr > .btn, .loccmp .here { grid-area: b; justify-self: end; }
+.loccmp small { display: block; color: var(--ink-3); font: 500 11px var(--font-m); }
+.loccmp .here { font: 600 10px var(--font-d); letter-spacing: .14em; text-transform: uppercase; color: var(--sii); }
+@media (max-width: 620px) {
+  .loccmp .lr { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "n p" "v b"; }
+  .loccmp .p { text-align: right; }
+}
+@media (max-width: 600px) {
+  .pick .pk { display: none; }
+  .pick .sel { max-width: 40vw; }
+}

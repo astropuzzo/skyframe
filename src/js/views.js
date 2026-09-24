@@ -23,7 +23,34 @@ function renderSetups() {
   top.forEach((r) => wins.set(r.e.cfg.key, wins.get(r.e.cfg.key) + 1));
   const max = Math.max(1, ...wins.values());
   el.hidden = false;
-  el.innerHTML = `<h3 class="lbl">${tx('Quale setup stanotte')}</h3><div class="note" style="margin:-4px 0 8px">${tx('Su quanti dei primi {n} target vince ogni configurazione.', { n: top.length })}</div>` + cfgs.map((c) => `<div class="su"><div><div class="n">${esc(c.label)}</div><div class="d">${c.short} · ${fmtDeg(c.geom.W)}×${fmtDeg(c.geom.H)} · ${it(c.geom.px, 2)}″/px</div></div><div class="w">${wins.get(c.key)}</div><div class="bar"><i style="width:${(wins.get(c.key) / max) * 100}%"></i></div></div>`).join('');
+  el.innerHTML = `<h3 class="lbl">${tx('Quale setup stanotte')}</h3><div class="note" style="margin:-4px 0 8px">${tx('Su quanti dei primi {n} target vince ogni configurazione.', { n: top.length })}</div>` + cfgs.map((c) => `<div class="su"><div><div class="n">${esc(c.label)}</div><div class="d">${c.short} · ${fmtDeg(c.geom.W)}×${fmtDeg(c.geom.H)} · ${it(c.geom.px, 2)}″/px</div></div><div class="w">${wins.get(c.key)}</div><div class="meter"><i style="width:${(wins.get(c.key) / max) * 100}%"></i></div></div>`).join('');
+}
+/* Luoghi a confronto sui primi target della lista: tempo tipico rispetto al luogo attivo e su quanti è il più rapido */
+function renderLocs() {
+  const el = $('#locs'); if (!el) return;
+  if (state.locs.length < 2 || !state.res) { el.hidden = true; return; }
+  el.hidden = false;
+  const top = state.filtered.slice(0, 30), cur = activeLoc(), all = state.locs.map((l) => ({ l, m: cmpSums(l) })), ready = all.every((x) => x.m);
+  const ok = (s) => s && s.usableH >= 0.25 && isFinite(s.h);
+  const wins = new Map(), ratio = new Map(), vis = new Map();
+  if (ready) {
+    for (const r of top) {
+      let bl = null, bh = Infinity; for (const { l, m } of all) { const s = m.get(r.o.id); if (ok(s) && s.h < bh) { bh = s.h; bl = l.id; } }
+      if (bl) wins.set(bl, (wins.get(bl) || 0) + 1);
+    }
+    for (const { l, m } of all) {
+      const q = top.map((r) => { const s = m.get(r.o.id), h = hoursOf(r.e.best); return ok(s) && r.usableH >= 0.25 && isFinite(h) ? s.h / h : null; }).filter((x) => x != null).sort((a, b) => a - b);
+      ratio.set(l.id, q.length ? q[Math.floor(q.length / 2)] : null);
+      let n = 0; for (const s of m.values()) if (s.usableH >= 0.25) n++; vis.set(l.id, n);
+    }
+  }
+  const rel = (x) => (x == null ? '' : Math.abs(x - 1) < 0.05 ? tx('tempi simili') : x < 1 ? tx('tempi −{p}%', { p: Math.round((1 - x) * 100) }) : tx('tempi +{p}%', { p: Math.round((x - 1) * 100) }));
+  el.innerHTML = `<h3 class="lbl">${tx('Luoghi a confronto')}</h3><div class="note" style="margin:-4px 0 8px">${tx('Stanotte, con questo profilo, sui primi {n} target: tempo tipico rispetto a {l} e su quanti ogni luogo è il più rapido. Clicca per passarci.', { n: top.length, l: esc(cur.site.name) })}</div>` +
+    all.map(({ l }) => {
+      const me = l.id === cur.id, km = me ? '' : ` · ${Math.round(kmBetween(cur.site, l.site))} km`;
+      return `<button class="lc${me ? ' on' : ''}" data-loc="${esc(l.id)}" aria-pressed="${me}"><div class="n">${esc(l.site.name)}<small>SQM ${it(+l.site.sqm, 2)}${km}${ready ? ' · ' + tx('{n} riprendibili', { n: vis.get(l.id) }) : ''}</small></div>` +
+        (ready ? `<div class="r">${me ? tx('luogo attivo') : rel(ratio.get(l.id))}</div><div class="w" title="${tx('Target su cui è il luogo più rapido')}">${wins.get(l.id) || 0}</div>` : `<div class="r">${tx('calcolo…')}</div><div class="w"></div>`) + '</button>';
+    }).join('');
 }
 /* striscia della notte: crepuscoli, Luna, finestra di ripresa, altezza del target selezionato, cursore */
 function drawStrip() {
@@ -150,6 +177,7 @@ function rowHTML(r, i) {
     const cls = nt <= 1 ? 'n1' : nt <= 3 ? 'n2' : 'n3';
     plan = `<b>${fmtH(h)}</b>${ntx ? `<span class="nights ${cls}">${ntx}</span>` : ''}${state.cfgs.length > 1 ? `<span class="rig" title="${tx('Setup consigliato')}: ${esc(e.cfg.label)} · ${e.cfg.short}"><i></i><span>${esc(e.cfg.tag)}</span><em>${e.cfg.short}</em></span>` : ''}<small>${esc(b.label)}${b.deep ? ` · ${tx('profondo')} ${fmtH(isFinite(b.tonightDeep) ? b.tonightDeep : b.idealDeep)}` : ''}</small>`;
   }
+  plan += `<span class="lh">${locHint(r)}</span>`;
   const win = r.first >= 0 ? `${fmtT(n.t[r.first])}–${fmtT(n.t[r.last] + DT)}` : '';
   const vis = r.usableH > 0 ? `${fmtDur(r.usableH)} · max ${Math.round(r.maxA)}°<small>${win}</small>` : `<span style="color:var(--ink-3)">${tx('non riprendibile')}</span><small>${tx('coperto o sotto {a}°', { a: active().session.minAlt })}</small>`;
   const size = `${o.a >= 10 ? Math.round(o.a) : it(o.a, 1)}′${o.b !== o.a ? '×' + (o.b >= 10 ? Math.round(o.b) : it(o.b, 1)) + '′' : ''}`;
@@ -161,6 +189,13 @@ function rowHTML(r, i) {
     <div class="c-vis vis">${spark(r)}<div>${vis}</div></div>
     <div class="c-plan plan">${plan}</div>
     <div class="c-now now">${nowCell(r)}</div></div>`;
+}
+/* un altro luogo salvato dove il target costa molto meno tempo (o dove si riprende, se qui no) */
+function locHint(r) {
+  const b = betterLoc(r); if (!b) return '';
+  const name = esc(b.l.site.name), h = fmtH(b.s.h);
+  const title = b.gain == null ? tx('Da qui stanotte non si riprende; a {l} bastano {h}', { l: name, h }) : tx('A {l} basterebbero {h} invece di {x}', { l: name, h, x: fmtH(b.here) });
+  return `<span class="lochint" title="${title}"><i aria-hidden="true"></i>${name} ${h}${b.gain != null ? ` <em>−${Math.round(b.gain * 100)}%</em>` : ''}</span>`;
 }
 function renderList() {
   const L = state.filtered, shown = L.slice(0, state.page);
@@ -223,6 +258,7 @@ function renderDetail() {
     <div class="kpi"><div class="lbl">${tx('Impegno')}</div><div class="v">${Math.round(e.effort * 100)}</div><div class="s">${b && isFinite(b.nights) ? (b.nights <= 1 ? tx('si chiude stanotte') : tx('≈ {n} notti così', { n: it(b.nights) })) : tx('non stanotte')}</div></div>
   </div>
   <div class="period" id="period"><span class="lbl">${tx('Periodo giusto')}</span><span class="pt">${tx('Calcolo quando conviene…')}</span></div>
+  ${state.locs.length > 1 ? `<div class="sec"><h3>${tx('Dove conviene')} <small>${tx('stanotte, con questo profilo e il setup migliore in ogni luogo')}</small></h3><div class="loccmp" id="locCmp"></div></div>` : ''}
   <div class="sec"><h3>${tx('Piano di ripresa')} <small>${tx('qualità {q} · {cfg} a {f} · con il cielo di stanotte', { q: tx(QLABEL[p.session.quality] || 'buona'), cfg: esc(e.cfg.label), f: e.cfg.short })}</small></h3>
     ${plan ? `<div class="plan-card"><div class="head"><span class="t">${esc(b.label)}</span><span class="h">${fmtH(planTot)}</span></div>
       ${b.deep ? `<div class="deep">${tx('Per far uscire anche l’Hα diffuso attorno ({r} R nella mappa all-sky di Finkbeiner) servono <b>{h}</b> in tutto.', { r: it(o.ha, 1), h: fmtH(planDeep) })}</div>` : ''}
@@ -249,10 +285,11 @@ function renderDetail() {
     <p>${tx('HOW4')}</p></details>`;
   const HOW_IT = `<p>Ogni filtro è modellato con le sue bande reali (schede dei produttori). Per ogni banda calcolo quanta luce dell’oggetto passa (continuo più le righe Hα, [NII], Hβ, OIII, SII, pesate dalla risposta dei pixel rossi, verdi e blu se la camera è a colori) e quanto fondo cielo: il tuo SQM, diviso tra un continuo tipo LED e le righe di mercurio e sodio, più la luce lunare di ogni 5 minuti.</p>
     <p>Il fondo cielo cambia con la direzione: SQM allo zenit dall’atlante di Lorenz 2025 (o dal tuo valore), più brillante verso l’orizzonte e verso le luci con i pesi per azimut calcolati dall’atlante.</p>
-    <p>La qualità è un SNR per elemento di risoluzione (il più grande tra pixel e 2″, la scala del seeing) su tre livelli: la luminosità media del catalogo, le parti deboli (aloni, bracci esterni) e, se ci sono, le polveri estese attorno (a LS ≥ 25). Il tempo “profondo” aggiunge l’Hα diffuso misurato attorno all’oggetto nella mappa all-sky di Finkbeiner (2003). Le righe deboli (OIII e SII in una regione HII) sono chieste in proporzione alla loro intensità, come fai in elaborazione. Nelle bolle di Wolf-Rayet conta anche il guscio esterno in OIII, molto più debole dei filamenti. Se due filtri lasciano passare la stessa riga (l’OIII di L-eXtreme e L-Synergy), il segnale si somma e le ore si dividono tra i due.</p>
+    <p>La qualità è un SNR per elemento di risoluzione (il più grande tra pixel e 2″, la scala del seeing) su tre livelli: la luminosità media del catalogo, le parti deboli (aloni, bracci esterni) e, se ci sono, le polveri estese attorno (a LS ≥ 25). Il tempo “profondo” aggiunge l’Hα diffuso misurato attorno all’oggetto nella mappa all-sky di Finkbeiner (2003). Le righe deboli (OIII e SII in una nebulosa a emissione, dove domina l’Hα) sono chieste in proporzione alla loro intensità, come fai in elaborazione. Nelle bolle di Wolf-Rayet conta anche il guscio esterno in OIII, molto più debole dei filamenti. Se due filtri lasciano passare la stessa riga (l’OIII di L-eXtreme e L-Synergy), il segnale si somma e le ore si dividono tra i due.</p>
     <p>Taratura: con 800 mm f/5, OSC e SQM 19,3 la Cocoon esce a 56 h (base) e 95 h (profondo); un’immagine reale con quel campo ne ha richieste 100. Sono stime per scegliere, non promesse: seeing, trasparenza ed elaborazione contano molto.</p>`;
   if (LANG === 'it') $('#drawer details.how').innerHTML = `<summary>${tx('Come vengono stimati i tempi')}</summary>` + HOW_IT;
   $('#dClose').onclick = closeDetail;
+  const lc = $('#locCmp'); if (lc) { renderLocCmp(); lc.onclick = (ev) => { const b = ev.target.closest('[data-loc]'); if (b) setLoc(b.dataset.loc); }; }
   $('#copyCoord').onclick = () => copyText(`${o.id} ${raStr(o.ra)} ${decStr(o.dec).replace('−', '-')}`);
   $$('#drawer .tab').forEach((t) => (t.onclick = () => { state.selCfg = t.dataset.cfg; const sc = $('#drawer').scrollTop; renderDetail(); $('#drawer').scrollTop = sc; }));
   $('#rot').oninput = (ev) => { state.rot = +ev.target.value; $('#rotV').textContent = state.rot + '°'; drawPreview(); };
@@ -263,6 +300,19 @@ function renderDetail() {
   requestAnimationFrame(() => { drawPreview(); renderSeason(r); wireNightCharts(); setTimeout(() => renderPeriod(r), 30); });
 }
 /* ---------- quando conviene ---------- */
+/* lo stesso target in ogni luogo salvato: cielo nella sua direzione, ore libere, tempo e setup consigliato */
+function renderLocCmp() {
+  const box = $('#locCmp'), r = state.byId.get(state.sel); if (!box || !r) return;
+  const rows = state.locs.map((l) => { const x = cmpFull(l, r.o), ok = x && x.usableH >= 0.25; return { l, x, h: ok ? hoursOf(x.e.best) : Infinity }; });
+  const bestH = Math.min(...rows.map((q) => q.h));
+  box.innerHTML = rows.map(({ l, x, h }) => {
+    const cur = l.id === state.locId, nt = x && x.e.best ? x.e.best.nights : Infinity;
+    const vis = !x ? tx('non sale sopra {a}°', { a: l.minAlt }) : x.usableH >= 0.25 ? `${fmtDur(x.usableH)} · max ${Math.round(x.maxA)}°` : tx('coperto stanotte');
+    const bb = x && x.e.best, deep = bb && bb.deep ? (isFinite(bb.tonightDeep) ? bb.tonightDeep : bb.idealDeep) : null;
+    const plan = isFinite(h) ? `<b>${fmtH(h)}</b>${isFinite(nt) ? ` · ${nt <= 1 ? tx('1 notte') : tx('{n} notti', { n: nt < 10 ? it(nt) : Math.round(nt) })}` : ''}${deep ? `<small>${tx('profondo')} ${fmtH(deep)}</small>` : ''}${state.cfgs.length > 1 ? `<small>${esc(x.e.cfg.tag)}</small>` : ''}` : '<b>—</b>';
+    return `<div class="lr${cur ? ' cur' : ''}${isFinite(h) && h === bestH && rows.length > 1 ? ' best' : ''}"><div class="n">${esc(l.site.name)}<small>SQM ${it(+l.site.sqm, 2)}${x && x.skyMag != null ? ' · ' + tx('cielo sul target {m}', { m: it(x.skyMag, 2) }) : ''}</small></div><div class="v">${vis}</div><div class="p">${plan}</div>${cur ? `<span class="here">${tx('attivo')}</span>` : `<button class="btn sm" data-loc="${esc(l.id)}">${tx('Passa qui')}</button>`}</div>`;
+  }).join('');
+}
 const periodCache = new Map();
 const fmtDayLong = (t) => new Date(t).toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'long' });
 function renderPeriod(r) {

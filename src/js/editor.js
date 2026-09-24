@@ -8,7 +8,7 @@ function fillEditorSelects() {
   // ottiche raggruppate per marca (in ordine alfabetico), "Personalizzato" in fondo
   const brandOf = (n) => (n.match(/^(William Optics|Sky-Watcher|Explore Scientific|TS-Optics|TS-Photon|GSO \/ TS|Obiettivo)/) || [n.split(' ')[0]])[0].replace(/^TS-Photon|^GSO \/ TS/, 'TS-Optics');
   const groups = new Map(); OPTICS.filter((c) => c.id !== 'custom').forEach((c) => { const b = brandOf(c.name); if (!groups.has(b)) groups.set(b, []); groups.get(b).push(c); });
-  OPTIC_OPTIONS = [...groups.keys()].sort((a, b) => a.localeCompare(b)).map((b) => `<optgroup label="${esc(b === 'Obiettivo' ? tx('Obiettivi fotografici') : b)}">${groups.get(b).map((c) => `<option value="${c.id}">${esc(txName(c.name))}</option>`).join('')}</optgroup>`).join('') + '<option value="custom">Personalizzato</option>';
+  OPTIC_OPTIONS = [...groups.keys()].sort((a, b) => a.localeCompare(b)).map((b) => `<optgroup label="${esc(b === 'Obiettivo' ? tx('Obiettivi fotografici') : b)}">${groups.get(b).map((c) => `<option value="${c.id}">${esc(txName(c.name))}</option>`).join('')}</optgroup>`).join('') + `<option value="custom">${tx('Personalizzato')}</option>`;
   F('f_bortle').innerHTML = Object.keys(BORTLE_SQM).map((b) => `<option value="${b}">${b} · SQM ≈ ${it(BORTLE_SQM[b], 1)}</option>`).join('');
 }
 function bandTxt(f) {
@@ -81,25 +81,51 @@ function wireOptics() {
   });
   F('opticAdd').onclick = () => { draft.optics.push({ id: 'o' + Date.now().toString(36), preset: 'custom', name: tx('Nuovo telescopio'), ap: 80, fl: 480, obs: 0, useNative: true, accessories: [] }); renderOptics(); edDirty = true; F('optics').lastElementChild.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); };
 }
+/* Un solo pannello per due cose: il profilo (attrezzatura e sessione) e il luogo (cielo, mappa, orizzonte, altezza minima) */
+let edMode = 'prof';
+function showEditor(asNew) {
+  F('editor').dataset.mode = edMode;
+  F('edSave').textContent = tx(edMode === 'loc' ? 'Salva luogo' : 'Salva profilo');
+  F('delConfirm').hidden = true; F('leaveConfirm').hidden = true;
+  F('editor').hidden = false; edDirty = !!asNew;
+  F('editor').querySelector('.sheet-body').scrollTop = 0;
+}
 function openEditor(id, asNew) {
+  edMode = 'prof';
   const src = id ? state.profiles.find((p) => p.id === id) : null;
-  draft = migrateProfile(clone(src || active()));
+  draft = stripSite(migrateProfile(clone(src || activeProfile())));
   if (asNew) { draft.id = 'p-' + Date.now().toString(36); draft.name = draft.name.replace(/ \((copia|copy)\)$/, '') + ' (' + tx('copia') + ')'; delete draft.unsaved; }
   F('edTitle').textContent = asNew ? tx('Nuovo profilo') : tx('Profilo');
   const d = draft;
   F('f_name').value = d.name; F('f_cam').value = CAMERAS.some((c) => c.id === d.camera.preset) ? d.camera.preset : 'custom'; F('f_ctype').value = d.camera.type; F('f_bin').value = String(d.bin || 1);
   F('f_cw').value = d.camera.w; F('f_ch').value = d.camera.h; F('f_pix').value = d.camera.pix; F('f_qe').value = d.camera.qe; F('f_rn').value = d.camera.rn;
+  F('f_thr').value = String(d.session.sunThr); F('f_from').value = d.session.from || ''; F('f_to').value = d.session.to || ''; F('f_quality').value = d.session.quality || 'good';
+  F('edDelete').hidden = !!asNew || !!(src && src.unsaved);
+  renderOptics(); renderFilterPick();
+  showEditor(asNew); F('f_name').focus();
+}
+/* nuovo luogo: si parte dal punto attuale, da spostare con la ricerca o sulla mappa; cielo e orizzonte arrivano da soli */
+function newLocDraft() {
+  const c = activeLoc();
+  return { id: locId(), site: { name: tx('Nuovo luogo'), lat: c.site.lat, lon: c.site.lon, bortle: c.site.bortle, sqm: c.site.sqm }, horizon: [], hzSrc: 'none', minAlt: c.minAlt };
+}
+function openLocEditor(id, asNew) {
+  edMode = 'loc';
+  const src = id ? state.locs.find((l) => l.id === id) : null;
+  draft = asNew ? newLocDraft() : migrateLoc(clone(src || activeLoc()));
+  F('edTitle').textContent = asNew ? tx('Nuovo luogo') : tx('Luogo');
+  const d = draft;
   F('f_site').value = d.site.name; F('f_lat').value = d.site.lat; F('f_lon').value = d.site.lon; F('f_bortle').value = String(d.site.bortle || sqmToBortle(d.site.sqm)); F('f_sqm').value = d.site.sqm;
-  F('f_minalt').value = d.session.minAlt; F('f_thr').value = String(d.session.sunThr); F('f_from').value = d.session.from || ''; F('f_to').value = d.session.to || ''; F('f_quality').value = d.session.quality || 'good';
-  F('delConfirm').hidden = true; F('edDelete').hidden = !!asNew; F('hzPaste').hidden = true; F('hzMsg').textContent = '';
-  F('f_elev').value = d.site.elev != null ? d.site.elev : '';
+  F('f_elev').value = d.site.elev != null ? d.site.elev : ''; F('f_minalt').value = d.minAlt;
+  F('edDelete').hidden = !!asNew || !!(src && src.unsaved);
+  F('hzPaste').hidden = true; F('hzMsg').textContent = ''; F('skyImp').hidden = true; F('skyMsg').textContent = asNew ? tx('Cerca il luogo o clicca sulla mappa: atlante, mappa all-sky, altitudine e orizzonte arrivano da soli.') : '';
   F('lpBtn').hidden = !(window.cielo && window.cielo.lpLookup);
-  lpStatus(); renderOptics(); renderFilterPick(); drawHz(); drawLpPreview(F('lpSky'), d.site, d.horizon);
-  F('editor').hidden = false;
+  lpStatus(); drawHz(); drawLpPreview(F('lpSky'), d.site, d.horizon);
+  showEditor(asNew);
   initGeoMap();
   // centratura dopo il layout: legge i campi (nel frattempo il punto potrebbe essere già cambiato)
-  if (geoMap) requestAnimationFrame(() => { const la = +F('f_lat').value, lo = +F('f_lon').value; geoMap.invalidateSize(); geoPin.setLatLng([la, lo]); geoMap.setView([la, lo], d.site.example && la === d.site.lat ? 6 : Math.max(geoMap.getZoom(), 12)); });
-  F('editor').hidden = false; F('f_name').focus(); edDirty = !!asNew; F('leaveConfirm').hidden = true;
+  if (geoMap) requestAnimationFrame(() => { const la = +F('f_lat').value, lo = +F('f_lon').value; geoMap.invalidateSize(); geoPin.setLatLng([la, lo]); geoMap.setView([la, lo], asNew ? 8 : d.site.example && la === d.site.lat ? 6 : Math.max(geoMap.getZoom(), 12)); });
+  (asNew && DESK_GEO() ? F('geoQ') : F('f_site')).focus();
 }
 function closeEditor() { F('editor').hidden = true; F('leaveConfirm').hidden = true; draft = null; edDirty = false; }
 /* chiusura richiesta dall'utente (Chiudi, Esc): con modifiche non salvate si chiede prima cosa fare */
@@ -108,7 +134,8 @@ function askCloseEditor() {
   if (!edDirty) { closeEditor(); return; }
   F('leaveConfirm').hidden = false; F('leaveNo').focus();
 }
-function readForm() {
+function readForm() { return edMode === 'loc' ? readLocForm() : readProfForm(); }
+function readProfForm() {
   const d = draft, n = (id) => parseFloat(F(id).value);
   d.name = F('f_name').value.trim() || tx('Profilo senza nome');
   d.camera = { preset: F('f_cam').value, name: (CAMERAS.find((c) => c.id === F('f_cam').value) || {}).name || tx('Personalizzata'), w: n('f_cw') || 4000, h: n('f_ch') || 3000, pix: n('f_pix') || 3.76, type: F('f_ctype').value, qe: n('f_qe') || 70, rn: n('f_rn') || 2 };
@@ -117,6 +144,12 @@ function readForm() {
   if (!d.optics.length) d.optics = [{ id: 'o1', preset: 'custom', name: tx('Telescopio'), ap: 80, fl: 480, obs: 0, useNative: true, accessories: [] }];
   const owned = $$('#filterPick input[data-fid]').filter((x) => x.checked).map((x) => x.dataset.fid);
   const type = d.camera.type; d.filters = { owned: owned.filter((id) => { const f = FDB_BY_ID.get(id); return f && (type === 'mono' ? f.for !== 'osc' : f.for !== 'mono'); }) };
+  // l'altezza minima ora sta nel luogo; nel profilo resta quella di prima per le versioni vecchie
+  d.session = { minAlt: d.session && isFinite(+d.session.minAlt) ? +d.session.minAlt : 25, sunThr: +F('f_thr').value, from: F('f_from').value, to: F('f_to').value, quality: F('f_quality').value };
+  return d;
+}
+function readLocForm() {
+  const d = draft, n = (id) => parseFloat(F(id).value);
   const sqm = n('f_sqm'), lat = n('f_lat'), lon = n('f_lon'), prev = d.site;
   d.site = { name: F('f_site').value.trim() || tx('Il mio terrazzo'), lat: isFinite(lat) ? clamp(lat, -89.9, 89.9) : 45, lon: isFinite(lon) ? clamp(lon, -180, 180) : 9, bortle: +F('f_bortle').value, sqm: isFinite(sqm) ? clamp(sqm, 16, 22.2) : BORTLE_SQM[F('f_bortle').value] };
   if (prev.example && prev.lat === d.site.lat && prev.lon === d.site.lon && prev.name === d.site.name) d.site.example = true;
@@ -130,8 +163,8 @@ function readForm() {
   if (prev.skyMap && near(prev.skyMap.at)) {
     d.site.skyMap = prev.skyMap;
     d.site.lpSrc = Math.abs(d.site.sqm - prev.skyMap.zenith) < 0.01 ? 'Mappa all-sky di lightpollutionmap' : tx('Mappa all-sky, zenit corretto a mano');
-  }
-  d.session = { minAlt: clamp(n('f_minalt') || 0, 0, 80), sunThr: +F('f_thr').value, from: F('f_from').value, to: F('f_to').value, quality: F('f_quality').value };
+  } else if (prev.skyMap && d.hzSrc === 'map') { d.horizon = []; d.hzSrc = 'none'; } // il terreno era quello di un altro punto
+  d.minAlt = clamp(n('f_minalt') || 0, 0, 80);
   return d;
 }
 /* SQM e direzioni delle luci dall'atlante di Lorenz (solo nell'app desktop: il download lo fa il processo principale) */
@@ -157,7 +190,7 @@ async function lpFetch() {
     Object.assign(draft.site, { sqm: r.sqm, lpSrc: r.src, bortle: sqmToBortle(r.sqm) });
     F('f_sqm').value = r.sqm; F('f_bortle').value = String(sqmToBortle(r.sqm));
   }
-  lpStatus(); drawLpPreview(F('lpSky'), draft.site, draft.horizon);
+  lpStatus(); drawHz(); drawLpPreview(F('lpSky'), draft.site, draft.horizon);
 }
 /* ============================ mappa all-sky di lightpollutionmap (importata) ============================ */
 let skyImport = null;
@@ -192,12 +225,13 @@ function skyApply() {
 /* griglia di luminosità dal lettore → profilo (SQM, mappa del cielo, orizzonte minimo dal terreno) */
 function applySkyMap(det, top, bot, name, year) {
   const g = AllSky.build(det, top, bot), terr = AllSky.terrain(det);
-  draft.site.skyMap = { ...g, at: [draft.site.lat, draft.site.lon], file: name, year: year || null, date: new Date().toISOString().slice(0, 10) };
+  draft.site.skyMap = { ...g, terr, at: [draft.site.lat, draft.site.lon], file: name, year: year || null, date: new Date().toISOString().slice(0, 10) };
   Object.assign(draft.site, { sqm: g.zenith, lpSrc: 'Mappa all-sky di lightpollutionmap', bortle: sqmToBortle(g.zenith) });
   F('f_sqm').value = g.zenith; F('f_bortle').value = String(sqmToBortle(g.zenith));
-  if (F('skyTerr').checked) { // il terreno della mappa diventa l'orizzonte minimo: si tiene il più alto fra i due
-    const cur = horizonLUT(draft.horizon);
-    draft.horizon = terr.map(([az, alt]) => [az, Math.round(Math.max(alt, cur[az]) * 10) / 10]);
+  if (F('skyTerr').checked) {
+    // orizzonte tuo (disegnato o importato): il terreno lo alza soltanto dove è più alto; altrimenti è la sagoma della mappa
+    if (draft.hzSrc === 'user') { const cur = horizonLUT(draft.horizon); draft.horizon = terr.map(([az, alt]) => [az, Math.round(Math.max(alt, cur[az]) * 10) / 10]); }
+    else { draft.horizon = terr.map((q) => q.slice()); draft.hzSrc = 'map'; }
     drawHz();
   }
   drawLpPreview(F('lpSky'), draft.site, draft.horizon); lpStatus();
@@ -304,11 +338,20 @@ function wireEditor() {
   F('leaveNo').onclick = () => { F('leaveConfirm').hidden = true; };
   F('leaveYes').onclick = closeEditor;
   F('leaveSave').onclick = () => F('edSave').click();
-  F('edSave').onclick = () => { const d = readForm(); persistProfile(d); state.activeId = d.id; saveStore(); closeEditor(); refresh(true); toast(tx('Profilo salvato')); };
-  F('edDup').onclick = () => { readForm(); draft = clone(draft); draft.id = 'p-' + Date.now().toString(36); draft.name += ' (' + tx('copia') + ')'; delete draft.unsaved; F('f_name').value = draft.name; F('edTitle').textContent = tx('Nuovo profilo'); F('edDelete').hidden = true; };
+  F('edSave').onclick = () => {
+    const d = readForm(), loc = edMode === 'loc';
+    if (loc) { persistLoc(d); state.locId = d.id; } else { persistProfile(d); state.activeId = d.id; }
+    saveStore(); closeEditor(); refresh(true); toast(tx(loc ? 'Luogo salvato' : 'Profilo salvato'));
+  };
+  F('edDup').onclick = () => {
+    readForm(); draft = clone(draft); delete draft.unsaved; edDirty = true;
+    if (edMode === 'loc') { draft.id = locId(); draft.site.name += ' (' + tx('copia') + ')'; delete draft.site.example; F('f_site').value = draft.site.name; F('edTitle').textContent = tx('Nuovo luogo'); }
+    else { draft.id = 'p-' + Date.now().toString(36); draft.name += ' (' + tx('copia') + ')'; F('f_name').value = draft.name; F('edTitle').textContent = tx('Nuovo profilo'); }
+    F('edDelete').hidden = true;
+  };
   F('edDelete').onclick = () => { F('delConfirm').hidden = false; F('edDelete').hidden = true; };
   F('delNo').onclick = () => { F('delConfirm').hidden = true; F('edDelete').hidden = false; };
-  F('delYes').onclick = () => { const id = draft.id; closeEditor(); removeProfile(id); refresh(true); toast(tx('Profilo eliminato')); };
+  F('delYes').onclick = () => { const id = draft.id, loc = edMode === 'loc'; closeEditor(); if (loc) removeLoc(id); else removeProfile(id); refresh(true); toast(tx(loc ? 'Luogo eliminato' : 'Profilo eliminato')); };
   F('edExport').onclick = exportProfiles; F('edImport').onclick = importProfiles;
   // orizzonte
   const svg = F('hzSvg'); let down = false;
@@ -316,10 +359,11 @@ function wireEditor() {
   svg.addEventListener('pointerdown', (e) => { const q = hzPoint(e); if (e.shiftKey || e.button === 2) { hzDel(q.az); drawHz(); return; } down = true; svg.setPointerCapture(e.pointerId); hzSet(q.az, q.alt); drawHz(); });
   svg.addEventListener('pointermove', (e) => { if (!down) return; const q = hzPoint(e); hzSet(q.az, q.alt); drawHz(); });
   ['pointerup', 'pointercancel'].forEach((ev) => svg.addEventListener(ev, () => (down = false)));
-  F('hzFlat').onclick = () => { draft.horizon = []; drawHz(); };
+  F('hzFlat').onclick = () => { draft.horizon = []; draft.hzSrc = 'none'; drawHz(); };
+  F('hzUseMap').onclick = () => { const t = draft.site.skyMap && draft.site.skyMap.terr; if (!t) return; draft.horizon = t.map((q) => q.slice()); draft.hzSrc = 'map'; edDirty = true; drawHz(); };
   F('hzPasteBtn').onclick = () => { F('hzPaste').hidden = !F('hzPaste').hidden; if (!F('hzPaste').hidden) { F('hzText').value = (draft.horizon || []).map((p) => p[0] + ' ' + p[1]).join('\n'); F('hzText').focus(); } };
-  F('hzApply').onclick = () => { const pts = parseHorizon(F('hzText').value); if (!pts.length) { F('hzMsg').textContent = tx('Nessun punto valido: servono righe “azimut altezza”.'); return; } draft.horizon = pts; drawHz(); F('hzMsg').textContent = tx('{n} punti importati.', { n: pts.length }); };
-  F('hzFile').onchange = (e) => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { const pts = parseHorizon(rd.result); if (!pts.length) { toast(tx('Il file non contiene righe “azimut altezza” valide.')); return; } draft.horizon = pts; drawHz(); toast(tx('{n} punti importati da {f}', { n: pts.length, f: f.name })); }; rd.readAsText(f); e.target.value = ''; };
+  F('hzApply').onclick = () => { const pts = parseHorizon(F('hzText').value); if (!pts.length) { F('hzMsg').textContent = tx('Nessun punto valido: servono righe “azimut altezza”.'); return; } draft.horizon = pts; draft.hzSrc = 'user'; drawHz(); F('hzMsg').textContent = tx('{n} punti importati.', { n: pts.length }); };
+  F('hzFile').onchange = (e) => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { const pts = parseHorizon(rd.result); if (!pts.length) { toast(tx('Il file non contiene righe “azimut altezza” valide.')); return; } draft.horizon = pts; draft.hzSrc = 'user'; drawHz(); toast(tx('{n} punti importati da {f}', { n: pts.length, f: f.name })); }; rd.readAsText(f); e.target.value = ''; };
   const hzText = () => (draft.horizon || []).slice().sort((a, b) => a[0] - b[0]).map((p) => `${p[0]} ${p[1]}`).join('\n');
   F('hzCopyNina').onclick = () => copyText(hzText());
   F('hzCopyStel').onclick = () => copyText(tx('# Orizzonte poligonale per Stellarium (polygonal_horizon_list): azimut altezza, gradi') + '\n' + hzText());
@@ -336,7 +380,16 @@ function drawHz() {
   pts.forEach((p) => (s += `<circle cx="${hx(p[0]).toFixed(1)}" cy="${hy(p[1]).toFixed(1)}" r="3.4" fill="var(--ground)" stroke="var(--ha)" stroke-width="1.4"/>`));
   s += `<text x="${HZ.x0}" y="${HZ.y1 + 32}" fill="var(--ink-3)" font-size="10" font-family="IBM Plex Mono">${tx('{n} punti · azimut da nord verso est', { n: pts.length })}</text>`;
   F('hzSvg').innerHTML = s;
+  // da dove viene l'orizzonte e cosa succede quando arriva una mappa all-sky nuova
+  const terr = draft.site && draft.site.skyMap && draft.site.skyMap.terr;
+  F('hzSrc').textContent = tx({
+    map: 'Orizzonte preso dal terreno della mappa all-sky: si aggiorna da solo quando cambia la mappa. Se lo modifichi diventa tuo.',
+    user: 'Orizzonte tuo (disegnato o importato): una nuova mappa all-sky non lo sostituisce, lo alza soltanto dove il terreno è più alto.',
+    example: 'Orizzonte di esempio: disegnalo, importalo o prendi la mappa all-sky, che lo ricava dal terreno.',
+    none: 'Nessun orizzonte: conta solo l’altezza minima. La mappa all-sky, se la prendi, lo ricava dal terreno.',
+  }[draft.hzSrc] || '');
+  F('hzUseMap').hidden = !(terr && draft.hzSrc !== 'map');
 }
 function hzPoint(e) { const svg = F('hzSvg'), pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const q = pt.matrixTransform(svg.getScreenCTM().inverse()); return { az: clamp((q.x - HZ.x0) / (HZ.x1 - HZ.x0) * 360, 0, 359.9), alt: clamp((HZ.y1 - q.y) / (HZ.y1 - HZ.y0) * HZ.max, 0, HZ.max) }; }
-function hzSet(az, alt) { az = Math.round(az / 5) * 5 % 360; alt = Math.round(alt); const H = draft.horizon || (draft.horizon = []); const i = H.findIndex((p) => Math.abs(((p[0] - az + 540) % 360) - 180) < 2.5); if (i >= 0) H[i] = [az, alt]; else H.push([az, alt]); H.sort((a, b) => a[0] - b[0]); }
-function hzDel(az) { const H = draft.horizon || []; if (!H.length) return; let bi = 0, bd = 999; H.forEach((p, i) => { const d = Math.abs(((p[0] - az + 540) % 360) - 180); if (d < bd) { bd = d; bi = i; } }); if (bd < 8) H.splice(bi, 1); }
+function hzSet(az, alt) { draft.hzSrc = 'user'; az = Math.round(az / 5) * 5 % 360; alt = Math.round(alt); const H = draft.horizon || (draft.horizon = []); const i = H.findIndex((p) => Math.abs(((p[0] - az + 540) % 360) - 180) < 2.5); if (i >= 0) H[i] = [az, alt]; else H.push([az, alt]); H.sort((a, b) => a[0] - b[0]); }
+function hzDel(az) { const H = draft.horizon || []; if (!H.length) return; draft.hzSrc = 'user'; let bi = 0, bd = 999; H.forEach((p, i) => { const d = Math.abs(((p[0] - az + 540) % 360) - 180); if (d < bd) { bd = d; bi = i; } }); if (bd < 8) H.splice(bi, 1); }
