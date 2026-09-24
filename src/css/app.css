@@ -312,3 +312,33 @@ details.how p { max-width: 72ch; }
 .optic-head .kind { font-size: 12px; color: var(--ink-3); margin-right: auto; }
 .optic .res { font: 500 12px var(--font-m); color: var(--ink-2); }
 .optic .field .res { padding: 8px 0; }
+
+/* ---------- telefono ---------- */
+@media (max-width: 600px) {
+  .top { padding: 10px 14px; gap: 8px; }
+  .brand h1 { font-size: 21px; }
+  .brand small, .sync { display: none; }
+  .tools { gap: 6px; }
+  .tools .btn, .tools .sel, .tools .inp { min-height: 32px; padding: 4px 9px; font-size: 13px; }
+  .row { grid-template-columns: 44px 1fr; grid-template-areas: "score name" "score frame" "plan plan" "vis vis"; gap: 8px 12px; }
+  .c-plan { text-align: left; }
+  .plan .rig { white-space: normal; }
+  .acc { grid-template-columns: 1fr 76px auto; }
+  .acc .res { grid-column: 1 / -1; order: 3; margin-top: -2px; }
+  .modal { padding: 0; }
+  .sheet { border-radius: 0; border: 0; }
+  .sheet-body { padding: 4px 14px 18px; }
+  .sheet-foot { gap: 6px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); border-radius: 0; flex-wrap: wrap; }
+  .sheet-foot .btn { min-height: 32px; padding: 4px 10px; font-size: 13px; }
+  .sheet-foot .sp { display: none; }
+  #edSave { margin-left: auto; }
+  .drawer { padding: 14px 14px 60px; }
+  .tabs { flex-wrap: nowrap; overflow-x: auto; }
+}
+/* app Android: spazio per le barre di sistema (Capacitor le passa in --safe-area-inset-*) */
+.native { --sat: var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sab: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)); }
+.native .top { padding-top: calc(10px + var(--sat)); }
+.native .drawer { padding-top: calc(14px + var(--sat)); padding-bottom: calc(60px + var(--sab)); }
+.native .modal { padding-top: var(--sat); }
+.native .sheet-foot { padding-bottom: calc(8px + var(--sab)); }
+.native .list { padding-bottom: calc(40px + var(--sab)); }

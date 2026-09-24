@@ -36,8 +36,14 @@ async function exportProfiles() {
   if (DESK) { const r = await window.cielo.exportProfiles(data); if (r) toast(tx('Profili esportati in {f}', { f: r })); } else copyText(JSON.stringify(data, null, 2));
 }
 async function importProfiles() {
-  if (!DESK) { toast(tx('L’importazione da file è disponibile nell’app desktop')); return; }
-  const data = await window.cielo.importProfiles(); if (!data) return;
+  let data;
+  if (DESK) data = await window.cielo.importProfiles();
+  else data = await new Promise((res) => { // telefono e browser: si sceglie il file .json esportato dal desktop
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,application/json';
+    inp.onchange = () => { const f = inp.files[0]; if (!f) return res(null); const rd = new FileReader(); rd.onload = () => { try { res(JSON.parse(rd.result)); } catch { res(null); } }; rd.readAsText(f); };
+    inp.click();
+  });
+  if (!data) return;
   const list = (data.profiles || []).filter((p) => p && p.camera && (p.optic || p.optics) && p.site).map(migrateProfile);
   if (!list.length) { toast(tx('Il file non contiene profili validi')); return; }
   list.forEach((p) => { const i = state.profiles.findIndex((x) => x.id === p.id); if (i >= 0) state.profiles[i] = p; else state.profiles.push(p); });

@@ -2,7 +2,7 @@
 const { app, BrowserWindow, ipcMain, shell, dialog, Menu, clipboard, session } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
-const { lookup: lpLookup } = require('./lpatlas');
+const { lookup: lpLookup } = require('./src/js/lpatlas');
 const updater = require('./updater');
 
 app.setName('Skyframe');
@@ -43,7 +43,7 @@ function createWindow() {
       offscreen: !!(process.env.SKYFRAME_SMOKE || process.env.SKYFRAME_EVAL), // lo smoke test cattura la pagina senza bisogno di un desktop visibile
     },
   });
-  if (process.env.SKYFRAME_SMOKE || process.env.SKYFRAME_EVAL) { win.setSize(1440, 900); win.webContents.setFrameRate(30); }
+  if (process.env.SKYFRAME_SMOKE || process.env.SKYFRAME_EVAL) { const [ew, eh] = (process.env.SKYFRAME_EVAL_SIZE || '1440x900').split('x').map(Number); win.setMinimumSize(300, 400); win.setSize(ew, eh); win.webContents.setFrameRate(30); }
 
   // I link esterni (Aladin, Stellarium Web, lightpollutionmap) si aprono nel browser di sistema.
   win.webContents.setWindowOpenHandler(({ url }) => {

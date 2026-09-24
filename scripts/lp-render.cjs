@@ -1,7 +1,7 @@
 // Disegna in PNG la luminosità del cielo per direzione stimata per un luogo, per confrontarla con mappe all-sky reali.
 //   node scripts/lp-render.cjs <lat> <lon> <file.png> [sqm_zenit]
 const zlib = require('zlib'), fs = require('fs'), path = require('path');
-const { lookup, fAt } = require('../lpatlas');
+const { lookup, fAt } = require('../src/js/lpatlas');
 
 function png(file, w, h, rgba) {
   const crcT = new Int32Array(256).map((_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c; });

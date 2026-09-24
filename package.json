@@ -1,7 +1,7 @@
 {
   "name": "skyframe",
   "productName": "Skyframe",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Pianificatore di target per astrofotografia: sceglie cosa riprendere stanotte in base a setup, orizzonte e inquinamento luminoso.",
   "main": "main.js",
   "author": {
@@ -23,9 +23,13 @@
     "dist:mac": "electron-builder --mac",
     "dist:linux": "electron-builder --linux",
     "data": "node scripts/build-data.mjs",
-    "check": "node scripts/check-model.cjs"
+    "check": "node scripts/check-model.cjs",
+    "android:sync": "node scripts/version-js.cjs && npx cap sync android"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
     "electron": "^37.2.0",
     "electron-builder": "^26.0.12",
     "leaflet": "^1.9.4"
@@ -36,7 +40,6 @@
     "artifactName": "Skyframe-${version}-${os}-${arch}.${ext}",
     "files": [
       "main.js",
-      "lpatlas.js",
       "preload.js",
       "updater.js",
       "src/**/*",

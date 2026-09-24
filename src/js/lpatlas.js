@@ -3,9 +3,32 @@
    Tile binarie da 5°×5° a 1/120° (600×600): il primo valore (2 byte) è l'angolo in basso a sinistra, gli altri sono
    variazioni di 1 byte (prima lungo la colonna 0, poi lungo ogni riga). Formato ricavato dal codice della pagina
    dell'atlante: rapporto artificiale/naturale = (5/195)·(e^(0,0195·x) − 1), SQM = 22 − 2,5·log10(1 + rapporto). */
-const fs = require('fs/promises');
-const path = require('path');
-const zlib = require('zlib');
+(function () {
+// Stesso file per l'app desktop (Node: cache su disco, zlib) e per quella Android (pagina: Cache API, DecompressionStream).
+const NODE = typeof window === 'undefined';
+const fs = NODE ? require('fs/promises') : null;
+const path = NODE ? require('path') : null;
+const zlib = NODE ? require('zlib') : null;
+const URL_OF = (key) => `https://djlorenz.github.io/astronomy/binary_tiles/${YEAR}/binary_tile_${key}.dat.gz`;
+async function tileBytes(key, cacheDir) { // tile decompressa, dalla cache se c'è
+  if (NODE) {
+    const file = path.join(cacheDir, String(YEAR), `binary_tile_${key}.dat.gz`);
+    let gz;
+    try { gz = await fs.readFile(file); } catch {
+      const r = await fetch(URL_OF(key)); if (!r.ok) return null;
+      gz = Buffer.from(await r.arrayBuffer());
+      await fs.mkdir(path.dirname(file), { recursive: true }); await fs.writeFile(file, gz);
+    }
+    return zlib.gunzipSync(gz);
+  }
+  let res = null, cache = null;
+  try { cache = await caches.open('skyframe-lp-' + YEAR); res = await cache.match(URL_OF(key)); } catch { /* Cache API non disponibile */ }
+  if (!res) { const r = await fetch(URL_OF(key)); if (!r.ok) return null; if (cache) { try { await cache.put(URL_OF(key), r.clone()); } catch { /* piena */ } } res = r; }
+  const buf = new Uint8Array(await res.arrayBuffer());
+  if (buf[0] !== 0x1f || buf[1] !== 0x8b) return buf; // già decompressa dal server
+  const ds = new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return new Uint8Array(await new Response(ds).arrayBuffer());
+}
 
 const YEAR = 2025;
 const mem = new Map();
@@ -13,16 +36,9 @@ const mem = new Map();
 async function tile(tx, ty, cacheDir) {
   const key = `${tx}_${ty}`;
   if (mem.has(key)) return mem.get(key);
-  const file = path.join(cacheDir, String(YEAR), `binary_tile_${key}.dat.gz`);
-  let gz;
-  try { gz = await fs.readFile(file); } catch {
-    const r = await fetch(`https://djlorenz.github.io/astronomy/binary_tiles/${YEAR}/binary_tile_${key}.dat.gz`);
-    if (!r.ok) { mem.set(key, null); return null; }
-    gz = Buffer.from(await r.arrayBuffer());
-    await fs.mkdir(path.dirname(file), { recursive: true });
-    await fs.writeFile(file, gz);
-  }
-  const b = zlib.gunzipSync(gz), d = new Int8Array(b.buffer, b.byteOffset, b.length), g = new Float32Array(360000);
+  const b = await tileBytes(key, cacheDir);
+  if (!b) { mem.set(key, null); return null; }
+  const d = new Int8Array(b.buffer, b.byteOffset, b.length), g = new Float32Array(360000);
   let row0 = 128 * d[0] + d[1];
   for (let r = 0; r < 600; r++) {
     if (r > 0) row0 += d[600 * r + 1];
@@ -102,4 +118,5 @@ function fAt(g, h, az) {
   const r0 = V(a, k0) * (1 - tk) + V(a, k1) * tk, r1 = V(a + 1, k0) * (1 - tk) + V(a + 1, k1) * tk;
   return r0 * (1 - ta) + r1 * ta;
 }
-module.exports = { lookup, fAt, ALTS, _ratioAt: ratioAt };
+if (NODE) module.exports = { lookup, fAt, ALTS, _ratioAt: ratioAt }; else window.LPAtlas = { lookup, fAt, ALTS };
+})();

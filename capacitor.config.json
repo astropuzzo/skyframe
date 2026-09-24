@@ -1,0 +1,13 @@
+{
+  "appId": "io.github.astropuzzo.skyframe",
+  "appName": "Skyframe",
+  "webDir": "src",
+  "android": {
+    "backgroundColor": "#06080D"
+  },
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK"
+    }
+  }
+}
