@@ -27,8 +27,11 @@ Dalla pagina [Releases](https://github.com/astropuzzo/skyframe/releases):
 | Windows | `Skyframe-…-setup.exe` (installer) oppure `Skyframe-…-portable.exe` |
 | macOS (Intel e Apple Silicon) | `.dmg` |
 | Linux | `.AppImage` oppure `.deb` |
+| Android (7.0 o più recente) | `Skyframe-…-android.apk`: aprilo dal telefono e consenti l'installazione da questa fonte |
 
 Le build non sono firmate: su Windows SmartScreen chiede conferma (*Ulteriori informazioni → Esegui comunque*), su macOS la prima volta apri l'app con clic destro → *Apri*.
+
+Sull'app Android la mappa all-sky di lightpollutionmap non si scarica da sola: esporta il profilo dal desktop (con la mappa già letta) e importalo sul telefono, oppure importa l'immagine a mano. Quando esce una versione nuova l'app lo segnala e apre il download dell'APK.
 
 ## Sviluppo
 
@@ -39,6 +42,7 @@ npm run check      # stampa i piani di ripresa di alcuni scenari di riferimento
 npm run smoke      # avvia l'app senza finestra: dettaglio, editor, mappa all-sky su Roma; salva screenshot
 npm run data       # ricostruisce src/data/ dai cataloghi originali (scarica ciò che manca in scripts/raw/)
 npm run dist       # crea i pacchetti per il sistema corrente in dist/
+npm run android:sync   # copia l'app nel progetto Android (android/), poi si compila con Gradle o Android Studio
 ```
 
 GitHub Actions compila Windows, macOS e Linux a ogni push su `main`; con un tag `v*` pubblica una release, insieme ai file `latest*.yml` che servono agli aggiornamenti automatici. Per pubblicare: alza `version` in `package.json`, poi `git tag vX.Y.Z && git push --tags`.
