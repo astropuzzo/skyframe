@@ -26,6 +26,7 @@ const SOURCES = {
   'pn.tsv': VIZ + 'V/84', 'snr.tsv': VIZ + 'VII/297',
   'pndiam.tsv': 'https://vizier.cfa.harvard.edu/viz-bin/asu-tsv?-out.max=unlimited&-out.all&-source=V/84/diam',
   'halpha_0512.fits': 'https://lambda.gsfc.nasa.gov/data/foregrounds/halpha/lambda_halpha_fwhm06_0512.fits',
+  'sfd_ebv.fits': 'https://lambda.gsfc.nasa.gov/data/foregrounds/SFD/lambda_sfd_ebv.fits',
 };
 for (const [f, url] of Object.entries(SOURCES)) {
   const p = path.join(RAW, f);
@@ -249,7 +250,7 @@ for (const e of EXTRA) addOrMerge({ ...e, ra: e.ra * 15, alias: [], mag: null, s
 /* ---------- correzioni di tipo: ciò che conta per la ripresa ---------- */
 // le Pleiadi si fotografano per la nebulosa a riflessione; la Merope è riflessione; la Gabbiano è soprattutto emissione
 // (la testa vdB 93 è riflessione, ma il grosso è Sh2-292)
-const TYPE_FIX = { 'M 45': ['RN', 22.8], 'NGC 1435': ['RN', 22.5], 'IC 2177': ['EN', 23.0] };
+const TYPE_FIX = { 'M 45': ['RN', 22.8], 'NGC 1435': ['RN', 22.5], 'IC 2177': ['EN', 23.0], 'NGC 7129': ['RN', 22.0] };
 for (const o of list) { const f = TYPE_FIX[o.id]; if (f) { o.type = f[0]; o.sb = f[1]; } }
 /* Nebulose a riflessione: la magnitudine dei cataloghi è quella della stella che le illumina, non della nebulosa, e le
    dimensioni di OpenNGC per gli "ammassi + nebulosa" sono quelle dell'ammasso. Da lì uscivano LS assurde in entrambe le
@@ -262,7 +263,7 @@ const RN_FIX = {
   'NGC 1555': [null, null, 21.5], 'NGC 2261': [null, null, 20.8], 'NGC 2245': [null, null, 21.5], 'NGC 6589': [null, null, 22.2],
   'NGC 6590': [null, null, 22.2], 'NGC 2182': [null, null, 22.0], 'NGC 1985': [null, null, 21.5], 'IC 4592': [null, null, 23.8],
   'IC 1287': [null, null, 23.3], 'IC 444': [null, null, 23.2], 'IC 4604': [null, null, 22.8], 'IC 4605': [null, null, 23.3],
-  'IC 349': [3, 3, 21.5], 'NGC 1435': [null, null, 22.5], 'M 45': [null, null, 22.8],
+  'IC 349': [3, 3, 21.5], 'NGC 1435': [null, null, 22.5], 'M 45': [null, null, 22.8], 'NGC 7129': [7, 7, 22.0],
 };
 for (const o of list) {
   if (o.type !== 'RN') continue;
@@ -327,6 +328,38 @@ function diffuseHa(o) {
 function clamp(x, a, b) { return Math.min(b, Math.max(a, x)); }
 for (const o of list) o.ha = diffuseHa(o);
 
+/* ---------- polveri attorno a ogni oggetto ----------
+   Le nubi oscure dei cataloghi (Lynds, Barnard) sono pezzi: attorno a NGC 1333, alla Iris o alle Pleiadi nessuno da
+   solo è grande, ma le polveri riempiono il campo. Si misura quindi la polvere con la mappa di Schlegel, Finkbeiner &
+   Davis (1998, E(B−V) da IRAS/DIRBE, NASA LAMBDA: HEALPix NESTED, nside 512, galattiche) in un disco attorno all'oggetto.
+   Regola tarata su due gruppi di target (con polveri: Cocoon, NGC 1333, Iris, M 78, IC 348, vdB 152,
+   Sh2-136, Running Man, Testa di Cavallo, rho Ophiuchi; senza: galassie, NGC 7000, NGC 281, Velo, M 1, Sh2-129, M 42,
+   Pleiadi):
+   - riflessione: polveri se la mediana è ≥ 0,25 (sotto c'è solo nebulosità integrata debolissima, come attorno alle
+     Pleiadi, che è un di più da cielo buio e non la foto "buona");
+   - emissione e resti di supernova: solo fuori dal piano (|b| ≥ 4°, dove la mappa somma tutto il disco), con nubi forti
+     e strutturate (90° percentile ≥ 0,9 e ≥ 4 volte il 10°) ma non opache ovunque (mediana ≤ 1,2: lì è il disco dietro),
+     attorno a un oggetto non brillante (LS ≥ 21,5) e non Messier (M 42, M 43, M 8… si riprendono per la nebulosa).
+   Il valore salvato è la mediana di E(B−V) (0 = polveri che non contano). */
+const SFD = (() => {
+  const buf = fs.readFileSync(path.join(RAW, 'sfd_ebv.fits'));
+  let off = 0, ends = 0;
+  while (ends < 2) { const block = buf.toString('ascii', off, off + 2880); off += 2880; for (let i = 0; i < 2880; i += 80) if (block.slice(i, i + 8) === 'END     ') { ends++; break; } }
+  const nside = 512, npix = 12 * nside * nside, map = new Float32Array(npix);
+  for (let i = 0; i < npix; i++) map[i] = buf.readFloatBE(off + 8 * i); // righe: E(B−V), numero di osservazioni
+  return { nside, map };
+})();
+function ebvAt(ra, dec) { const [l, b] = toGal(ra, dec); return SFD.map[ang2pixNest(SFD.nside, (90 - b) * D2R, l * D2R)]; }
+function dustAround(o) {
+  const R = Math.max(40, o.a / 2 + 20), r0 = Math.min(o.a / 2, R * 0.6), v = [], cd = Math.cos(o.dec * D2R);
+  for (let x = -R; x <= R; x += 3) for (let y = -R; y <= R; y += 3) { const r = Math.hypot(x, y); if (r > R || r < r0) continue; v.push(ebvAt(o.ra + x / 60 / cd, clamp(o.dec + y / 60, -89.9, 89.9))); }
+  v.sort((a, b) => a - b); const q = (p) => v[Math.min(v.length - 1, Math.floor(p * v.length))];
+  const p10 = q(0.1), p50 = q(0.5), p90 = q(0.9), gb = Math.abs(toGal(o.ra, o.dec)[1]);
+  const on = o.type === 'RN' ? p50 >= 0.25 : (o.type === 'EN' || o.type === 'SNR') && o.src !== 'M' && gb >= 4 && p90 >= 0.9 && p90 >= 4 * p10 && p50 <= 1.2 && o.sb >= 21.5;
+  return on ? Math.round(p50 * 100) / 100 : 0;
+}
+for (const o of list) o.dust = dustAround(o);
+
 /* ---------- uscita ---------- */
 const typeCount = {};
 const tipIds = new Set(Object.keys(TIPS));
@@ -335,11 +368,11 @@ const rows = list.map((o) => {
   const all = [o.id, ...o.alias];
   const classic = o.src === 'M' || all.some((x) => CLASSIC.has(x)) ? 1 : 0;
   const tipKey = all.find((x) => tipIds.has(x)) || '';
-  return [o.id, o.alias.join('|'), o.nick || '', o.type, r4(o.ra), r4(o.dec), r1(o.a), r1(o.b), Math.round(o.pa || 0), o.mag == null ? null : r1(o.mag), r1(Math.min(26, Math.max(15, o.sb))), o.con || '', o.src, classic, tipKey, (o.ctx || []).join('|'), r1(o.ha), all.map((x) => LINE_KEY[x]).find(Boolean) || ''];
+  return [o.id, o.alias.join('|'), o.nick || '', o.type, r4(o.ra), r4(o.dec), r1(o.a), r1(o.b), Math.round(o.pa || 0), o.mag == null ? null : r1(o.mag), r1(Math.min(26, Math.max(15, o.sb))), o.con || '', o.src, classic, tipKey, (o.ctx || []).join('|'), r1(o.ha), all.map((x) => LINE_KEY[x]).find(Boolean) || '', o.dust || 0];
 });
 fs.writeFileSync(path.join(OUT, 'dso.js'),
   '// Generato da scripts/build-data.mjs — non modificare a mano.\n' +
-  '// [id, alias, soprannome, tipo, RA°, Dec°, asse maggiore′, minore′, PA°, mag, LS mag/″², costellazione, catalogo, classico, chiave note, contesto, Hα diffuso attorno (Rayleigh, Finkbeiner 2003), profilo di righe]\n' +
+  '// [id, alias, soprannome, tipo, RA°, Dec°, asse maggiore′, minore′, PA°, mag, LS mag/″², costellazione, catalogo, classico, chiave note, contesto, Hα diffuso attorno (Rayleigh, Finkbeiner 2003), profilo di righe, polveri attorno (mediana E(B−V), SFD 1998; 0 = non contano)]\n' +
   'window.DSO=' + JSON.stringify(rows) + ';\nwindow.TIPS=' + JSON.stringify(TIPS) + ';\n');
 console.log('oggetti:', rows.length, typeCount);
 

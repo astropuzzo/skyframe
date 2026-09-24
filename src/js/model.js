@@ -8,8 +8,8 @@ const SOURCES = { M: 'Messier', NGC: 'NGC', IC: 'IC', Caldwell: 'Caldwell', Sh2:
 const LINES = { EN: { Ha: 1.5, OIII: 0.3, SII: 0.25, cont: 0.3 }, PN: { Ha: 0.8, OIII: 2.0, SII: 0.05, cont: 0.2 }, SNR: { Ha: 1.0, OIII: 0.6, SII: 0.6, cont: 0.3 }, WR: { Ha: 0.9, OIII: 1.4, SII: 0.2, cont: 0.2 }, WRS: { Ha: 0.25, OIII: 1.4, SII: 0.03, cont: 0.05 } }; // WR: bolle di Wolf-Rayet (NGC 6888, WR 134, Sh2-308, NGC 2359); WRS: il loro guscio esterno, quasi solo OIII
 const TYPE_SNR = { OC: 0.4, GC: 0.45 };
 const CAT = (window.DSO || []).map((r) => {
-  const [id, alias, nick, type, ra, dec, a, b, pa, mag, sb, con, src, classic, tip, ctx, ha, lk] = r;
-  return { id, alias: alias ? alias.split('|') : [], nick, type, ra, dec, a, b: b || a, pa, mag, sb, con, src, classic: !!classic, tip, ctx: ctx ? ctx.split('|') : [], ha: ha || 0, lk: lk || type, search: (id + ' ' + alias + ' ' + nick).toLowerCase().replace(/\s+/g, '') };
+  const [id, alias, nick, type, ra, dec, a, b, pa, mag, sb, con, src, classic, tip, ctx, ha, lk, dust] = r;
+  return { id, alias: alias ? alias.split('|') : [], nick, type, ra, dec, a, b: b || a, pa, mag, sb, con, src, classic: !!classic, tip, ctx: ctx ? ctx.split('|') : [], ha: ha || 0, lk: lk || type, dust: dust || 0, search: (id + ' ' + alias + ' ' + nick).toLowerCase().replace(/\s+/g, '') };
 });
 const CAT_BY_ID = new Map(CAT.map((o) => [o.id, o]));
 const CONST_NAMES = Object.fromEntries(((window.SKY && window.SKY.names) || []).map((n) => [n.id, LANG === 'it' ? n.n : n.la || n.n]));
@@ -171,7 +171,7 @@ function templateProfile() {
     optics: [{ id: 'o1', preset: 'redcat51', name: 'William Optics RedCat 51', ap: 51, fl: 250, obs: 0, useNative: true, accessories: [] }],
     filters: { owned: ['uvir', 'lextreme'] },
     site: { name: 'Milano (esempio)', lat: 45.4642, lon: 9.19, bortle: 7, sqm: 18.6, example: true },
-    session: { minAlt: 25, sunThr: -18, from: '', to: '', sub: 180, quality: 'good' },
+    session: { minAlt: 25, sunThr: -18, from: '', to: '', sub: 180, quality: 'good', moon: 'any' },
     horizon: [[0, 18], [30, 24], [60, 32], [90, 28], [110, 14], [150, 10], [180, 8], [210, 9], [240, 16], [270, 22], [300, 35], [330, 26]],
   };
 }
@@ -507,6 +507,10 @@ const R_TO_PH = 1.87e-6, DIFF_MIN_R = 3, DIFF_REL = 0.02, NO_DIFF = { Gx: 1, GC:
 const SHELL = { WR: 3.2 };
 /* polveri che contano davvero per il campo e i tempi: estese rispetto all'oggetto */
 const bigDust = (o, c) => (c.type === 'DN' || c.type === 'RN') && c.a >= Math.max(20, 0.5 * o.a);
+/* polveri diffuse attorno all'oggetto misurate sulla mappa SFD (anche quando nei cataloghi sono solo pezzi piccoli):
+   contano come una nube grande, a LS ≈ DUST_SB */
+const AMBIENT_DUST = { id: '', type: 'DN', sb: DUST_SB, a: 0, ambient: true };
+const dustOf = (o, field) => field.ctx.filter((c) => bigDust(o, c)).sort((a, b) => a.sb - b.sb)[0] || (o.dust ? AMBIENT_DUST : null);
 /* limiti pratici dei sub per tipo di filtro [min, max] s: il minimo fisico lo decide il fondo cielo */
 function subLimits(f, fr) {
   if (f.kind === 'nb') { const w = f.bands[0][1] - f.bands[0][0]; return w <= 4.5 ? [300, 900] : [300, 600]; }
@@ -581,7 +585,7 @@ for (const t of Object.keys(LINES)) OBJ_LINES[t] = objLines(t).map((x, i) => [x[
 function evalStrategies(o, S, K, U, Q, T, field) {
   const lines = LINES[o.lk];
   const qMain = o.type === 'DN' ? Q.faint * DUST_SNR : Q.main * (TYPE_SNR[o.type] || 1), sbMain = o.type === 'DN' ? Math.max(o.sb, DUST_SB) : o.sb;
-  const dust = field.ctx.filter((c) => bigDust(o, c)).sort((a, b) => a.sb - b.sb)[0];
+  const dust = dustOf(o, field);
   const faintHa = field.ctx.filter((c) => c.type === 'EN').sort((a, b) => a.sb - b.sb)[0];
   const bbS = S.find((s) => s.suits === 'all');
   const ef = T.ef || 1; // estinzione ridotta con la quota del luogo
@@ -617,23 +621,23 @@ function evalStrategies(o, S, K, U, Q, T, field) {
       const sub = K.subMax && (fk === 'bb' || fk === 'lp') ? Math.max(K.subMax, Math.ceil(minSub)) : niceSub(clamp(minSub * 6, lo, hi));
       const Nc = K.dark * K.npix + K.npix * K.rn * K.rn / sub;
       const Blp = F0 * K.geo * (0.75 * c.I + 44 * c.skyL), Bc = F0 * K.geo * c.I;
-      chans.push({ c, st, R, sub, minSub, Nc, Blp, Bc, acc: new Float64Array(R.length) });
+      chans.push({ c, st, R, sub, minSub, Nc, Blp, Bc, acc: new Float64Array(R.length), accD: new Float64Array(R.length) });
     }));
     for (let u = 0; u < U.n; u++) {
       const X = U.X[u];
       for (const ch of chans) {
-        const B = ch.Blp * U.art[u] + ch.Bc * (U.nat[u] + U.mf[u]) + ch.Nc, ex = Math.pow(10, -0.4 * ch.c.ext * ef * (X - 1));
-        for (let q = 0; q < ch.R.length; q++) { const Sg = ch.R[q].S * ex; ch.acc[q] += Sg * Sg / (Sg + B); }
+        const B0 = ch.Blp * U.art[u] + ch.Bc * U.nat[u] + ch.Nc, B = B0 + ch.Bc * U.mf[u], ex = Math.pow(10, -0.4 * ch.c.ext * ef * (X - 1));
+        for (let q = 0; q < ch.R.length; q++) { const Sg = ch.R[q].S * ex; ch.acc[q] += Sg * Sg / (Sg + B); ch.accD[q] += Sg * Sg / (Sg + B0); }
       }
     }
-    // ore per requisito: [ideale, stanotte]
+    // ore per requisito: [ideale (al transito, senza Luna), con la Luna della notte, senza Luna lungo il percorso della notte]
     const hours = (ch, k) => {
       const q = ch.R[k], exT = Math.pow(10, -0.4 * ch.c.ext * ef * (T.X - 1)), BT = ch.Blp * T.art + ch.Bc * T.nat + ch.Nc;
-      const Sg = q.S * exT, rI = Sg * Sg / (Sg + BT), need = q.snr * q.snr, rT = U.n ? ch.acc[k] / U.n : 0;
-      return [need / rI / 3600 * ch.c.mult, rT > 0 ? need / rT / 3600 * ch.c.mult : Infinity];
+      const Sg = q.S * exT, rI = Sg * Sg / (Sg + BT), need = q.snr * q.snr, rT = U.n ? ch.acc[k] / U.n : 0, rD = U.n ? ch.accD[k] / U.n : 0;
+      return [need / rI / 3600 * ch.c.mult, rT > 0 ? need / rT / 3600 * ch.c.mult : Infinity, rD > 0 ? need / rD / 3600 * ch.c.mult : Infinity];
     };
     let ci = 0;
-    const X = s.steps.map((st) => ({ st, chs: st.ch.map(() => chans[ci++]), hI: 0, hT: 0, hID: 0, hTD: 0, drive: '', driveDeep: '' }));
+    const X = s.steps.map((st) => ({ st, chs: st.ch.map(() => chans[ci++]), hI: 0, hT: 0, hD: 0, hID: 0, hTD: 0, hDD: 0, drive: '', driveDeep: '' }));
     // requisiti raggruppati per canale: lo stesso canale può comparire in più passi (l'OIII di due multibanda)
     const groups = new Map();
     X.forEach((x) => x.chs.forEach((ch) => ch.R.forEach((q, k) => {
@@ -643,9 +647,9 @@ function evalStrategies(o, S, K, U, Q, T, field) {
     // requisito di un solo passo: il passo dura quanto il requisito più lento
     for (const { q, on } of groups.values()) {
       if (on.length > 1) continue;
-      const [x, [hi, ht]] = on[0];
-      if (!q.deep) { if (hi > x.hI) { x.hI = hi; x.drive = q.what; } x.hT = Math.max(x.hT, ht); }
-      if (hi > x.hID) { x.hID = hi; x.driveDeep = q.what; } x.hTD = Math.max(x.hTD, ht);
+      const [x, [hi, ht, hd]] = on[0];
+      if (!q.deep) { if (hi > x.hI) { x.hI = hi; x.drive = q.what; } x.hT = Math.max(x.hT, ht); x.hD = Math.max(x.hD, hd); }
+      if (hi > x.hID) { x.hID = hi; x.driveDeep = q.what; } x.hTD = Math.max(x.hTD, ht); x.hDD = Math.max(x.hDD, hd);
     }
     // requisito in più passi: i segnali si sommano. Il tempo che ancora manca va ai passi che raccolgono quel canale
     // più in fretta (entro il 15%), pareggiandone le ore.
@@ -663,17 +667,17 @@ function evalStrategies(o, S, K, U, Q, T, field) {
           low.forEach(([x]) => { x[f] += d; if (dr) x[dr] = q.what; }); deficit -= d * rate;
         }
       };
-      if (!q.deep) { fill('hI', 0, 'drive'); fill('hT', 1); }
-      fill('hID', 0, 'driveDeep'); fill('hTD', 1);
+      if (!q.deep) { fill('hI', 0, 'drive'); fill('hT', 1); fill('hD', 2); }
+      fill('hID', 0, 'driveDeep'); fill('hTD', 1); fill('hDD', 2);
     }
-    let ideal = 0, tonight = 0, idealDeep = 0, tonightDeep = 0;
+    let ideal = 0, tonight = 0, dark = 0, idealDeep = 0, tonightDeep = 0, darkDeep = 0;
     const steps = X.map((x) => {
-      x.hID = Math.max(x.hID, x.hI); x.hTD = Math.max(x.hTD, x.hT);
-      ideal += x.hI; tonight += x.hT; idealDeep += x.hID; tonightDeep += x.hTD;
-      return { f: x.st.f, keys: x.st.ch.map((c) => c.key), hI: x.hI, hT: x.hT, hID: x.hID, hTD: x.hTD, subs: x.chs.map((ch) => ({ key: ch.c.key, s: ch.sub, min: Math.round(ch.minSub) })), purpose: x.st.purpose || '', drive: x.drive, driveDeep: x.driveDeep };
+      x.hID = Math.max(x.hID, x.hI); x.hTD = Math.max(x.hTD, x.hT); x.hDD = Math.max(x.hDD, x.hD);
+      ideal += x.hI; tonight += x.hT; dark += x.hD; idealDeep += x.hID; tonightDeep += x.hTD; darkDeep += x.hDD;
+      return { f: x.st.f, keys: x.st.ch.map((c) => c.key), hI: x.hI, hT: x.hT, hD: x.hD, hID: x.hID, hTD: x.hTD, hDD: x.hDD, subs: x.chs.map((ch) => ({ key: ch.c.key, s: ch.sub, min: Math.round(ch.minSub) })), purpose: x.st.purpose || '', drive: x.drive, driveDeep: x.driveDeep };
     });
     const nights = U.h > 0 ? tonight / U.h : Infinity;
-    return { id: s.id, label: s.label, short: s.short, pal: s.pal, penalty: s.penalty, steps, ideal, tonight, nights, idealDeep, tonightDeep, deep: idealDeep > ideal * 1.15, alt: s0.alt, lineOnly: s0.suits === 'line', hybrid: s !== s0 };
+    return { id: s.id, label: s.label, short: s.short, pal: s.pal, penalty: s.penalty, steps, ideal, tonight, dark, nights, idealDeep, tonightDeep, darkDeep, deep: idealDeep > ideal * 1.15, alt: s0.alt, lineOnly: s0.suits === 'line', hybrid: s !== s0 };
   });
 }
 /* Sotto un cielo non buio l'emissione si riprende in banda stretta (la banda larga resta per stelle e polveri):
@@ -686,7 +690,7 @@ function pickBest(strat, preferLine) {
 /* mosaico: ogni pannello richiede lo stesso tempo */
 function scalePanels(strat, n) {
   if (n <= 1) return strat;
-  strat.forEach((s) => { s.panels = n; s.ideal *= n; s.tonight *= n; s.nights *= n; s.idealDeep *= n; s.tonightDeep *= n; s.steps.forEach((st) => { st.hI *= n; st.hT *= n; st.hID *= n; st.hTD *= n; }); });
+  strat.forEach((s) => { s.panels = n; s.ideal *= n; s.tonight *= n; s.dark *= n; s.nights *= n; s.idealDeep *= n; s.tonightDeep *= n; s.darkDeep *= n; s.steps.forEach((st) => { st.hI *= n; st.hT *= n; st.hD *= n; st.hID *= n; st.hTD *= n; st.hDD *= n; }); });
   return strat;
 }
 
@@ -748,8 +752,12 @@ function computeAll(cfgs, active, ds, now) {
   for (const o of CAT) { const r = computeObj(C, o); if (r) out.push(r); }
   return { night: C.night, results: out, lut: C.lut, sky: C.sky, sqm: C.sky.sqm, Q: C.Q, C };
 }
-/* ore per un target in una configurazione: quelle con le condizioni di stanotte, altrimenti senza Luna e al transito */
-const hoursOf = (b) => (b ? (isFinite(b.tonight) ? b.tonight : b.ideal) : Infinity);
+/* Ore di posa di un target in una configurazione: senza Luna, lungo il percorso reale della notte scelta (cielo e luci
+   nella sua direzione, altezza, estinzione); se quella notte non si riprende, al transito. È il numero da confrontare
+   fra luoghi e filtri. Con la Luna della notte (moonHoursOf) è un'altra cosa: dice quanto costa riprenderlo proprio lì. */
+const hoursOf = (b) => (b ? (isFinite(b.dark) ? b.dark : b.ideal) : Infinity);
+const moonHoursOf = (b) => (b ? (isFinite(b.tonight) ? b.tonight : b.ideal) : Infinity);
+const deepHoursOf = (b) => (b ? (isFinite(b.darkDeep) ? b.darkDeep : b.idealDeep) : Infinity);
 /* ricostruisce i passi utili di un oggetto (per le valutazioni "e se…" nel dettaglio) */
 function usableSteps(r, night, sky) {
   const U = { X: new Float32Array(N + 1), art: new Float32Array(N + 1), nat: new Float32Array(N + 1), mf: new Float32Array(N + 1), n: 0, h: 0 };
@@ -787,15 +795,17 @@ const calKey = (r, e, deep) => r.o.id + '|' + e.cfg.key + '|' + (e.best ? e.best
 function shootCalendar(C, r, e, deep) {
   const b = e.best; if (!b) return null;
   const A = aheadCtx(C), key = calKey(r, e, deep); if (A.cache.has(key)) return A.cache.get(key);
+  // "solo senza Luna": contano le ore con la Luna sotto l'orizzonte o sottile (fino al 10% illuminata)
+  const darkOnly = C.active.session.moon === 'dark';
   const s0 = e.cfg.strategies.find((x) => x.id === b.id), bb = e.cfg.strategies.find((x) => x.suits === 'all');
   const S = s0 ? (bb && bb !== s0 ? [s0, bb] : [s0]) : null, panels = b.panels || 1;
   const U = { X: new Float32Array(CAL_N), art: new Float32Array(CAL_N), nat: new Float32Array(CAL_N), mf: new Float32Array(CAL_N), n: 0, h: 0 };
   const rec = (k) => {
     const nk = aheadNight(C, k);
-    if (k === 0) return { k, t0: nk.t0, h: r.usableH, T: b.tonight, TD: b.tonightDeep, moon: C.night.moonIll }; // stanotte: i valori esatti della lista
+    if (k === 0 && !darkOnly) return { k, t0: nk.t0, h: r.usableH, T: b.tonight, TD: b.tonightDeep, moon: C.night.moonIll }; // stanotte: i valori esatti della lista
     U.n = 0;
     for (let i = 0; i < CAL_N; i++) {
-      if (!nk.dark[i]) continue; const aa = altaz(r.pr.ra, r.pr.dec, nk.lst[i], A.sL, A.cL), a = aa[0], z = aa[1];
+      if (!nk.dark[i] || (darkOnly && nk.mAlt[i] > 0 && nk.mIll[i] > 0.1)) continue; const aa = altaz(r.pr.ra, r.pr.dec, nk.lst[i], A.sL, A.cL), a = aa[0], z = aa[1];
       if (a < Math.max(C.minAlt, C.lut[Math.round(z) % 360])) continue;
       U.X[U.n] = airmass(a); U.art[U.n] = C.sky.art(a, z); U.nat[U.n] = C.sky.nat(a); U.mf[U.n] = moonFlux(nk, i, r.v)[0]; U.n++;
     }
@@ -803,7 +813,7 @@ function shootCalendar(C, r, e, deep) {
     if (h >= CAL_MIN_H && S) { const ev = evalStrategies(r.o, S, e.K, U, C.Q, r.T, r.field).find((x) => x.id === b.id); if (ev) { T = ev.tonight * panels; TD = ev.tonightDeep * panels; } }
     return { k, t0: nk.t0, h, T, TD, moon: nk.moon };
   };
-  const out = { nights: [], sessions: 0, done: null, prog: 0, skipped: 0, deep: deep && b.deep ? { sessions: 0, done: null, prog: 0 } : null };
+  const out = { nights: [], sessions: 0, done: null, prog: 0, skipped: 0, darkOnly, deep: deep && b.deep ? { sessions: 0, done: null, prog: 0 } : null };
   const finished = () => out.done && (!out.deep || out.deep.done);
   const first = rec(0), tonightOk = first.h >= CAL_MIN_H && first.T <= first.h;
   if (tonightOk && (!out.deep || first.TD <= first.h)) { // basta stanotte
@@ -945,11 +955,12 @@ const KEY_LABEL = { all: 'banda larga', L: 'L', R: 'R', G: 'G', B: 'B', Ha: 'Hα
 const DRIVE_LABEL = { main: 'parte principale', faint: 'parti deboli', dust: 'polveri attorno', ctxHa: 'nebulosità deboli attorno', diffHa: 'Hα diffuso attorno', shell: 'guscio OIII' };
 /* Piano di ripresa: un passo per filtro con ore e sub. Si usa una sola strategia, non tutti i filtri che hai:
    l'unica aggiunta è la banda larga per le stelle quando il piano OSC è solo in banda stretta. */
-function planOf(s, cfg, useTonight) {
+function planOf(s, cfg, mode = 'dark') {
   if (!s) return null;
+  const pick = (a, b) => (isFinite(a) ? a : b), [k, kd] = mode === 'moon' ? ['hT', 'hTD'] : mode === 'dark' ? ['hD', 'hDD'] : ['hI', 'hID'];
   const rows = s.steps.map((st) => ({
     filter: fname(st.f), what: st.purpose === 'dust' ? tx('polveri e stelle') : st.keys.map((k) => tx(KEY_LABEL[k])).join(' + '),
-    h: useTonight && isFinite(st.hT) ? st.hT : st.hI, hDeep: useTonight && isFinite(st.hTD) ? st.hTD : st.hID,
+    h: pick(st[k], st.hI), hDeep: pick(st[kd], st.hID),
     sub: st.subs.map((x) => x.s).reduce((a, b) => Math.max(a, b), 0), drive: tx(DRIVE_LABEL[st.drive] || ''), driveDeep: tx(DRIVE_LABEL[st.driveDeep] || ''),
   }));
   const star = cfg.strategies.starFilter;
@@ -962,8 +973,8 @@ function planOf(s, cfg, useTonight) {
 function adviceFor(r, e, ctx) {
   const o = r.o, n = ctx.night, tips = [];
   const b = e.best, g = e.cfg.geom;
-  if (b && isFinite(b.tonight) && b.ideal > 0) {
-    const extra = b.tonight / b.ideal - 1;
+  if (b && isFinite(b.tonight) && hoursOf(b) > 0) {
+    const extra = b.tonight / hoursOf(b) - 1;
     if (extra > 0.4 && r.minSep < 180) {
       let t = tx('Stanotte la Luna ({ill}%, a {sep}° dal target) ti costa +{x}% di tempo.', { ill: Math.round(n.moonIll * 100), sep: Math.round(r.minSep), x: Math.round(extra * 100) });
       const nbAlt = e.strat.filter((s) => s.lineOnly && s !== b).sort((x, y) => x.tonight - y.tonight)[0];
@@ -974,7 +985,10 @@ function adviceFor(r, e, ctx) {
     }
   }
   const dust = r.field.ctx.filter((c) => c.type === 'DN' || c.type === 'RN');
-  if (dust.length) tips.push({ k: 'Polveri', t: tx('Attorno c’è {ids}: polvere a LS ≈ {sb} mag/″². È lei a decidere il tempo in banda larga ed è per questo che il campo da inquadrare è {f} e non {o}.', { ids: dust.map((c) => `${c.id}${c.nick ? ' (' + c.nick + ')' : ''}`).join(', '), sb: it(Math.max(dust[0].sb, DUST_SB), 1), f: fmtDeg(r.field.a), o: fmtDeg(o.a) }) });
+  const tot = hoursOf(b);
+  const core = ctx.coreH != null && ctx.coreH < tot * 0.7 ? ' ' + tx('Per la sola parte luminosa, senza le polveri, basterebbero {h}.', { h: fmtH(ctx.coreH) }) : '';
+  if (!dust.length && o.dust) tips.push({ k: 'Polveri', t: tx('Attorno c’è una nube di polvere (E(B−V) ≈ {e} nella mappa di Schlegel, Finkbeiner & Davis): nelle foto profonde riempie il campo a LS ≈ {sb} mag/″² ed è lei a decidere il tempo in banda larga.', { e: it(o.dust, 2), sb: it(DUST_SB, 1) }) + core });
+  if (dust.length) tips.push({ k: 'Polveri', t: tx('Attorno c’è {ids}: polvere a LS ≈ {sb} mag/″². È lei a decidere il tempo in banda larga ed è per questo che il campo da inquadrare è {f} e non {o}.', { ids: dust.map((c) => `${c.id}${c.nick ? ' (' + c.nick + ')' : ''}`).join(', '), sb: it(Math.max(dust[0].sb, DUST_SB), 1), f: fmtDeg(r.field.a), o: fmtDeg(o.a) }) + core });
   if (b && b.ideal > 150 && ctx.sky && ctx.sky.sqm < 20.8) {
     // con il fondo cielo dominante il tempo scala con la sua luminosità: stima per un sito con SQM 21,3
     const dark = b.ideal * Math.pow(10, -0.4 * (21.3 - ctx.sky.sqm));
@@ -1006,7 +1020,7 @@ function adviceFor(r, e, ctx) {
   }
   if (!b) tips.push({ k: 'Filtri', t: tx('Con i filtri di questo profilo non c’è una strategia adatta: per {t} serve la banda larga.', { t: tx(TYPES_PL[o.type]).toLowerCase() }) });
   if (o.type === 'DN' || o.type === 'RN') tips.push({ k: 'Filtri', t: tx('Luce riflessa o polvere: la banda stretta non serve. Rende davvero solo sotto un cielo buio.') });
-  if (ctx.alt && b) tips.push({ k: 'E se…', t: tx('Con {n} ci vorrebbero {a} invece di {b}.', { n: ctx.alt.name, a: fmtH(ctx.alt.h), b: fmtH(isFinite(b.tonight) ? b.tonight : b.ideal) }) });
+  if (ctx.alt && b) tips.push({ k: 'E se…', t: tx('Con {n} ci vorrebbero {a} invece di {b}.', { n: ctx.alt.name, a: fmtH(ctx.alt.h), b: fmtH(hoursOf(b)) }) });
   ((window.TIPS && o.tip && window.TIPS[o.tip]) || []).forEach((t) => tips.push({ k: 'Nota', t: tx(t) }));
   return tips;
 }

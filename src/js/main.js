@@ -173,7 +173,7 @@ function applyFilters() {
   if (f.maxNights < 11) L = L.filter((r) => r.e.best && nightsOf(r) <= f.maxNights);
   if (state.cfgFilter) L = L.filter((r) => r.e.cfg.key === state.cfgFilter);
   if (q) L = L.filter((r) => r.o.search.includes(q));
-  const hrs = (r) => (r.e.best && isFinite(r.e.best.tonight) ? r.e.best.tonight : 1e9);
+  const hrs = (r) => (r.e.best ? hoursOf(r.e.best) : 1e9); // ore senza Luna lungo il percorso della notte
   // conviene andare altrove: target buoni nell'altro luogo e con molto tempo risparmiato (o che qui non si riprendono)
   const gain = (r) => { const b = betterLoc(r); return b ? b.s.score * (0.5 + (b.gain == null ? 1 : b.gain)) : -1; };
   const t = Dome.time;
