@@ -12,7 +12,7 @@
 <body>
 <div class="app">
   <header class="top">
-    <div class="brand"><h1>Sky<b>frame</b></h1><small id="brandSub"></small></div>
+    <div class="brand"><h1>Sky<b>frame</b></h1><small id="brandSub"></small><div class="upd" id="upd" role="status" aria-live="polite" hidden></div></div>
     <div class="tools">
       <select id="profileSel" class="sel" aria-label="Profilo attivo"></select>
       <button id="editBtn" class="btn">Modifica profilo</button>
@@ -26,6 +26,7 @@
   <div class="main">
     <aside class="sky" aria-label="Cielo">
       <div class="dome-wrap"><canvas id="dome" aria-label="Cielo visto dal tuo luogo"></canvas><div id="domeTip" class="dome-tip" hidden></div></div>
+      <div class="side">
       <div class="clock">
         <div class="time num" id="clockTime">--:--</div>
         <div class="when" id="clockWhen"></div>
@@ -38,6 +39,8 @@
       <div class="strip" id="strip" aria-label="Notte: trascina per cambiare ora"><canvas id="stripCv"></canvas></div>
       <div class="facts" id="facts"></div>
       <div class="setups" id="setups" hidden></div>
+      <button class="tolist" id="toList" type="button"><span id="toListN" class="num">–</span> target per questa notte <i aria-hidden="true">↓</i></button>
+      </div>
     </aside>
     <section class="work">
       <div id="notice"></div>
@@ -139,7 +142,29 @@
           <div>
             <div id="lpLegend"></div>
             <div class="hzbar" style="margin-top:0"><button class="btn sm" id="lpBtn">Calcola dall’atlante 2025</button><span id="lpMsg" class="hint" style="margin:0"></span></div>
-            <p class="hint">L’SQM allo zenit e la distribuzione delle luci attorno arrivano dall’<a href="https://djlorenz.github.io/astronomy/lp/" target="_blank" rel="noopener">atlante di David Lorenz</a> (dati satellitari VIIRS 2025). La mappa a sinistra è la luminosità stimata in ogni direzione: più chiaro = cielo più brillante. Altri modelli (per esempio <a href="https://www.lightpollutionmap.info" target="_blank" rel="noopener">lightpollutionmap.info</a>) possono differire di qualche decimo: se hai una misura col tuo SQM, scrivila nel campo e prevale.</p>
+            <div class="skydrop" id="skyDrop">
+              <b>Forma esatta del tuo cielo: mappa all-sky di lightpollutionmap</b>
+              <div class="hzbar" style="margin:6px 0 4px"><button class="btn sm" id="lpmBtn" type="button">Prendi la mappa all-sky dal sito</button><span class="hint" style="margin:0">Parte da sola quando sposti lo spillo o scegli un luogo.</span></div>
+              <p class="hint" style="margin:4px 0 0">In alternativa, a mano:</p>
+              <ol>
+                <li><a id="lpmOpen" href="https://www.lightpollutionmap.info" target="_blank" rel="noopener">Apri lightpollutionmap sul tuo punto ↗</a>, scegli il livello <i>Sky brightness</i> e clicca sul terrazzo.</li>
+                <li>Nel riquadro premi <i>All-sky</i>, poi salva l’immagine (fisheye o panoramica vanno bene).</li>
+                <li>Trascinala qui oppure <label class="linklike" for="skyFile">scegli il file</label>.</li>
+              </ol>
+              <input id="skyFile" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+              <div id="skyImp" class="skyimp" hidden>
+                <canvas id="skyBar" aria-label="Barra colori dell'immagine"></canvas>
+                <div class="grid" style="flex:1">
+                  <label class="field"><span>Valore in alto sulla barra</span><input id="skyTop" inputmode="decimal" placeholder="19,3"></label>
+                  <label class="field"><span>Valore in basso</span><input id="skyBot" inputmode="decimal" placeholder="17,9"></label>
+                  <label class="chk field wide"><input type="checkbox" id="skyTerr" checked> Usa la sagoma del terreno come orizzonte minimo</label>
+                  <div class="field wide"><button class="btn sm primary" id="skyApply" type="button">Importa la mappa</button></div>
+                </div>
+              </div>
+              <p class="hint" id="skyMsg"></p>
+              <button class="btn sm ghost" id="skyRemove" type="button" hidden>Rimuovi la mappa importata</button>
+            </div>
+            <p class="hint">Senza mappa importata, SQM e forma del cielo sono stimati dall’<a href="https://djlorenz.github.io/astronomy/lp/" target="_blank" rel="noopener">atlante di David Lorenz</a> (VIIRS 2025) con un modello di cupole di luce tarato su una mappa all-sky reale. Se hai una misura col tuo SQM, scrivila nel campo e prevale.</p>
           </div>
         </div>
       </section>
@@ -192,6 +217,7 @@
 <script src="js/model.js"></script>
 <script src="js/dome.js"></script>
 <script src="js/views.js"></script>
+<script src="js/allsky.js"></script>
 <script src="js/editor.js"></script>
 <script src="js/main.js"></script>
 </body>

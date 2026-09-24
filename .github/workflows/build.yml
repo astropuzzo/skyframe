@@ -41,12 +41,15 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: cielo-dal-terrazzo-${{ runner.os }}
+          name: skyframe-${{ runner.os }}
+          # latest*.yml e .blockmap servono agli aggiornamenti automatici
           path: |
             dist/*.exe
             dist/*.dmg
             dist/*.AppImage
             dist/*.deb
+            dist/latest*.yml
+            dist/*.blockmap
           if-no-files-found: error
 
   release:

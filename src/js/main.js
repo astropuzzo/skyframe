@@ -153,6 +153,8 @@ function wire() {
   $('#nightDate').onchange = () => { if (!$('#nightDate').value) $('#nightDate').value = defaultNightStr(); state.live = $('#nightDate').value === defaultNightStr(); refresh(); };
   $('#todayBtn').onclick = setLive; $('#liveBtn').onclick = setLive; $('#playBtn').onclick = togglePlay;
   const lp = (v) => { Dome.setLP(v); $('#lpToggle').setAttribute('aria-pressed', String(!!v)); LS.set('sf.lp', !!v); };
+  if (window.cielo && window.cielo.onUpdate) window.cielo.onUpdate(showUpdate);
+  $('#toList').onclick = () => $('.work').scrollIntoView({ behavior: 'smooth' });
   lp(LS.get('sf.lp', false)); $('#lpToggle').onclick = () => lp($('#lpToggle').getAttribute('aria-pressed') !== 'true');
   $('#profileSel').onchange = (e) => { state.activeId = e.target.value; saveStore(); closeDetail(); state.sel = null; refresh(); };
   $('#editBtn').onclick = () => openEditor(state.activeId); $('#newBtn').onclick = () => openEditor(state.activeId, true);
@@ -193,3 +195,15 @@ async function boot() {
   wire(); refresh(true);
 }
 boot();
+
+/* aggiornamenti: il processo principale scarica e installa dove può, altrimenti avvisa con il link alla release */
+function showUpdate(m) {
+  const el = $('#upd'), v = esc(m.version || '');
+  el.hidden = false; el.dataset.state = m.state;
+  if (m.state === 'downloading') el.innerHTML = `<span>Scarico Skyframe ${v}</span><i class="pbar"><b style="width:${m.percent || 0}%"></b></i><span class="num">${m.percent || 0}%</span>`;
+  else if (m.state === 'ready') el.innerHTML = `<span>Skyframe ${v} è pronto: si installa alla chiusura, oppure</span><button class="btn sm primary" id="updGo">Riavvia e aggiorna</button>`;
+  else if (m.state === 'available') el.innerHTML = `<span>È uscito Skyframe ${v}</span><button class="btn sm" id="updGo">Scarica</button>`;
+  else if (m.state === 'error') el.innerHTML = `<span>Aggiornamento a ${v} non riuscito</span><button class="btn sm" id="updGo">Scaricalo a mano</button>`;
+  else { el.hidden = true; return; }
+  const b = $('#updGo'); if (b) b.onclick = () => { if (m.state === 'ready') { b.disabled = true; b.textContent = 'Riavvio…'; window.cielo.installUpdate(); } else window.cielo.openUpdate(); };
+}

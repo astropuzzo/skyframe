@@ -41,7 +41,12 @@ export const EXTRA = [
   { id: 'Heart & Soul', nick: 'IC 1805 + IC 1848', type: 'EN', ra: 2.700, dec: 61.0, a: 290, b: 150, pa: 115, sb: 23.0, con: 'Cas' },
   { id: 'Rho Ophiuchi', nick: 'Rho Oph cloud complex', type: 'RN', ra: 16.427, dec: -23.9, a: 240, b: 180, pa: 0, sb: 23.3, con: 'Oph' },
   { id: 'Cygnus Loop', nick: 'Veil complex', type: 'SNR', ra: 20.850, dec: 30.67, a: 230, b: 160, pa: 0, sb: 23.7, con: 'Cyg' },
+  // bolla di Wolf-Rayet attorno a WR 134 (stella: 20h 10m 14s +36° 10′ 35″); guscio OIII debole, dimensione dalle immagini amatoriali
+  { id: 'WR 134', nick: 'Wolf-Rayet bubble', type: 'EN', ra: 20.1706, dec: 36.1764, a: 30, b: 25, pa: 0, sb: 23.6, con: 'Cyg' },
 ];
+
+// Profilo di righe diverso da quello del tipo: bolle di Wolf-Rayet, OIII dominante.
+export const LINE_KEY = { 'NGC 6888': 'WR', 'NGC 2359': 'WR', 'Sh2-308': 'WR', 'WR 134': 'WR' };
 
 // Resti di supernova con controparte ottica, dal catalogo di Green (VII/297): nome Green → dati.
 export const SNR_OPTICAL = {

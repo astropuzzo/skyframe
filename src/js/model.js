@@ -5,11 +5,11 @@ const TYPES_PL = { Gx: 'Galassie', EN: 'Emissione', PN: 'Planetarie', SNR: 'Rest
 const TYPE_COLOR = { Gx: '#D8C49A', EN: '#E4574B', PN: '#45C8B4', SNR: '#E88A6E', RN: '#7FA8F0', DN: '#A88B6C', OC: '#C3CCDC', GC: '#E8DFC8' };
 const SOURCES = { M: 'Messier', NGC: 'NGC', IC: 'IC', Caldwell: 'Caldwell', Sh2: 'Sharpless', vdB: 'van den Bergh', LDN: 'Lynds (oscure)', B: 'Barnard (oscure)', PN: 'Planetarie deboli', SNR: 'Resti di SN (Green)', X: 'Gruppi e campi' };
 /* intensità delle righe di emissione rispetto al flusso equivalente in banda V */
-const LINES = { EN: { Ha: 1.5, OIII: 0.3, SII: 0.25, cont: 0.3 }, PN: { Ha: 0.8, OIII: 2.0, SII: 0.05, cont: 0.2 }, SNR: { Ha: 1.0, OIII: 0.6, SII: 0.6, cont: 0.3 } };
+const LINES = { EN: { Ha: 1.5, OIII: 0.3, SII: 0.25, cont: 0.3 }, PN: { Ha: 0.8, OIII: 2.0, SII: 0.05, cont: 0.2 }, SNR: { Ha: 1.0, OIII: 0.6, SII: 0.6, cont: 0.3 }, WR: { Ha: 0.9, OIII: 1.4, SII: 0.2, cont: 0.2 }, WRS: { Ha: 0.25, OIII: 1.4, SII: 0.03, cont: 0.05 } }; // WR: bolle di Wolf-Rayet (NGC 6888, WR 134, Sh2-308, NGC 2359); WRS: il loro guscio esterno, quasi solo OIII
 const TYPE_SNR = { OC: 0.4, GC: 0.45 };
 const CAT = (window.DSO || []).map((r) => {
-  const [id, alias, nick, type, ra, dec, a, b, pa, mag, sb, con, src, classic, tip, ctx, ha] = r;
-  return { id, alias: alias ? alias.split('|') : [], nick, type, ra, dec, a, b: b || a, pa, mag, sb, con, src, classic: !!classic, tip, ctx: ctx ? ctx.split('|') : [], ha: ha || 0, search: (id + ' ' + alias + ' ' + nick).toLowerCase().replace(/\s+/g, '') };
+  const [id, alias, nick, type, ra, dec, a, b, pa, mag, sb, con, src, classic, tip, ctx, ha, lk] = r;
+  return { id, alias: alias ? alias.split('|') : [], nick, type, ra, dec, a, b: b || a, pa, mag, sb, con, src, classic: !!classic, tip, ctx: ctx ? ctx.split('|') : [], ha: ha || 0, lk: lk || type, search: (id + ' ' + alias + ' ' + nick).toLowerCase().replace(/\s+/g, '') };
 });
 const CAT_BY_ID = new Map(CAT.map((o) => [o.id, o]));
 const CONST_NAMES = Object.fromEntries(((window.SKY && window.SKY.names) || []).map((n) => [n.id, n.n]));
@@ -140,7 +140,7 @@ function objLines(type) { // flusso di ogni riga in unità di (flusso V-equivale
   return [[656.28, 'Ha', L.Ha], [654.8, 'Ha', L.Ha * L.NII * 0.25], [658.35, 'Ha', L.Ha * L.NII * 0.75], [486.13, 'Hb', L.Ha / 2.86],
     [495.9, 'OIII', L.OIII * 0.25], [500.7, 'OIII', L.OIII * 0.75], [671.6, 'SII', L.SII * 0.55], [673.1, 'SII', L.SII * 0.45]];
 }
-LINES.EN.NII = 0.3; LINES.PN.NII = 0.4; LINES.SNR.NII = 0.8;
+LINES.EN.NII = 0.3; LINES.PN.NII = 0.4; LINES.SNR.NII = 0.8; LINES.WR.NII = 0.9; LINES.WRS.NII = 0.3;
 function bayer(l) {
   const R = l >= 590 ? 0.9 : l >= 570 ? 0.5 : l >= 540 ? 0.12 : 0.04;
   const G = l >= 490 && l <= 580 ? 0.9 : l >= 470 && l < 490 ? 0.55 : l > 580 && l <= 610 ? 0.35 : 0.05;
@@ -181,7 +181,7 @@ function buildStrategies(camType, ownedIds) {
     for (const f of multis) { const st = stepOf(f); if (st.ch.length) S.push({ id: 'nb-' + f.id, label: fname(f), short: f.name, suits: 'line', pal: groupsIn(f).has('SII') ? 'sho' : 'hoo', penalty: groupsIn(f).has('Ha') ? 1 : 1.5, steps: [st] }); }
     const withHa = multis.filter((f) => groupsIn(f).has('Ha')), withS = multis.filter((f) => groupsIn(f).has('SII'));
     for (const a of withHa) for (const b of withS) if (a !== b) {
-      const sa = stepOf(a), sb = stepOf(b); sb.ch = sb.ch.filter((c) => c.key === 'SII');
+      const sa = stepOf(a), sb = stepOf(b); sb.ch = sb.ch.filter((c) => c.key !== 'Ha'); // l'OIII arriva con tutti e due i filtri e si somma
       S.push({ id: `sho-${a.id}-${b.id}`, label: `${fname(a)} + ${fname(b)}`, short: 'SHO', suits: 'line', pal: 'sho', penalty: 0.95, steps: [sa, sb] });
     }
     S.starFilter = bbs[0];
@@ -284,22 +284,42 @@ function computeNight(p, ds, withMoon = true) {
    calibrato su una mappa all-sky reale (≈ +1 mag a 3°, +0,1 a 30°) e si concentra verso le sorgenti di luce
    (pesi per settori di 10° di azimut calcolati dall'atlante). La luminescenza naturale parte da 22,0 allo zenit. */
 const NAT_ZEN = Math.pow(10, -0.4 * 22.0);
+/* griglia (altezze × settori di azimut): interpolazione bilineare, con giro completo in azimut */
+function gridAt(alts, naz, vals, h, az) {
+  h = clamp(h, alts[0], alts[alts.length - 1]);
+  let a = 0; while (a < alts.length - 2 && h > alts[a + 1]) a++;
+  const ta = alts[a + 1] === alts[a] ? 0 : clamp((h - alts[a]) / (alts[a + 1] - alts[a]), 0, 1);
+  const w = 360 / naz, x = norm360(az) / w - 0.5, k0 = ((Math.floor(x) % naz) + naz) % naz, k1 = (k0 + 1) % naz, tk = x - Math.floor(x);
+  const V = (ai, k) => vals[ai * naz + k];
+  return (V(a, k0) * (1 - tk) + V(a, k1) * tk) * (1 - ta) + (V(a + 1, k0) * (1 - tk) + V(a + 1, k1) * tk) * ta;
+}
+/* Tre fonti, dalla più precisa: 1) mappa all-sky importata da lightpollutionmap (magnitudini per direzione, terreno
+   compreso); 2) forma stimata dall'atlante Lorenz (griglia relativa allo zenit); 3) solo SQM, profilo medio. */
 function skyModel(site) {
-  const sqm = +site.sqm || BORTLE_SQM[site.bortle] || 19;
+  const map = site.skyMap && Array.isArray(site.skyMap.mag) ? site.skyMap : null;
+  const rel = !map && site.lpGrid && Array.isArray(site.lpGrid.v) ? site.lpGrid : null;
+  const g = !map && !rel && Array.isArray(site.lpAz) && site.lpAz.length === 36 ? site.lpAz : null;
+  const sqm = +site.sqm || (map && map.zenith) || BORTLE_SQM[site.bortle] || 19;
+  // mappa importata: se l'SQM dello zenit è stato corretto a mano, la mappa si sposta dello stesso scarto
+  const shift = map ? sqm - map.zenith : 0;
   const art0 = Math.max(0, Math.pow(10, -0.4 * sqm) - NAT_ZEN);
-  const g = Array.isArray(site.lpAz) && site.lpAz.length === 36 ? site.lpAz : null;
-  const A = new Float32Array(91 * 36), Nt = new Float32Array(91);
+  const NA = 72, A = new Float32Array(91 * NA), Nt = new Float32Array(91);
   for (let h = 0; h <= 90; h++) {
-    const F = 1 + 2.4 * Math.exp(-h / 9);
     Nt[h] = NAT_ZEN * (1 + 0.9 * Math.exp(-h / 14));
-    for (let k = 0; k < 36; k++) { const gk = g ? g[k] : 1; A[h * 36 + k] = art0 * (1 + (F - 1) * gk) * (1 + 0.15 * (gk - 1) * Math.cos(h * D2R)); }
+    for (let k = 0; k < NA; k++) {
+      const az = k * 5 + 2.5; let v;
+      if (map) v = Math.max(0, Math.pow(10, -0.4 * (gridAt(map.alts, map.naz, map.mag, h, az) + shift)) - Nt[h]);
+      else if (rel) v = art0 * gridAt(rel.alts, rel.naz, rel.v, h, az);
+      else { const gk = g ? g[Math.floor(az / 10) % 36] : 1, F = 1 + 2.4 * Math.exp(-h / 9); v = art0 * (1 + (F - 1) * gk) * (1 + 0.15 * (gk - 1) * Math.cos(h * D2R)); }
+      A[h * NA + k] = v;
+    }
   }
-  const hi = (h) => clamp(Math.round(h), 0, 90), ki = (az) => Math.floor(norm360(az) / 10) % 36;
+  const hi = (h) => clamp(Math.round(h), 0, 90), ki = (az) => Math.floor(norm360(az) / 5) % NA;
   return {
-    sqm, art0, dir: !!g,
-    art: (h, az) => A[hi(h) * 36 + ki(az)],
+    sqm, art0, dir: !!(map || rel || g), source: map ? 'allsky' : rel ? 'atlas' : g ? 'atlas-old' : 'sqm',
+    art: (h, az) => A[hi(h) * NA + ki(az)],
     nat: (h) => Nt[hi(h)],
-    mag: (h, az) => -2.5 * Math.log10(A[hi(h) * 36 + ki(az)] + Nt[hi(h)]),
+    mag: (h, az) => -2.5 * Math.log10(A[hi(h) * NA + ki(az)] + Nt[hi(h)]),
   };
 }
 
@@ -314,6 +334,9 @@ const DUST_SB = 25.0, DUST_SNR = 1.6;
 /* Hα diffuso misurato attorno all'oggetto (mappa Finkbeiner 2003, Rayleigh): 1 R = 10⁶/4π fotoni/s/cm²/sr in Hα
    = 1,87·10⁻⁶ fotoni/s/cm²/″². Conta per nebulose, polveri e ammassi della Via Lattea, non per galassie e globulari. */
 const R_TO_PH = 1.87e-6, DIFF_MIN_R = 3, DIFF_REL = 0.02, NO_DIFF = { Gx: 1, GC: 1, PN: 1 };
+/* Bolle di Wolf-Rayet: oltre ai filamenti in Hα c'è un guscio esterno quasi solo in OIII, SHELL mag/″² più debole.
+   Calibrato su WR 134 (≈ 95 h tra Hα+OIII e SII+OIII a 800 mm f/5 sotto SQM 19,3 per un SNR discreto). */
+const SHELL = { WR: 3.2 };
 /* polveri che contano davvero per il campo e i tempi: estese rispetto all'oggetto */
 const bigDust = (o, c) => (c.type === 'DN' || c.type === 'RN') && c.a >= Math.max(20, 0.5 * o.a);
 /* limiti pratici dei sub per tipo di filtro [min, max] s: il minimo fisico lo decide il fondo cielo */
@@ -386,30 +409,31 @@ for (const t of Object.keys(LINES)) OBJ_LINES[t] = objLines(t).map((x, i) => [x[
 /* Valuta le strategie su un oggetto. U: passi utili della notte (massa d'aria, cielo artificiale e naturale nella direzione
    dell'oggetto, luce lunare). T: cielo al transito senza Luna, per il tempo "ideale". */
 function evalStrategies(o, S, K, U, Q, T, field) {
-  const lines = LINES[o.type];
+  const lines = LINES[o.lk];
   const qMain = o.type === 'DN' ? Q.faint * DUST_SNR : Q.main * (TYPE_SNR[o.type] || 1), sbMain = o.type === 'DN' ? Math.max(o.sb, DUST_SB) : o.sb;
   const dust = field.ctx.filter((c) => bigDust(o, c)).sort((a, b) => a.sb - b.sb)[0];
   const faintHa = field.ctx.filter((c) => c.type === 'EN').sort((a, b) => a.sb - b.sb)[0];
   const bbS = S.find((s) => s.suits === 'all');
   const ef = T.ef || 1; // estinzione ridotta con la quota del luogo
-  const haObj = lines ? F0 * Math.pow(10, -0.4 * o.sb) * 880 * LINES[o.type].Ha : 0;
+  const haObj = lines ? F0 * Math.pow(10, -0.4 * o.sb) * 880 * LINES[o.lk].Ha : 0;
   const diffOn = o.ha >= DIFF_MIN_R && !NO_DIFF[o.type] && lines && R_TO_PH * o.ha >= DIFF_REL * haObj;
-  const smax = lines ? Math.max(...['Ha', 'OIII', 'SII'].map((g) => OBJ_LINES[o.type].filter((x) => x[1] === g).reduce((a, x) => a + x[2], 0))) : 1;
+  const smax = lines ? Math.max(...['Ha', 'OIII', 'SII'].map((g) => OBJ_LINES[o.lk].filter((x) => x[1] === g).reduce((a, x) => a + x[2], 0))) : 1;
   const avg = { art: 0, nat: 0, mf: 0 }; for (let u = 0; u < U.n; u++) { avg.art += U.art[u]; avg.nat += U.nat[u]; avg.mf += U.mf[u]; }
   if (U.n) { avg.art /= U.n; avg.nat /= U.n; avg.mf /= U.n; } else { avg.art = T.art; avg.nat = T.nat; }
   return S.filter((s) => s.suits === 'all' || lines).map((s0) => {
     // banda stretta su un oggetto con polveri attorno: si aggiunge la banda larga per le polveri
     let s = s0;
-    if (s0.suits === 'line' && dust && bbS) s = { ...s0, label: `${s0.label} + ${bbS.label}`, short: s0.short + '+RGB', steps: s0.steps.concat(bbS.steps.map((st) => ({ ...st, purpose: 'dust' }))) };
+    if (s0.suits === 'line' && dust && bbS && !s0.chs.some((c) => c.target === 'all')) s = { ...s0, label: `${s0.label} + ${bbS.label}`, short: s0.short + '+RGB', steps: s0.steps.concat(bbS.steps.map((st) => ({ ...st, purpose: 'dust' }))) };
     const reqs = []; // per canale: [{ S, snr, what }]
     const chans = [];
     s.steps.forEach((st) => st.ch.forEach((c) => {
       const R = [];
       if (st.purpose !== 'dust') {
-        const w = c.target === 'all' ? 1 : clamp(Math.sqrt(chanStrength(c, o.type) / smax), 0.35, 1);
-        R.push({ S: chanSignal(c, o.type, sbMain, K), snr: qMain * w * (c.snr || 1), what: 'main' });
-        if (FAINT_DELTA[o.type] > 0) R.push({ S: chanSignal(c, o.type, o.sb + FAINT_DELTA[o.type], K), snr: Q.faint * w * (c.snr || 1), what: 'faint' });
+        const w = c.target === 'all' ? 1 : clamp(Math.sqrt(chanStrength(c, o.lk) / smax), 0.35, 1);
+        R.push({ S: chanSignal(c, o.lk, sbMain, K), snr: qMain * w * (c.snr || 1), what: 'main' });
+        if (FAINT_DELTA[o.type] > 0) R.push({ S: chanSignal(c, o.lk, o.sb + FAINT_DELTA[o.type], K), snr: Q.faint * w * (c.snr || 1), what: 'faint' });
         if (faintHa && (c.target === 'all' || c.target.includes('Ha'))) R.push({ S: chanSignal(c, 'EN', faintHa.sb, K), snr: Q.faint * (c.snr || 1), what: 'ctxHa' });
+        if (SHELL[o.lk] && (c.target === 'all' || c.target.includes('OIII'))) R.push({ S: chanSignal(c, 'WRS', o.sb + SHELL[o.lk], K), snr: Q.faint * (c.snr || 1), what: 'shell' });
         // Hα diffuso: solo sui canali a banda stretta e solo se nel campo si vede (≥ 2% dell'Hα dell'oggetto). Va nel tempo "profondo".
         if (diffOn && c.target !== 'all' && c.target.includes('Ha') && c.lineW.Ha > 0.02)
           R.push({ S: R_TO_PH * o.ha * K.haMul * (c.lineW.Ha + 0.3 * (0.25 * c.lineW.NIIa + 0.75 * c.lineW.NIIb)) * K.geo, snr: Q.faint * (c.snr || 1), what: 'diffHa', deep: true });
@@ -430,21 +454,51 @@ function evalStrategies(o, S, K, U, Q, T, field) {
         for (let q = 0; q < ch.R.length; q++) { const Sg = ch.R[q].S * ex; ch.acc[q] += Sg * Sg / (Sg + B); }
       }
     }
-    let ideal = 0, tonight = 0, idealDeep = 0, tonightDeep = 0, ci = 0;
-    const steps = s.steps.map((st) => {
-      let hI = 0, hT = 0, hID = 0, hTD = 0, drive = '', driveDeep = ''; const subs = [];
-      st.ch.forEach(() => {
-        const ch = chans[ci++]; const exT = Math.pow(10, -0.4 * ch.c.ext * ef * (T.X - 1)), BT = ch.Blp * T.art + ch.Bc * T.nat + ch.Nc;
-        ch.R.forEach((q, k) => {
-          const Sg = q.S * exT, rI = Sg * Sg / (Sg + BT), need = q.snr * q.snr, rT = U.n ? ch.acc[k] / U.n : 0;
-          const hi = need / rI / 3600 * ch.c.mult, ht = rT > 0 ? need / rT / 3600 * ch.c.mult : Infinity;
-          if (!q.deep) { if (hi > hI) { hI = hi; drive = q.what; } hT = Math.max(hT, ht); }
-          if (hi > hID) { hID = hi; driveDeep = q.what; } hTD = Math.max(hTD, ht);
-        });
-        subs.push({ key: ch.c.key, s: ch.sub, min: Math.round(ch.minSub) });
-      });
-      ideal += hI; tonight += hT; idealDeep += hID; tonightDeep += hTD;
-      return { f: st.f, keys: st.ch.map((c) => c.key), hI, hT, hID, hTD, subs, purpose: st.purpose || '', drive, driveDeep };
+    // ore per requisito: [ideale, stanotte]
+    const hours = (ch, k) => {
+      const q = ch.R[k], exT = Math.pow(10, -0.4 * ch.c.ext * ef * (T.X - 1)), BT = ch.Blp * T.art + ch.Bc * T.nat + ch.Nc;
+      const Sg = q.S * exT, rI = Sg * Sg / (Sg + BT), need = q.snr * q.snr, rT = U.n ? ch.acc[k] / U.n : 0;
+      return [need / rI / 3600 * ch.c.mult, rT > 0 ? need / rT / 3600 * ch.c.mult : Infinity];
+    };
+    let ci = 0;
+    const X = s.steps.map((st) => ({ st, chs: st.ch.map(() => chans[ci++]), hI: 0, hT: 0, hID: 0, hTD: 0, drive: '', driveDeep: '' }));
+    // requisiti raggruppati per canale: lo stesso canale può comparire in più passi (l'OIII di due multibanda)
+    const groups = new Map();
+    X.forEach((x) => x.chs.forEach((ch) => ch.R.forEach((q, k) => {
+      const id = ch.c.key + '|' + q.what; if (!groups.has(id)) groups.set(id, { q, on: [] });
+      groups.get(id).on.push([x, hours(ch, k)]);
+    })));
+    // requisito di un solo passo: il passo dura quanto il requisito più lento
+    for (const { q, on } of groups.values()) {
+      if (on.length > 1) continue;
+      const [x, [hi, ht]] = on[0];
+      if (!q.deep) { if (hi > x.hI) { x.hI = hi; x.drive = q.what; } x.hT = Math.max(x.hT, ht); }
+      if (hi > x.hID) { x.hID = hi; x.driveDeep = q.what; } x.hTD = Math.max(x.hTD, ht);
+    }
+    // requisito in più passi: i segnali si sommano. Il tempo che ancora manca va ai passi che raccolgono quel canale
+    // più in fretta (entro il 15%), pareggiandone le ore.
+    for (const { q, on } of groups.values()) {
+      if (on.length < 2) continue;
+      const fill = (f, j, dr) => {
+        let deficit = 1 - on.reduce((a, [x, t]) => a + x[f] / t[j], 0);
+        if (!(deficit > 0)) return;
+        const tMin = Math.min(...on.map(([, t]) => t[j])); if (!isFinite(tMin)) { on.forEach(([x]) => (x[f] = Infinity)); return; }
+        const cand = on.filter(([, t]) => t[j] <= tMin * 1.15);
+        for (let it = 0; it < 8 && deficit > 1e-9; it++) {
+          const lvl = Math.min(...cand.map(([x]) => x[f])), low = cand.filter(([x]) => x[f] <= lvl + 1e-9);
+          const next = Math.min(...cand.filter(([x]) => x[f] > lvl + 1e-9).map(([x]) => x[f]));
+          const rate = low.reduce((a, [, t]) => a + 1 / t[j], 0), d = Math.min(deficit / rate, next - lvl);
+          low.forEach(([x]) => { x[f] += d; if (dr) x[dr] = q.what; }); deficit -= d * rate;
+        }
+      };
+      if (!q.deep) { fill('hI', 0, 'drive'); fill('hT', 1); }
+      fill('hID', 0, 'driveDeep'); fill('hTD', 1);
+    }
+    let ideal = 0, tonight = 0, idealDeep = 0, tonightDeep = 0;
+    const steps = X.map((x) => {
+      x.hID = Math.max(x.hID, x.hI); x.hTD = Math.max(x.hTD, x.hT);
+      ideal += x.hI; tonight += x.hT; idealDeep += x.hID; tonightDeep += x.hTD;
+      return { f: x.st.f, keys: x.st.ch.map((c) => c.key), hI: x.hI, hT: x.hT, hID: x.hID, hTD: x.hTD, subs: x.chs.map((ch) => ({ key: ch.c.key, s: ch.sub, min: Math.round(ch.minSub) })), purpose: x.st.purpose || '', drive: x.drive, driveDeep: x.driveDeep };
     });
     const nights = U.h > 0 ? tonight / U.h : Infinity;
     return { id: s.id, label: s.label, short: s.short, pal: s.pal, penalty: s.penalty, steps, ideal, tonight, nights, idealDeep, tonightDeep, deep: idealDeep > ideal * 1.15, alt: s0.alt, lineOnly: s0.suits === 'line', hybrid: s !== s0 };
@@ -502,7 +556,7 @@ function computeAll(cfgs, active, ds, now) {
     const evals = cfgs.map((cfg, ci) => {
       const fill = fillInfo(o, cfg.geom, field);
       const strat = scalePanels(evalStrategies(o, cfg.strategies, consts[ci], U, Q, T, field), fill.nx * fill.ny);
-      const best = pickBest(strat, !!LINES[o.type] && sky.sqm < 21);
+      const best = pickBest(strat, !!LINES[o.lk] && sky.sqm < 21);
       let effort = 0.05; if (best) { const n = isFinite(best.nights) ? best.nights : 99; effort = n <= 1 ? 1 : 1 / Math.sqrt(n); }
       const score = vis > 0 ? Math.round(100 * Math.pow(fill.score, 0.45) * Math.pow(vis, 0.35) * Math.pow(effort, 0.3)) : 0;
       return { cfg, ci, strat, best, fill, effort, score, K: consts[ci] };
@@ -612,7 +666,7 @@ function framingTip(o, fr, field) {
 
 /* ============================ piano e consigli ============================ */
 const KEY_LABEL = { all: 'banda larga', L: 'L', R: 'R', G: 'G', B: 'B', Ha: 'Hα', OIII: 'OIII', SII: 'SII', HaO: 'Hα+OIII' };
-const DRIVE_LABEL = { main: 'parte principale', faint: 'parti deboli', dust: 'polveri attorno', ctxHa: 'nebulosità deboli attorno', diffHa: 'Hα diffuso attorno' };
+const DRIVE_LABEL = { main: 'parte principale', faint: 'parti deboli', dust: 'polveri attorno', ctxHa: 'nebulosità deboli attorno', diffHa: 'Hα diffuso attorno', shell: 'guscio OIII' };
 /* Piano di ripresa: un passo per filtro con ore e sub. Si usa una sola strategia, non tutti i filtri che hai:
    l'unica aggiunta è la banda larga per le stelle quando il piano OSC è solo in banda stretta. */
 function planOf(s, cfg, useTonight) {

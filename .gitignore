@@ -4,9 +4,8 @@ out/
 *.log
 .DS_Store
 Thumbs.db
-smoke.png
-smoke-main.png
-smoke-editor.png
-smoke-map.png
+smoke*.png
 scripts/raw/
 .claude/
+# prototipo originale in un solo file, fuori dal progetto
+cielo-dal-terrazzo.html

@@ -26,6 +26,8 @@ const lens800 = { name: '800 mm f/5', ap: 160, fl: 800, obs: 0 };
 
 let p = base(19.26); p.optic = lens800; p.filters.owned = ['uvir', 'lextreme', 'triband2', 'lpro'];
 run('OSC 2600MC · 800 mm f/5 · SQM 19,26', p, ['IC 5146', 'Sh2-206', 'M 31', 'NGC 7000', 'M 27', 'NGC 7635', 'M 51', 'LDN 1235']);
+p = base(19.26); p.optic = lens800; p.filters.owned = ['uvir', 'lextreme', 'lsynergy'];
+run('OSC 2600MC · 800 mm f/5 · SQM 19,26 · L-eXtreme + L-Synergy (rif. reali: WR 134 ≈ 95 h, Cocoon ≈ 100 h)', p, ['WR 134', 'IC 5146', 'NGC 6888', 'Sh2-129']);
 p = base(19.26); p.filters.owned = ['uvir', 'lextreme'];
 run('OSC 2600MC · RedCat 51 · SQM 19,26', p, ['M 31', 'NGC 7000', 'IC 1805', 'Sh2-206', 'M 45']);
 p = base(18.6); p.filters.owned = ['uvir', 'lextreme'];

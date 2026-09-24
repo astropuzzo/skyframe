@@ -152,6 +152,7 @@ function rowHTML(r, i) {
 function renderList() {
   const L = state.filtered, shown = L.slice(0, state.page);
   const visN = state.res.results.filter((r) => r.usableH >= 0.25).length;
+  $('#toListN').textContent = L.length;
   $('#count').innerHTML = `<span class="num">${L.length}</span> target su ${visN} riprendibili la notte del ${new Date(state.res.night.t0).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}`;
   $('#list').innerHTML = shown.length ? shown.map(rowHTML).join('') + (L.length > shown.length ? `<button class="btn more" id="moreBtn">Mostra altri ${Math.min(60, L.length - shown.length)}</button>` : '') : `<div class="empty">Nessun target con questi filtri. Allarga i criteri o azzera i filtri.</div>`;
   requestAnimationFrame(() => $$('#list .score').forEach((el) => el.style.setProperty('--v', el.dataset.v)));
@@ -230,7 +231,7 @@ function renderDetail() {
   <details class="how"><summary>Come vengono stimati i tempi</summary>
     <p>Ogni filtro è modellato con le sue bande reali (schede dei produttori). Per ogni banda calcolo quanta luce dell’oggetto passa (continuo più le righe Hα, [NII], Hβ, OIII, SII, pesate dalla risposta dei pixel rossi, verdi e blu se la camera è a colori) e quanto fondo cielo: il tuo SQM, diviso tra un continuo tipo LED e le righe di mercurio e sodio, più la luce lunare di ogni 5 minuti.</p>
     <p>Il fondo cielo cambia con la direzione: SQM allo zenit dall’atlante di Lorenz 2025 (o dal tuo valore), più brillante verso l’orizzonte e verso le luci con i pesi per azimut calcolati dall’atlante.</p>
-    <p>La qualità è un SNR per elemento di risoluzione (il più grande tra pixel e 2″, la scala del seeing) su tre livelli: la luminosità media del catalogo, le parti deboli (aloni, bracci esterni) e, se ci sono, le polveri estese attorno (a LS ≥ 25). Il tempo “profondo” aggiunge l’Hα diffuso misurato attorno all’oggetto nella mappa all-sky di Finkbeiner (2003). Le righe deboli (OIII e SII in una regione HII) sono chieste in proporzione alla loro intensità, come fai in elaborazione.</p>
+    <p>La qualità è un SNR per elemento di risoluzione (il più grande tra pixel e 2″, la scala del seeing) su tre livelli: la luminosità media del catalogo, le parti deboli (aloni, bracci esterni) e, se ci sono, le polveri estese attorno (a LS ≥ 25). Il tempo “profondo” aggiunge l’Hα diffuso misurato attorno all’oggetto nella mappa all-sky di Finkbeiner (2003). Le righe deboli (OIII e SII in una regione HII) sono chieste in proporzione alla loro intensità, come fai in elaborazione. Nelle bolle di Wolf-Rayet conta anche il guscio esterno in OIII, molto più debole dei filamenti. Se due filtri lasciano passare la stessa riga (l’OIII di L-eXtreme e L-Synergy), il segnale si somma e le ore si dividono tra i due.</p>
     <p>Taratura: con 800 mm f/5, OSC e SQM 19,3 la Cocoon esce a 56 h (base) e 95 h (profondo); un’immagine reale con quel campo ne ha richieste 100. Sono stime per scegliere, non promesse: seeing, trasparenza ed elaborazione contano molto.</p></details>`;
   $('#dClose').onclick = closeDetail;
   $('#copyCoord').onclick = () => copyText(`${o.id} ${raStr(o.ra)} ${decStr(o.dec).replace('−', '-')}`);

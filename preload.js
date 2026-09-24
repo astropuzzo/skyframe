@@ -9,5 +9,9 @@ contextBridge.exposeInMainWorld('cielo', {
   copy: (text) => ipcRenderer.invoke('clipboard:write', String(text)),
   lpLookup: (lat, lon) => ipcRenderer.invoke('lp:lookup', lat, lon),
   geoSearch: (q) => ipcRenderer.invoke('geo:search', q),
+  lpmAllSky: (lat, lon) => ipcRenderer.invoke('lpm:allsky', lat, lon),
   elevation: (lat, lon) => ipcRenderer.invoke('geo:elevation', lat, lon),
+  onUpdate: (cb) => ipcRenderer.on('update', (_e, m) => cb(m)),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  openUpdate: () => ipcRenderer.invoke('update:open'),
 });

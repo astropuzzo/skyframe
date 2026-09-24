@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { NICK, NICK_NGC, EXTRA, SNR_OPTICAL, CLASSIC, TIPS } from './curated.mjs';
+import { NICK, NICK_NGC, EXTRA, SNR_OPTICAL, CLASSIC, TIPS, LINE_KEY } from './curated.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const RAW = path.join(here, 'raw');
@@ -315,11 +315,11 @@ const rows = list.map((o) => {
   const all = [o.id, ...o.alias];
   const classic = o.src === 'M' || all.some((x) => CLASSIC.has(x)) ? 1 : 0;
   const tipKey = all.find((x) => tipIds.has(x)) || '';
-  return [o.id, o.alias.join('|'), o.nick || '', o.type, r4(o.ra), r4(o.dec), r1(o.a), r1(o.b), Math.round(o.pa || 0), o.mag == null ? null : r1(o.mag), r1(Math.min(26, Math.max(15, o.sb))), o.con || '', o.src, classic, tipKey, (o.ctx || []).join('|'), r1(o.ha)];
+  return [o.id, o.alias.join('|'), o.nick || '', o.type, r4(o.ra), r4(o.dec), r1(o.a), r1(o.b), Math.round(o.pa || 0), o.mag == null ? null : r1(o.mag), r1(Math.min(26, Math.max(15, o.sb))), o.con || '', o.src, classic, tipKey, (o.ctx || []).join('|'), r1(o.ha), all.map((x) => LINE_KEY[x]).find(Boolean) || ''];
 });
 fs.writeFileSync(path.join(OUT, 'dso.js'),
   '// Generato da scripts/build-data.mjs — non modificare a mano.\n' +
-  '// [id, alias, soprannome, tipo, RA°, Dec°, asse maggiore′, minore′, PA°, mag, LS mag/″², costellazione, catalogo, classico, chiave note, contesto, Hα diffuso attorno (Rayleigh, Finkbeiner 2003)]\n' +
+  '// [id, alias, soprannome, tipo, RA°, Dec°, asse maggiore′, minore′, PA°, mag, LS mag/″², costellazione, catalogo, classico, chiave note, contesto, Hα diffuso attorno (Rayleigh, Finkbeiner 2003), profilo di righe]\n' +
   'window.DSO=' + JSON.stringify(rows) + ';\nwindow.TIPS=' + JSON.stringify(TIPS) + ';\n');
 console.log('oggetti:', rows.length, typeCount);
 

@@ -61,11 +61,15 @@ function readForm() {
   d.site = { name: F('f_site').value.trim() || 'Il mio terrazzo', lat: isFinite(lat) ? clamp(lat, -89.9, 89.9) : 45, lon: isFinite(lon) ? clamp(lon, -180, 180) : 9, bortle: +F('f_bortle').value, sqm: isFinite(sqm) ? clamp(sqm, 16, 22.2) : BORTLE_SQM[F('f_bortle').value] };
   if (prev.example && prev.lat === d.site.lat && prev.lon === d.site.lon && prev.name === d.site.name) d.site.example = true;
   const elev = n('f_elev'); if (isFinite(elev)) d.site.elev = Math.round(elev);
-  // dati dell'atlante: validi solo per le coordinate con cui sono stati calcolati
-  if (prev.lpAz && prev.lpAt && Math.abs(prev.lpAt[0] - d.site.lat) < 0.01 && Math.abs(prev.lpAt[1] - d.site.lon) < 0.01) {
-    Object.assign(d.site, { lpAz: prev.lpAz, lpAt: prev.lpAt, lpZen: prev.lpZen });
-    d.site.lpSrc = Math.abs(d.site.sqm - prev.lpZen) < 0.01 ? prev.lpSrcAtlas : 'SQM inserito, direzioni dall’atlante';
-    d.site.lpSrcAtlas = prev.lpSrcAtlas;
+  // dati della luce: validi solo per le coordinate con cui sono stati ottenuti (entro ~1 km)
+  const near = (at) => at && Math.abs(at[0] - d.site.lat) < 0.01 && Math.abs(at[1] - d.site.lon) < 0.01;
+  if ((prev.lpGrid || prev.lpAz) && near(prev.lpAt)) {
+    Object.assign(d.site, { lpGrid: prev.lpGrid, lpAz: prev.lpAz, lpAt: prev.lpAt, lpZen: prev.lpZen, lpSrcAtlas: prev.lpSrcAtlas });
+    d.site.lpSrc = Math.abs(d.site.sqm - prev.lpZen) < 0.01 ? prev.lpSrcAtlas : 'SQM inserito, forma dall’atlante';
+  }
+  if (prev.skyMap && near(prev.skyMap.at)) {
+    d.site.skyMap = prev.skyMap;
+    d.site.lpSrc = Math.abs(d.site.sqm - prev.skyMap.zenith) < 0.01 ? 'Mappa all-sky di lightpollutionmap' : 'Mappa all-sky, zenit corretto a mano';
   }
   d.session = { minAlt: clamp(n('f_minalt') || 0, 0, 80), sunThr: +F('f_thr').value, from: F('f_from').value, to: F('f_to').value, quality: F('f_quality').value };
   return d;
@@ -73,6 +77,8 @@ function readForm() {
 /* SQM e direzioni delle luci dall'atlante di Lorenz (solo nell'app desktop: il download lo fa il processo principale) */
 function lpStatus(txt) {
   const s = draft && draft.site; if (!s) return;
+  F('skyRemove').hidden = !s.skyMap;
+  if (!txt && s.skyMap) { F('lpMsg').textContent = `In uso la mappa all-sky importata (${s.skyMap.file || 'lightpollutionmap'}, ${s.skyMap.date || ''}): zenit ${it(s.skyMap.zenith, 2)}.`; return; }
   F('lpMsg').textContent = txt || (s.lpZen != null ? `${s.lpSrcAtlas || 'Atlante'}: zenit ${it(s.lpZen, 2)} (Bortle ${sqmToBortle(s.lpZen)})${Math.abs(s.sqm - s.lpZen) >= 0.01 ? ` · in uso il tuo ${it(s.sqm, 2)}` : ''}` : (window.cielo && window.cielo.lpLookup ? 'Non ancora calcolato per queste coordinate.' : 'Disponibile nell’app desktop: qui inserisci l’SQM a mano.'));
 }
 let lpTimer = null;
@@ -85,11 +91,87 @@ async function lpFetch() {
   if (!draft) return;
   if (!r || r.error) { lpStatus('Atlante non raggiungibile (sei offline?): inserisci l’SQM a mano.'); return; }
   readForm();
-  Object.assign(draft.site, { sqm: r.sqm, lpZen: r.sqm, lpAz: r.lpAz, lpAt: [lat, lon], lpSrc: r.src, lpSrcAtlas: r.src, bortle: sqmToBortle(r.sqm) });
+  Object.assign(draft.site, { lpZen: r.sqm, lpGrid: r.lpGrid, lpAz: null, lpAt: [lat, lon], lpSrcAtlas: r.src });
   delete draft.site.example;
-  F('f_sqm').value = r.sqm; F('f_bortle').value = String(sqmToBortle(r.sqm));
+  if (!draft.site.skyMap) { // una mappa all-sky importata ha la precedenza sulla stima
+    Object.assign(draft.site, { sqm: r.sqm, lpSrc: r.src, bortle: sqmToBortle(r.sqm) });
+    F('f_sqm').value = r.sqm; F('f_bortle').value = String(sqmToBortle(r.sqm));
+  }
   lpStatus(); drawLpPreview(F('lpSky'), draft.site, draft.horizon);
 }
+/* ============================ mappa all-sky di lightpollutionmap (importata) ============================ */
+let skyImport = null;
+function lpmUrl() { // apre lightpollutionmap sul punto del profilo, livello "Sky brightness" dell'anno corrente
+  const lat = +F('f_lat').value, lon = +F('f_lon').value;
+  return `https://www.lightpollutionmap.info/#zoom=14.00&lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`;
+}
+async function skyFileChosen(file) {
+  if (!file) return;
+  try {
+    const img = await AllSky.load(file), det = AllSky.detect(img);
+    skyImport = { det, name: file.name };
+    // ritaglio della barra colori, così i due valori si leggono accanto ai campi
+    const cv = F('skyBar'), { x, w, yt, yb } = det.bar, sc = 150 / (yb - yt);
+    cv.width = Math.max(1, Math.round(w * sc)); cv.height = 150; const c = cv.getContext('2d');
+    c.drawImage(img, x, yt, w, yb - yt, 0, 0, cv.width, cv.height);
+    F('skyImp').hidden = false; F('skyTop').focus();
+    F('skyMsg').textContent = `${det.kind === 'fisheye' ? 'Mappa all-sky (fisheye)' : 'Panoramica'} riconosciuta. Scrivi i due numeri stampati ai capi della barra colori.`;
+  } catch (e) { F('skyImp').hidden = true; toast('Immagine non riconosciuta: ' + e.message); }
+}
+function skyApply() {
+  if (!skyImport || !draft) return;
+  const top = parseFloat(F('skyTop').value.replace(',', '.')), bot = parseFloat(F('skyBot').value.replace(',', '.'));
+  if (!isFinite(top) || !isFinite(bot) || top <= bot) { F('skyMsg').textContent = 'Servono i due valori della barra: quello in alto (cielo più buio) è il più grande, es. 19,3 e 17,9.'; return; }
+  readForm(); applySkyMap(skyImport.det, top, bot, skyImport.name);
+  F('skyImp').hidden = true; skyImport = null;
+}
+/* griglia di luminosità dal lettore → profilo (SQM, mappa del cielo, orizzonte minimo dal terreno) */
+function applySkyMap(det, top, bot, name, year) {
+  const g = AllSky.build(det, top, bot), terr = AllSky.terrain(det);
+  draft.site.skyMap = { ...g, at: [draft.site.lat, draft.site.lon], file: name, year: year || null, date: new Date().toISOString().slice(0, 10) };
+  Object.assign(draft.site, { sqm: g.zenith, lpSrc: 'Mappa all-sky di lightpollutionmap', bortle: sqmToBortle(g.zenith) });
+  F('f_sqm').value = g.zenith; F('f_bortle').value = String(sqmToBortle(g.zenith));
+  if (F('skyTerr').checked) { // il terreno della mappa diventa l'orizzonte minimo: si tiene il più alto fra i due
+    const cur = horizonLUT(draft.horizon);
+    draft.horizon = terr.map(([az, alt]) => [az, Math.round(Math.max(alt, cur[az]) * 10) / 10]);
+    drawHz();
+  }
+  drawLpPreview(F('lpSky'), draft.site, draft.horizon); lpStatus();
+  toast(`Mappa all-sky: zenit ${it(g.zenith, 2)} mag/″²`);
+}
+/* automatico: fa sul sito quello che faresti tu (punto, All-sky) e legge l'immagine generata */
+let lpmBusy = false;
+async function lpmFetch() {
+  if (!(window.cielo && window.cielo.lpmAllSky) || lpmBusy || !draft) return;
+  const lat = parseFloat(F('f_lat').value), lon = parseFloat(F('f_lon').value);
+  if (!isFinite(lat) || !isFinite(lon)) return;
+  const sm = draft.site.skyMap; if (sm && sm.at && Math.abs(sm.at[0] - lat) < 0.002 && Math.abs(sm.at[1] - lon) < 0.002) return; // già fatta qui
+  lpmBusy = true; F('skyMsg').textContent = 'Chiedo a lightpollutionmap la mappa all-sky di questo punto (10–20 s)…';
+  try {
+    const r = await window.cielo.lpmAllSky(lat, lon);
+    if (!draft) return;
+    if (!r || r.error || !r.images || !r.images.length) throw new Error(r && r.error || 'nessuna immagine');
+    if (!(Math.abs(+F('f_lat').value - lat) < 1e-6 && Math.abs(+F('f_lon').value - lon) < 1e-6)) return; // nel frattempo il punto è cambiato
+    let done = false;
+    for (const url of [r.images[1], r.images[0]].filter(Boolean)) { // prima la panoramica, poi la fisheye
+      const det = AllSky.detect(await AllSky.fromDataUrl(url)), sc = r.nelm ? null : AllSky.autoScale(det, r.sqm);
+      if (!sc) continue;
+      readForm(); applySkyMap(det, sc.top, sc.bottom, `lightpollutionmap ${r.year}`, r.year);
+      if (isFinite(r.elev) && !F('f_elev').value) F('f_elev').value = Math.round(r.elev);
+      F('skyMsg').textContent = `Mappa all-sky ${r.year} di lightpollutionmap letta: barra ${it(sc.top, 2)} → ${it(sc.bottom, 2)}, zenit ${it(r.sqm, 2)}.`;
+      done = true; break;
+    }
+    if (!done) { // scala non ricavabile: si chiede di leggere i due valori della barra
+      const det = AllSky.detect(await AllSky.fromDataUrl(r.images[1] || r.images[0])); skyImport = { det, name: `lightpollutionmap ${r.year}` };
+      const cv = F('skyBar'), { x, w, yt, yb } = det.bar; cv.width = Math.max(1, Math.round(w * 150 / (yb - yt))); cv.height = 150;
+      cv.getContext('2d').drawImage(await AllSky.fromDataUrl(r.images[1] || r.images[0]), x, yt, w, yb - yt, 0, 0, cv.width, 150);
+      F('skyImp').hidden = false; F('skyMsg').textContent = 'Immagine scaricata, ma la scala non si ricava da sola: scrivi i due valori ai capi della barra.';
+    }
+  } catch (e) {
+    F('skyMsg').textContent = `Mappa all-sky non ottenuta (${e.message}). Puoi importarla a mano coi passi qui sopra.`;
+  } finally { lpmBusy = false; }
+}
+function skyRemove() { if (!draft) return; readForm(); delete draft.site.skyMap; if (draft.site.lpZen != null) { draft.site.sqm = draft.site.lpZen; F('f_sqm').value = draft.site.lpZen; } draft.site.lpSrc = draft.site.lpSrcAtlas || ''; drawLpPreview(F('lpSky'), draft.site, draft.horizon); lpStatus(); }
 /* ============================ luogo: mappa, ricerca, altitudine ============================ */
 let geoMap = null, geoPin = null, geoTimer = null, elevTimer = null;
 const DESK_GEO = () => !!(window.cielo && window.cielo.geoSearch);
@@ -109,7 +191,7 @@ function setGeo(lat, lon, name, zoom) {
   F('f_lat').value = lat; F('f_lon').value = lon;
   if (name) F('f_site').value = name;
   if (geoPin) { geoPin.setLatLng([lat, lon]); if (zoom) geoMap.setView([lat, lon], zoom); }
-  clearTimeout(lpTimer); lpTimer = setTimeout(lpFetch, 300);
+  clearTimeout(lpTimer); lpTimer = setTimeout(() => { lpFetch(); lpmFetch(); }, 600);
   if (window.cielo && window.cielo.elevation) { clearTimeout(elevTimer); elevTimer = setTimeout(async () => { const h = await window.cielo.elevation(lat, lon); if (h != null && draft) F('f_elev').value = h; }, 300); }
 }
 async function geoSearch(q) {
@@ -143,6 +225,16 @@ function wireEditor() {
   F('f_sqm').addEventListener('input', () => { const s = parseFloat(F('f_sqm').value); if (isFinite(s)) F('f_bortle').value = String(sqmToBortle(s)); lpRedraw(); });
   ['f_lat', 'f_lon'].forEach((id) => F(id).addEventListener('change', () => { const la = parseFloat(F('f_lat').value), lo = parseFloat(F('f_lon').value); if (isFinite(la) && isFinite(lo)) setGeo(la, lo, null, geoMap ? geoMap.getZoom() : 0); }));
   F('lpBtn').onclick = lpFetch;
+  F('lpmOpen').onclick = (e) => { e.currentTarget.href = lpmUrl(); };
+  F('skyFile').onchange = (e) => { skyFileChosen(e.target.files[0]); e.target.value = ''; };
+  const dz = F('skyDrop');
+  ['dragenter', 'dragover'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove('over'); }));
+  dz.addEventListener('drop', (e) => skyFileChosen(e.dataTransfer.files[0]));
+  F('skyApply').onclick = skyApply; F('skyRemove').onclick = skyRemove;
+  F('lpmBtn').onclick = () => { if (draft && draft.site.skyMap) delete draft.site.skyMap.at; lpmFetch(); };
+  F('lpmBtn').hidden = !(window.cielo && window.cielo.lpmAllSky);
+  [F('skyTop'), F('skyBot')].forEach((i) => i.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); skyApply(); } }));
   wireGeo();
   F('edClose').onclick = closeEditor;
   F('editor').addEventListener('click', (e) => { if (e.target.id === 'editor') closeEditor(); });
