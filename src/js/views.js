@@ -256,6 +256,128 @@ function curEval(r) { return r.evals.find((e) => e.cfg.key === state.selCfg) || 
 /* Dettaglio di un target: in alto (fisso) nome, punteggio, riassunto e quattro schede; sotto solo la scheda scelta.
    Piano = la risposta (quanto, con cosa, dove conviene); Quando = notti, periodo, la notte, l'anno; Campo = anteprima e
    coordinate; Consigli. La scheda scelta resta quella quando si apre un altro target. */
+/* ============================ immagini del target ============================ */
+/* In cima al dettaglio: il target visto da diverse survey (servizio hips2fits del CDS) e le foto con licenza libera di
+   Wikimedia Commons, prima quelle degli astrofili. Una striscia sola: si tocca e si vede nel riquadro. */
+const SURVEYS = [
+  { id: 'nsns', hips: 'simg.de/P/NSNS/DR0_1/tc8', label: 'NSNS colori', credit: 'Northern Sky Narrowband Survey, S. Ziegenbalg · CC BY-NC-SA 4.0', ok: (o) => o.dec > -15 },
+  { id: 'dss', hips: 'CDS/P/DSS2/color', label: 'DSS2 colori', credit: 'DSS2 · CDS', ok: () => true },
+  { id: 'ps', hips: 'CDS/P/PanSTARRS/DR1/color-z-zg-g', label: 'Pan-STARRS', credit: 'Pan-STARRS1 · CDS', ok: (o) => o.dec > -29 },
+  { id: 'ha', hips: 'simg.de/P/NSNS/DR0_1/halpha8', label: 'Hα (NSNS)', credit: 'Northern Sky Narrowband Survey, S. Ziegenbalg · CC BY-NC-SA 4.0', ok: (o) => o.dec > -15 && !!LINES[o.lk] },
+];
+const gal = { src: LS.get('sf.galSrc', ''), zoom: 1, for: '', photo: null };
+/* campo della vista: l'oggetto con un po' di contesto, mai più largo del campo del setup */
+function galFov(r, e) {
+  const g = e.cfg.geom, o = r.o;
+  return clamp(Math.max(o.a * 2.2, r.field.a * 1.25, 8) / 60, 0.13, Math.max(0.3, g.W / 60)) * gal.zoom;
+}
+/* survey proposta: a grande campo la NSNS (sembra una foto amatoriale), da vicino Pan-STARRS, altrimenti DSS2 */
+function galSurvey(o, fov) {
+  const pick = SURVEYS.find((s) => s.id === gal.src && s.ok(o));
+  if (pick) return pick;
+  const id = fov >= 0.6 && o.dec > -15 && o.type !== 'Gx' && o.type !== 'GC' ? 'nsns' : o.dec > -29 && fov < 0.6 ? 'ps' : 'dss';
+  return SURVEYS.find((s) => s.id === id);
+}
+const hipsUrl = (hips, o, fov, w, h) => `https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=${encodeURIComponent(hips)}&width=${w}&height=${h}&fov=${fov.toFixed(4)}&projection=TAN&coordsys=icrs&ra=${o.ra.toFixed(5)}&dec=${o.dec.toFixed(5)}&format=jpg`;
+
+/* foto con licenza libera da Wikimedia Commons: autore e licenza sempre in vista */
+const photoCache = new Map();
+const PRO_RX = /NASA|\bESA\b|\bESO\b|NOIRLab|NOAO|KPNO|Spitzer|JPL|Webb|Hubble|Chandra|CFHT|Subaru|AURA|STScI|Caltech|\bWISE\b|2MASS|SDSS|Gemini|Herschel|Planck|Observatory|Osservatorio/i;
+const SKIP_RX = /\b(map|chart|finder|finding|diagram|spectr|plot|graph|logo|stamp|locator|constellation|sketch|drawing|poster|label|annotated|location|position|orbit|star ?chart)/i;
+function commonsPhotos(o) {
+  if (photoCache.has(o.id)) return photoCache.get(o.id);
+  const job = (async () => {
+    const terms = new Set();
+    if (/^M \d+$/.test(o.id)) terms.add('Messier ' + o.id.slice(2)); else terms.add(o.id);
+    if (o.nick) terms.add(o.nick);
+    o.alias.filter((a) => /^(NGC|IC) \d+$/.test(a)).slice(0, 2).forEach((a) => terms.add(a));
+    const q = 'filetype:bitmap ' + [...terms].map((t) => `"${t}"`).join(' OR ');
+    const url = `https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrlimit=40&gsrsearch=${encodeURIComponent(q)}&prop=imageinfo&iiprop=url|size|mime|extmetadata&iiurlwidth=320&iiextmetadatafilter=Artist|LicenseShortName`;
+    const res = await fetch(url, { headers: { 'Api-User-Agent': `Skyframe/${window.SKYFRAME_VERSION || ''} (https://github.com/astropuzzo/skyframe)` } });
+    if (!res.ok) return [];
+    const pages = Object.values(((await res.json()).query || {}).pages || {}).sort((a, b) => (a.index || 0) - (b.index || 0));
+    const out = [];
+    for (const p of pages) {
+      const ii = p.imageinfo && p.imageinfo[0]; if (!ii || !/jpeg|png/.test(ii.mime) || ii.width < 500 || ii.height < 350 || !ii.thumburl) continue;
+      const title = p.title.replace(/^File:/, '').replace(/\.(jpe?g|png)$/i, '');
+      if (SKIP_RX.test(title)) continue;
+      const m = ii.extmetadata || {}, artist = String((m.Artist || {}).value || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
+      // Wikimedia serve le miniature solo in larghezze standard (330, 960, 1280…): la grande è da 1280
+      const big = ii.width > 1280 ? ii.thumburl.replace(/\/\d+px-/, '/1280px-') : ii.url;
+      out.push({ title, thumb: ii.thumburl, big, page: ii.descriptionurl, artist: artist || tx('autore sconosciuto'), license: String((m.LicenseShortName || {}).value || '').replace(/<[^>]+>/g, ''), pro: PRO_RX.test(artist + ' ' + title) });
+    }
+    // prima le foto degli astrofili, poi quelle degli osservatori; niente doppioni (stessa foto in jpg e png)
+    const seen = new Set();
+    return out.sort((a, b) => a.pro - b.pro).filter((x) => { const k = x.title.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 16);
+  })().catch(() => []);
+  photoCache.set(o.id, job); return job;
+}
+
+function galHTML(r, e) {
+  const o = r.o;
+  return `<div class="dgal">
+    <div class="gview" id="gView"><img id="gImg" alt="${esc(o.id)}" decoding="async"><div class="gload" id="gLoad">${tx('Carico l’immagine…')}</div>
+      <div class="gzoom" id="gZoom"><button class="gz" data-z="0.5" aria-label="${tx('Allarga il campo')}" title="${tx('Allarga il campo')}">−</button><button class="gz" data-z="2" aria-label="${tx('Stringi sul target')}" title="${tx('Stringi sul target')}">+</button></div></div>
+    <div class="gcap" id="gCap"></div>
+    <div class="gstrip" id="gStrip">${SURVEYS.filter((s) => s.ok(o)).map((s) => `<button class="gs" data-sv="${s.id}">${esc(tx(s.label))}</button>`).join('')}<span class="gph" id="gPh"><span class="gsp">${tx('Cerco foto…')}</span></span></div>
+  </div>`;
+}
+function galShow(r, e) {
+  const o = r.o, img = $('#gImg'), box = $('#gView'); if (!img || !box) return;
+  if (gal.for !== o.id) { gal.for = o.id; gal.zoom = 1; gal.photo = null; }
+  const load = $('#gLoad'), cap = $('#gCap'), zoom = $('#gZoom');
+  const w = Math.max(320, box.clientWidth || 600), h = Math.round(w * (w < 500 ? 0.66 : 0.46));
+  box.style.height = h + 'px';
+  let src, capHTML;
+  if (gal.photo) {
+    const p = gal.photo; src = p.big;
+    capHTML = `${esc(p.artist)}${p.license ? ' · ' + esc(p.license) : ''} · <a href="${esc(p.page)}" target="_blank" rel="noopener">Wikimedia Commons ↗</a>`;
+    zoom.hidden = true; box.classList.add('photo');
+    $$('#gStrip .gs').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+  } else {
+    const fov = galFov(r, e), s = galSurvey(o, fov), dpr = Math.min(2, devicePixelRatio || 1), pw = Math.min(1400, Math.round(w * dpr)), ph = Math.round(pw * h / w);
+    src = hipsUrl(s.hips, o, fov, pw, ph);
+    capHTML = `${esc(tx(s.label))} · ${tx('campo {f}', { f: fmtDeg(fov * 60) })} · ${esc(s.credit)}`;
+    zoom.hidden = false; box.classList.remove('photo');
+    $$('#gStrip .gs').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sv === s.id)));
+  }
+  $$('#gStrip .gt').forEach((b) => b.setAttribute('aria-pressed', String(!!gal.photo && b.dataset.i != null && gal.list && gal.list[+b.dataset.i] === gal.photo)));
+  cap.innerHTML = capHTML;
+  if (img.dataset.src === src) return;
+  img.dataset.src = src; load.hidden = false; load.textContent = tx('Carico l’immagine…'); img.classList.add('wait');
+  img.onload = () => { if (img.dataset.src === src) { load.hidden = true; img.classList.remove('wait'); } };
+  img.onerror = () => { if (img.dataset.src === src) load.textContent = tx('Immagine non disponibile (sei offline o il target è fuori da questa survey)'); };
+  img.src = src;
+}
+function wireGallery(r, e) {
+  const o = r.o;
+  galShow(r, e);
+  $('#gStrip').onclick = (ev) => {
+    const s = ev.target.closest('.gs'), t = ev.target.closest('.gt');
+    if (s) { gal.src = s.dataset.sv; gal.photo = null; LS.set('sf.galSrc', gal.src); galShow(r, e); }
+    else if (t && gal.list) { gal.photo = gal.list[+t.dataset.i]; galShow(r, e); }
+  };
+  $('#gZoom').onclick = (ev) => { ev.stopPropagation(); const b = ev.target.closest('.gz'); if (!b) return; gal.zoom = clamp(gal.zoom * +b.dataset.z, 0.25, 8); galShow(r, e); };
+  // tocco sull'immagine: a tutto schermo (sul telefono si guarda meglio); un altro tocco o Esc chiude
+  $('#gView').onclick = () => {
+    const img = $('#gImg'); if (!img || !img.src || img.classList.contains('wait')) return;
+    const lb = document.createElement('div'); lb.className = 'lightbox'; lb.setAttribute('role', 'dialog');
+    lb.innerHTML = `<img src="${esc(img.src)}" alt="${esc(o.id)}"><div class="lbcap">${$('#gCap').innerHTML}</div>`;
+    const close = () => { lb.remove(); document.removeEventListener('keydown', key, true); };
+    const key = (ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); close(); } };
+    lb.onclick = (ev) => { if (!ev.target.closest('a')) close(); };
+    document.addEventListener('keydown', key, true); document.body.appendChild(lb);
+  };
+  commonsPhotos(o).then((list) => {
+    const ph = $('#gPh'); if (!ph || state.sel !== o.id) return;
+    gal.list = list;
+    const more = `<a class="gs ext" href="https://www.astrobin.com/search/?q=${encodeURIComponent(o.id)}" target="_blank" rel="noopener">${tx('Altre su AstroBin ↗')}</a>`;
+    ph.innerHTML = list.length
+      ? list.map((p, i) => `<button class="gt${p.pro ? ' pro' : ''}" data-i="${i}" title="${esc(p.artist)}${p.license ? ' · ' + esc(p.license) : ''}"><img src="${esc(p.thumb)}" alt="" loading="lazy"></button>`).join('') + more
+      : `<span class="gsp">${tx('Nessuna foto libera trovata')}</span>` + more;
+  });
+}
+
 const D_TABS = [['piano', 'Piano'], ['quando', 'Quando'], ['campo', 'Campo'], ['consigli', 'Consigli']];
 function setDTab(t) {
   if (!D_TABS.some(([k]) => k === t)) t = 'piano';
@@ -263,8 +385,9 @@ function setDTab(t) {
   $$('#drawer .dtab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
   $$('#drawer .tabp').forEach((p) => { p.hidden = p.dataset.tab !== t; });
   // la scheda nuova parte subito sotto la testata fissa
-  const d = $('#drawer'), top = $('#drawer .tabp:not([hidden])'), head = $('#drawer .d-top');
-  if (d && top && head && d.scrollTop > top.offsetTop - head.offsetHeight) d.scrollTop = top.offsetTop - head.offsetHeight;
+  const d = $('#drawer'), top = $('#drawer .tabp:not([hidden])'), head = $('#drawer .d-top'), tabs = $('#drawer .dtabs');
+  const stick = (head ? head.offsetHeight : 0) + (tabs ? tabs.offsetHeight : 0);
+  if (d && top && d.scrollTop > top.offsetTop - stick) d.scrollTop = top.offsetTop - stick;
   if (t === 'campo') requestAnimationFrame(drawPreview);
 }
 function renderDetail() {
@@ -331,8 +454,9 @@ function renderDetail() {
       <button class="btn ghost x" id="dClose" aria-label="${tx('Chiudi')}"><span class="xl">${tx('Chiudi')}</span><span class="xs" aria-hidden="true">✕</span></button>
     </div>
     <div class="d-sum">${summary}</div>
-    <nav class="dtabs" role="tablist">${D_TABS.map(([k, l]) => `<button class="dtab" role="tab" data-tab="${k}" aria-selected="${k === tab}">${tx(l)}</button>`).join('')}</nav>
   </div>
+  ${galHTML(r, e)}
+  <nav class="dtabs" role="tablist">${D_TABS.map(([k, l]) => `<button class="dtab" role="tab" data-tab="${k}" aria-selected="${k === tab}">${tx(l)}</button>`).join('')}</nav>
 
   <section class="tabp" data-tab="piano" ${tab === 'piano' ? '' : 'hidden'}>
     <div class="d-meta">${tx('{type} in {con}', { type: tx(TYPES[o.type]), con: esc(CONST_NAMES[o.con] || o.con) })} · ${size}${o.mag != null ? ' · mag ' + it(o.mag, 1) : ''} · ${tx('LS')} ${it(o.sb, 1)} mag/″²${o.alias.length ? ' · ' + esc(o.alias.slice(0, 4).join(', ')) : ''}</div>
@@ -384,8 +508,11 @@ function renderDetail() {
   const m = $('#mos'); if (m) m.onchange = (ev) => { state.mosaic = ev.target.checked; drawPreview(); };
   $('#realSky').onchange = (ev) => { state.realSky = ev.target.checked; LS.set('sf.realSky', state.realSky); drawPreview(); };
   state.dTab = tab;
+  // le schede restano ferme sotto la testata (che cambia altezza col riassunto)
+  const setStick = () => { const d = $('#drawer'), h = $('#drawer .d-top'); if (d && h) d.style.setProperty('--dtop-h', h.offsetHeight + 'px'); };
+  setStick();
   // al primo disegno il pannello poteva essere ancora nascosto: i grafici della notte si rifanno con la larghezza vera
-  requestAnimationFrame(() => { if (tab === 'campo') drawPreview(); nightChartsT = 0; updateNightCharts(); renderSeason(r); if (cal) renderCalChart(cal); wireNightCharts(); setTimeout(() => renderPeriod(r), 30); });
+  requestAnimationFrame(() => { setStick(); wireGallery(r, e); if (tab === 'campo') drawPreview(); nightChartsT = 0; updateNightCharts(); renderSeason(r); if (cal) renderCalChart(cal); wireNightCharts(); setTimeout(() => renderPeriod(r), 30); });
 }
 /* ---------- quando conviene ---------- */
 /* lo stesso target in ogni luogo salvato: cielo nella sua direzione, ore libere, tempo e setup consigliato */
@@ -607,10 +734,11 @@ function polar(r) {
 const skyCache = new Map();
 function setSkyNote(t) { const el = $('#skyNote'); if (el) el.textContent = t; }
 function realSkyImage(o, w, h, k, dpr) {
-  const pw = Math.min(1400, Math.round(w * dpr)), ph = Math.round(pw * h / w), fw = (w / k) / 60, fh = (h / k) / 60, key = `${o.id}|${pw}|${fw.toFixed(4)}`;
+  const pw = Math.min(1400, Math.round(w * dpr)), ph = Math.round(pw * h / w), fw = (w / k) / 60, fh = (h / k) / 60, sv = galSurvey(o, fw), key = `${o.id}|${pw}|${fw.toFixed(4)}|${sv.id}`;
   const c = skyCache.get(key); if (c) return c.ok ? c : null;
   const srcs = [
-    { url: `https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=${encodeURIComponent('CDS/P/DSS2/color')}&width=${pw}&height=${ph}&fov=${fw.toFixed(4)}&projection=TAN&coordsys=icrs&ra=${o.ra.toFixed(5)}&dec=${o.dec.toFixed(5)}&format=jpg`, label: 'Foto reale DSS2 a colori (CDS)' },
+    ...(sv.id !== 'dss' ? [{ url: hipsUrl(sv.hips, o, fw, pw, ph), label: tx('Foto reale {s}', { s: tx(sv.label) }) + ` (${sv.credit})` }] : []),
+    { url: hipsUrl('CDS/P/DSS2/color', o, fw, pw, ph), label: 'Foto reale DSS2 a colori (CDS)' },
     { url: `https://skyview.gsfc.nasa.gov/current/cgi/runquery.pl?Survey=${encodeURIComponent('DSS2 Red')}&position=${o.ra.toFixed(5)},${o.dec.toFixed(5)}&Size=${fw.toFixed(4)},${fh.toFixed(4)}&Pixels=${Math.min(pw, 900)},${Math.round(Math.min(pw, 900) * h / w)}&Return=JPEG&Scaling=Log`, label: 'Foto reale DSS2 rosso (NASA SkyView)' }];
   const ent = { img: null, ok: false, label: '' }; skyCache.set(key, ent);
   const tryN = (i) => { if (i >= srcs.length) { setTimeout(() => skyCache.delete(key), 60000); if (state.sel === o.id) setSkyNote(tx('Foto reale non disponibile (sei offline?): anteprima schematica')); return; }
