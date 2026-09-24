@@ -22,9 +22,9 @@ const AllSky = (() => {
     const runs = []; let s = -1;
     for (let x = 0; x <= W; x++) { const on = x < W && col[x] > 0.25 * H; if (on && s < 0) s = x; if (!on && s >= 0) { runs.push([s, x - 1]); s = -1; } }
     const bars = runs.filter(([a, b]) => b - a + 1 >= 6 && b - a + 1 < 0.09 * W);
-    if (!bars.length) throw new Error('barra colori non trovata: serve l’immagine intera salvata da lightpollutionmap');
+    if (!bars.length) throw new Error(tx('barra colori non trovata: serve l’immagine intera salvata da lightpollutionmap'));
     const bar = bars[bars.length - 1], plot = runs.filter((r) => r[1] < bar[0]).sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]))[0];
-    if (!plot) throw new Error('area del cielo non trovata');
+    if (!plot) throw new Error(tx('area del cielo non trovata'));
     // barra: colonna centrale, dall'alto al basso
     const xc = Math.round((bar[0] + bar[1]) / 2), bx0 = bar[0] + Math.round((bar[1] - bar[0]) * 0.25), bx1 = bar[1] - Math.round((bar[1] - bar[0]) * 0.25);
     // la striscia continua più lunga nella colonna centrale (sotto può esserci testo)

@@ -16,6 +16,8 @@ Pianificatore di target per astrofotografia. Gli dai il tuo setup, i tuoi filtri
 - **Inquadratura**: anteprima con foto reale DSS2 e sensore in scala, **rotazione e centro migliori** (per esempio la Cocoon spostata di 42′ verso B 168), mosaici, consigli concreti.
 - **Aggiornamenti automatici**: all'avvio e ogni 6 ore Skyframe controlla le release. Con l'installer di Windows e con l'AppImage scarica la nuova versione, la installa e si riapre (subito dal banner, o da solo alla chiusura). Con macOS, l'exe portable e il `.deb` avvisa e porta alla pagina della release.
 
+- **Lingue**: italiano e inglese (scelta nell'intestazione, di default quella del sistema). Ogni lingua è un dizionario in `src/i18n/`: per aggiungerne una basta un file nuovo.
+
 ## Scaricare
 
 Dalla pagina [Releases](https://github.com/astropuzzo/skyframe/releases):

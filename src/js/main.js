@@ -9,8 +9,8 @@ const state = {
 const active = () => state.profiles.find((p) => p.id === state.activeId) || state.profiles[0];
 function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3200); }
 async function copyText(txt) {
-  try { if (window.cielo && window.cielo.copy) await window.cielo.copy(txt); else await navigator.clipboard.writeText(txt); toast('Copiato negli appunti'); }
-  catch (e) { toast('Copia non riuscita: seleziona il testo e copialo a mano'); }
+  try { if (window.cielo && window.cielo.copy) await window.cielo.copy(txt); else await navigator.clipboard.writeText(txt); toast(tx('Copiato negli appunti')); }
+  catch (e) { toast(tx('Copia non riuscita: seleziona il testo e copialo a mano')); }
 }
 
 /* ============================ archiviazione ============================ */
@@ -21,7 +21,7 @@ const withLegacy = (p) => { const o = (p.optics || [])[0]; if (!o) return p; con
 function saveStore() {
   const saved = state.profiles.filter((p) => !p.unsaved).map(withLegacy);
   LS.set('sf.profiles', saved); LS.set('sf.active', state.activeId);
-  if (DESK) window.cielo.saveProfiles({ version: 2, active: state.activeId, profiles: saved }).catch(() => toast('Salvataggio su file non riuscito'));
+  if (DESK) window.cielo.saveProfiles({ version: 2, active: state.activeId, profiles: saved }).catch(() => toast(tx('Salvataggio su file non riuscito')));
 }
 function persistProfile(p) { p = clone(p); delete p.unsaved; p.updated = Date.now(); const i = state.profiles.findIndex((x) => x.id === p.id); if (i >= 0) state.profiles[i] = p; else state.profiles.push(p); state.profiles = state.profiles.filter((x) => !x.unsaved); saveStore(); return p; }
 function removeProfile(id) { state.profiles = state.profiles.filter((p) => p.id !== id); if (!state.profiles.length) state.profiles = [templateProfile()]; if (!state.profiles.some((p) => p.id === state.activeId)) state.activeId = state.profiles[0].id; saveStore(); }
@@ -33,15 +33,15 @@ function applyStore(data) {
 }
 async function exportProfiles() {
   const data = { version: 2, active: state.activeId, profiles: state.profiles.filter((p) => !p.unsaved) };
-  if (DESK) { const r = await window.cielo.exportProfiles(data); if (r) toast('Profili esportati in ' + r); } else copyText(JSON.stringify(data, null, 2));
+  if (DESK) { const r = await window.cielo.exportProfiles(data); if (r) toast(tx('Profili esportati in {f}', { f: r })); } else copyText(JSON.stringify(data, null, 2));
 }
 async function importProfiles() {
-  if (!DESK) { toast('L’importazione da file è disponibile nell’app desktop'); return; }
+  if (!DESK) { toast(tx('L’importazione da file è disponibile nell’app desktop')); return; }
   const data = await window.cielo.importProfiles(); if (!data) return;
   const list = (data.profiles || []).filter((p) => p && p.camera && (p.optic || p.optics) && p.site).map(migrateProfile);
-  if (!list.length) { toast('Il file non contiene profili validi'); return; }
+  if (!list.length) { toast(tx('Il file non contiene profili validi')); return; }
   list.forEach((p) => { const i = state.profiles.findIndex((x) => x.id === p.id); if (i >= 0) state.profiles[i] = p; else state.profiles.push(p); });
-  state.profiles = state.profiles.filter((p) => !p.unsaved); saveStore(); if (typeof closeEditor === 'function') closeEditor(); refresh(true); toast(list.length + ' profili importati');
+  state.profiles = state.profiles.filter((p) => !p.unsaved); saveStore(); if (typeof closeEditor === 'function') closeEditor(); refresh(true); toast(tx('{n} profili importati', { n: list.length }));
 }
 
 /* ============================ calcolo ============================ */
@@ -102,24 +102,24 @@ function renderHeader() {
   const a = active();
   $('#profileSel').innerHTML = state.profiles.map((p) => `<option value="${esc(p.id)}" ${p.id === state.activeId ? 'selected' : ''}>${esc(p.name)}${p.unsaved ? ' (esempio)' : ''}</option>`).join('');
   $('#brandSub').textContent = `${a.site.name} · ${it(a.site.lat, 2)}°, ${it(a.site.lon, 2)}°`;
-  $('#sync').querySelector('span').textContent = DESK ? 'profili salvati su file' : 'profili nel browser';
-  $('#notice').innerHTML = a.site.example ? `<div class="notice"><span>Luogo e orizzonte sono di esempio (Milano, Bortle 7). Inserisci coordinate, SQM e orizzonte del tuo terrazzo.</span><button class="btn sm" id="noticeEdit">Imposta il mio luogo</button></div>` : '';
+  $('#sync').querySelector('span').textContent = DESK ? tx('profili salvati su file') : tx('profili nel browser');
+  $('#notice').innerHTML = a.site.example ? `<div class="notice"><span>${tx('Luogo e orizzonte sono di esempio (Milano, Bortle 7). Inserisci coordinate, SQM e orizzonte del tuo terrazzo.')}</span><button class="btn sm" id="noticeEdit">${tx('Imposta il mio luogo')}</button></div>` : '';
   const b = $('#noticeEdit'); if (b) b.onclick = () => openEditor(a.id);
 }
 function renderChips() {
   const f = state.f;
-  $('#typeChips').innerHTML = `<button class="chip" data-type="" aria-pressed="${!f.types.length}">Tutti</button>` + Object.keys(TYPES_PL).map((t) => `<button class="chip" data-type="${t}" aria-pressed="${f.types.includes(t)}"><i style="background:${TYPE_COLOR[t]}"></i>${TYPES_PL[t]}</button>`).join('')
+  $('#typeChips').innerHTML = `<button class="chip" data-type="" aria-pressed="${!f.types.length}">${tx('Tutti')}</button>` + Object.keys(TYPES_PL).map((t) => `<button class="chip" data-type="${t}" aria-pressed="${f.types.includes(t)}"><i style="background:${TYPE_COLOR[t]}"></i>${tx(TYPES_PL[t])}</button>`).join('')
 ;
   // setup del profilo: filtro "consigliato con…"
   const cs = $('#cfgSel'); $('#cfgF').hidden = state.cfgs.length < 2;
-  cs.innerHTML = '<option value="">Qualsiasi</option>' + state.cfgs.map((c) => `<option value="${esc(c.key)}">${esc(c.label)} · ${c.short}</option>`).join(''); cs.value = state.cfgFilter;
-  $('#srcChips').innerHTML = Object.entries(SOURCES).map(([k, l]) => `<button class="chip" data-src="${k}" aria-pressed="${f.srcs.includes(k)}">${l}</button>`).join('');
+  cs.innerHTML = `<option value="">${tx('Qualsiasi')}</option>` + state.cfgs.map((c) => `<option value="${esc(c.key)}">${esc(c.label)} · ${c.short}</option>`).join(''); cs.value = state.cfgFilter;
+  $('#srcChips').innerHTML = Object.entries(SOURCES).map(([k, l]) => `<button class="chip" data-src="${k}" aria-pressed="${f.srcs.includes(k)}">${tx(l)}</button>`).join('');
 }
 function syncAdv() {
   const f = state.f;
-  $('#minUse').value = f.minUse; $('#minUseV').textContent = f.minUse > 0.25 ? fmtDur(f.minUse) : 'qualsiasi';
-  $('#maxNights').value = f.maxNights; $('#maxNightsV').textContent = f.maxNights >= 11 ? 'qualsiasi' : f.maxNights === 1 ? '1 notte' : f.maxNights + ' notti';
-  $('#maxSb').value = f.maxSb; $('#maxSbV').textContent = f.maxSb >= 26 ? 'qualsiasi' : it(f.maxSb, 2) + ' mag/″²';
+  $('#minUse').value = f.minUse; $('#minUseV').textContent = f.minUse > 0.25 ? fmtDur(f.minUse) : tx('qualsiasi');
+  $('#maxNights').value = f.maxNights; $('#maxNightsV').textContent = f.maxNights >= 11 ? tx('qualsiasi') : f.maxNights === 1 ? tx('1 notte') : tx('{n} notti', { n: f.maxNights });
+  $('#maxSb').value = f.maxSb; $('#maxSbV').textContent = f.maxSb >= 26 ? tx('qualsiasi') : it(f.maxSb, 2) + ' mag/″²';
   $('#fillSel').value = f.fill; $('#bandSel').value = f.band; $('#conSel').value = f.con; $('#hideClassic').checked = f.hideClassic; $('#showAll').checked = f.showAll;
 }
 
@@ -161,6 +161,7 @@ function wire() {
   $('#todayBtn').onclick = setLive; $('#liveBtn').onclick = setLive; $('#playBtn').onclick = togglePlay;
   const lp = (v) => { Dome.setLP(v); $('#lpToggle').setAttribute('aria-pressed', String(!!v)); LS.set('sf.lp', !!v); };
   if (window.cielo && window.cielo.onUpdate) window.cielo.onUpdate(showUpdate);
+  const ls = $('#langSel'); ls.innerHTML = Object.entries(LANGS).map(([k, v]) => `<option value="${k}">${v}</option>`).join(''); ls.value = LANG; ls.onchange = () => setLang(ls.value);
   $('#toList').onclick = () => $('.work').scrollIntoView({ behavior: 'smooth' });
   lp(LS.get('sf.lp', false)); $('#lpToggle').onclick = () => lp($('#lpToggle').getAttribute('aria-pressed') !== 'true');
   $('#profileSel').onchange = (e) => { state.activeId = e.target.value; saveStore(); closeDetail(); state.sel = null; refresh(); };
@@ -174,7 +175,7 @@ function wire() {
   $('#fillSel').onchange = (e) => { state.f.fill = e.target.value; upd(); };
   $('#bandSel').onchange = (e) => { state.f.band = e.target.value; upd(); };
   $('#cfgSel').onchange = (e) => { state.cfgFilter = e.target.value; upd(); };
-  $('#conSel').innerHTML = '<option value="">Tutte</option>' + Object.entries(CONST_NAMES).sort((a, b) => a[1].localeCompare(b[1])).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
+  $('#conSel').innerHTML = `<option value="">${tx('Tutte')}</option>` + Object.entries(CONST_NAMES).sort((a, b) => a[1].localeCompare(b[1])).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
   $('#conSel').onchange = (e) => { state.f.con = e.target.value; upd(); };
   $('#hideClassic').onchange = (e) => { state.f.hideClassic = e.target.checked; upd(); };
   $('#showAll').onchange = (e) => { state.f.showAll = e.target.checked; upd(); };
@@ -210,10 +211,10 @@ boot();
 function showUpdate(m) {
   const el = $('#upd'), v = esc(m.version || '');
   el.hidden = false; el.dataset.state = m.state;
-  if (m.state === 'downloading') el.innerHTML = `<span>Scarico Skyframe ${v}</span><i class="pbar"><b style="width:${m.percent || 0}%"></b></i><span class="num">${m.percent || 0}%</span>`;
-  else if (m.state === 'ready') el.innerHTML = `<span>Skyframe ${v} è pronto: si installa alla chiusura, oppure</span><button class="btn sm primary" id="updGo">Riavvia e aggiorna</button>`;
-  else if (m.state === 'available') el.innerHTML = `<span>È uscito Skyframe ${v}</span><button class="btn sm" id="updGo">Scarica</button>`;
-  else if (m.state === 'error') el.innerHTML = `<span>Aggiornamento a ${v} non riuscito</span><button class="btn sm" id="updGo">Scaricalo a mano</button>`;
+  if (m.state === 'downloading') el.innerHTML = `<span>${tx('Scarico Skyframe {v}', { v })}</span><i class="pbar"><b style="width:${m.percent || 0}%"></b></i><span class="num">${m.percent || 0}%</span>`;
+  else if (m.state === 'ready') el.innerHTML = `<span>${tx('Skyframe {v} è pronto: si installa alla chiusura, oppure', { v })}</span><button class="btn sm primary" id="updGo">${tx('Riavvia e aggiorna')}</button>`;
+  else if (m.state === 'available') el.innerHTML = `<span>${tx('È uscito Skyframe {v}', { v })}</span><button class="btn sm" id="updGo">${tx('Scarica')}</button>`;
+  else if (m.state === 'error') el.innerHTML = `<span>${tx('Aggiornamento a {v} non riuscito', { v })}</span><button class="btn sm" id="updGo">${tx('Scaricalo a mano')}</button>`;
   else { el.hidden = true; return; }
-  const b = $('#updGo'); if (b) b.onclick = () => { if (m.state === 'ready') { b.disabled = true; b.textContent = 'Riavvio…'; window.cielo.installUpdate(); } else window.cielo.openUpdate(); };
+  const b = $('#updGo'); if (b) b.onclick = () => { if (m.state === 'ready') { b.disabled = true; b.textContent = tx('Riavvio…'); window.cielo.installUpdate(); } else window.cielo.openUpdate(); };
 }

@@ -6,15 +6,15 @@ function moonSvg(k, waxing, r = 9) {
 }
 function renderFacts() {
   const p = active(), n = state.res.night, sqm = state.res.sqm;
-  const dark = n.first >= 0 ? `${fmtT(n.t[n.first])} – ${fmtT(n.t[n.last] + DT)}` : 'nessuno';
-  let moonS; if (n.moonUpFrac < 0.02) moonS = 'sotto l’orizzonte col buio'; else { const p2 = []; if (n.mRise) p2.push('sorge ' + fmtT(n.mRise)); if (n.mSet) p2.push('tramonta ' + fmtT(n.mSet)); moonS = `alta per il ${Math.round(n.moonUpFrac * 100)}% del buio` + (p2.length ? ' · ' + p2.join(', ') : ''); }
+  const dark = n.first >= 0 ? `${fmtT(n.t[n.first])} – ${fmtT(n.t[n.last] + DT)}` : tx('nessuno');
+  let moonS; if (n.moonUpFrac < 0.02) moonS = tx('sotto l’orizzonte col buio'); else { const p2 = []; if (n.mRise) p2.push(tx('sorge {t}', { t: fmtT(n.mRise) })); if (n.mSet) p2.push(tx('tramonta {t}', { t: fmtT(n.mSet) })); moonS = tx('alta per il {p}% del buio', { p: Math.round(n.moonUpFrac * 100) }) + (p2.length ? ' · ' + p2.join(', ') : ''); }
   const win = state.windows && state.windows[0];
-  const nextDark = win ? (win.from <= n.t0 + 43200000 ? `adesso, fino al ${fmtDay(win.to)}` : `${fmtDay(win.from)} → ${fmtDay(win.to)}`) : 'oltre 6 settimane';
+  const nextDark = win ? (win.from <= n.t0 + 43200000 ? tx('adesso, fino al {d}', { d: fmtDay(win.to) }) : `${fmtDay(win.from)} → ${fmtDay(win.to)}`) : tx('oltre 6 settimane');
   $('#facts').innerHTML = `
-    <div class="fact"><div class="lbl">Buio</div><div class="v num">${dark}</div><div class="s">${fmtDur(n.darkH)} · sole sotto ${n.thr}°</div></div>
-    <div class="fact"><div class="lbl">Luna</div><div class="v">${moonSvg(n.moonIll, n.waxing)}<span class="num">${Math.round(n.moonIll * 100)}%</span></div><div class="s">${moonS}</div></div>
-    <div class="fact"><div class="lbl">Cielo allo zenit</div><div class="v num">SQM ${it(sqm, 2)}</div><div class="s">Bortle ${sqmToBortle(sqm)} · ${p.site.lpSrc ? esc(p.site.lpSrc) + (p.site.lpAz ? ', per direzione' : '') : 'valore inserito a mano'}</div></div>
-    <div class="fact"><div class="lbl">Notti senza Luna</div><div class="v" style="font-size:16px">${nextDark}</div><div class="s">prossima finestra buia</div></div>`;
+    <div class="fact"><div class="lbl">${tx('Buio')}</div><div class="v num">${dark}</div><div class="s">${fmtDur(n.darkH)} · ${tx('sole sotto {d}°', { d: n.thr })}</div></div>
+    <div class="fact"><div class="lbl">${tx('Luna')}</div><div class="v">${moonSvg(n.moonIll, n.waxing)}<span class="num">${Math.round(n.moonIll * 100)}%</span></div><div class="s">${moonS}</div></div>
+    <div class="fact"><div class="lbl">${tx('Cielo allo zenit')}</div><div class="v num">SQM ${it(sqm, 2)}</div><div class="s">Bortle ${sqmToBortle(sqm)} · ${p.site.lpSrc ? esc(tx(p.site.lpSrc)) + (p.site.lpAz ? tx(', per direzione') : '') : tx('valore inserito a mano')}</div></div>
+    <div class="fact"><div class="lbl">${tx('Notti senza Luna')}</div><div class="v" style="font-size:16px">${nextDark}</div><div class="s">${tx('prossima finestra buia')}</div></div>`;
 }
 function renderSetups() {
   const el = $('#setups'); const cfgs = state.cfgs;
@@ -23,7 +23,7 @@ function renderSetups() {
   top.forEach((r) => wins.set(r.e.cfg.key, wins.get(r.e.cfg.key) + 1));
   const max = Math.max(1, ...wins.values());
   el.hidden = false;
-  el.innerHTML = `<h3 class="lbl">Quale setup stanotte</h3><div class="note" style="margin:-4px 0 8px">Su quanti dei primi ${top.length} target vince ogni configurazione.</div>` + cfgs.map((c) => `<div class="su"><div><div class="n">${esc(c.label)}</div><div class="d">${c.short} · ${fmtDeg(c.geom.W)}×${fmtDeg(c.geom.H)} · ${it(c.geom.px, 2)}″/px</div></div><div class="w">${wins.get(c.key)}</div><div class="bar"><i style="width:${(wins.get(c.key) / max) * 100}%"></i></div></div>`).join('');
+  el.innerHTML = `<h3 class="lbl">${tx('Quale setup stanotte')}</h3><div class="note" style="margin:-4px 0 8px">${tx('Su quanti dei primi {n} target vince ogni configurazione.', { n: top.length })}</div>` + cfgs.map((c) => `<div class="su"><div><div class="n">${esc(c.label)}</div><div class="d">${c.short} · ${fmtDeg(c.geom.W)}×${fmtDeg(c.geom.H)} · ${it(c.geom.px, 2)}″/px</div></div><div class="w">${wins.get(c.key)}</div><div class="bar"><i style="width:${(wins.get(c.key) / max) * 100}%"></i></div></div>`).join('');
 }
 /* striscia della notte: crepuscoli, Luna, finestra di ripresa, altezza del target selezionato, cursore */
 function drawStrip() {
@@ -44,12 +44,12 @@ function drawStrip() {
   const t = Dome.time; if (t >= n.t[i0] && t <= n.t[i1]) { const x = (t - n.t[i0]) / (n.t[i1] - n.t[i0]) * w; c.fillStyle = '#fff'; c.fillRect(x - 1, 0, 2, bh); c.beginPath(); c.moveTo(x - 5, 0); c.lineTo(x + 5, 0); c.lineTo(x, 6); c.fill(); }
 }
 function renderClock() {
-  const t = Dome.time, n = state.res && state.res.night; if (!n) return;
-  $('#clockTime').textContent = fmtT(t);
-  const p = active(), lat = p.site.lat * D2R, J = jd(t), lst = lstDeg(t, +p.site.lon), s = sunPos(J);
+  const tm = Dome.time, n = state.res && state.res.night; if (!n) return;
+  $('#clockTime').textContent = fmtT(tm);
+  const p = active(), lat = p.site.lat * D2R, J = jd(tm), lst = lstDeg(tm, +p.site.lon), s = sunPos(J);
   const sAlt = altaz(s.ra, s.dec, lst, Math.sin(lat), Math.cos(lat))[0];
-  const phase = sAlt > -0.833 ? 'giorno' : sAlt > -6 ? 'crepuscolo civile' : sAlt > -12 ? 'crepuscolo nautico' : sAlt > -18 ? 'crepuscolo astronomico' : 'buio';
-  $('#clockWhen').innerHTML = `${new Date(t).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}<br>Sole ${Math.round(sAlt)}° · ${phase}`;
+  const phase = tx(sAlt > -0.833 ? 'giorno' : sAlt > -6 ? 'crepuscolo civile' : sAlt > -12 ? 'crepuscolo nautico' : sAlt > -18 ? 'crepuscolo astronomico' : 'buio');
+  $('#clockWhen').innerHTML = `${new Date(tm).toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' })}<br>${tx('Sole')} ${Math.round(sAlt)}° · ${phase}`;
 }
 
 /* ============================ mappa della luminosità del cielo ============================ */
@@ -105,8 +105,8 @@ function lpGlow(sky, size, hmax) {
 function lpLegendHTML(st) {
   const stops = LP_RAMP.map(([t, c]) => `rgb(${c}) ${Math.round(t * 100)}%`).join(',');
   return `<div class="lpleg"><div class="bar" style="background:linear-gradient(90deg,${stops})"></div><div class="ends"><span>${it(st.hi, 2)}</span><span>${it(st.lo, 2)} mag/″²</span></div></div>
-    <dl class="lpstats"><dt>Zenit</dt><dd>${it(st.zen, 2)}</dd><dt>Media sopra 30°</dt><dd>${it(st.mean30, 2)}</dd>
-    <dt>Più brillante</dt><dd>${it(st.bright.m, 2)} a ${st.bright.h}° verso ${azName(st.bright.az)} (${st.bright.az}°)</dd><dt>Più buio</dt><dd>${it(st.dark.m, 2)} a ${st.dark.h}° verso ${azName(st.dark.az)}</dd></dl>`;
+    <dl class="lpstats"><dt>${tx('Zenit')}</dt><dd>${it(st.zen, 2)}</dd><dt>${tx('Media sopra 30°')}</dt><dd>${it(st.mean30, 2)}</dd>
+    <dt>${tx('Più brillante')}</dt><dd>${tx('{m} a {h}° verso {dir} ({az}°)', { m: it(st.bright.m, 2), h: st.bright.h, dir: azName(st.bright.az), az: st.bright.az })}</dd><dt>${tx('Più buio')}</dt><dd>${tx('{m} a {h}° verso {dir}', { m: it(st.dark.m, 2), h: st.dark.h, dir: azName(st.dark.az) })}</dd></dl>`;
 }
 function drawLpPreview(canvas, site, horizon) {
   const sky = skyModel(site), st = lpStats(sky), dpr = Math.min(2, devicePixelRatio || 1), S = 340;
@@ -116,7 +116,7 @@ function drawLpPreview(canvas, site, horizon) {
   c.setTransform(dpr, 0, 0, dpr, 0, 0);
   c.strokeStyle = 'rgba(255,255,255,.18)'; [30, 60].forEach((a) => { c.beginPath(); c.arc(S / 2, S / 2, S / 2 * (90 - a) / 90, 0, 7); c.stroke(); });
   c.font = '600 13px "Saira Condensed", sans-serif'; c.textAlign = 'center';
-  [['N', S / 2, 16], ['S', S / 2, S - 6], ['E', 12, S / 2 + 4], ['O', S - 12, S / 2 + 4]].forEach(([l, x, y]) => { c.fillStyle = 'rgba(0,0,0,.6)'; c.fillText(l, x + 1, y + 1); c.fillStyle = '#fff'; c.fillText(l, x, y); });
+  [['N', S / 2, 16], ['S', S / 2, S - 6], [tx('E'), 12, S / 2 + 4], [tx('O'), S - 12, S / 2 + 4]].forEach(([l, x, y]) => { c.fillStyle = 'rgba(0,0,0,.6)'; c.fillText(l, x + 1, y + 1); c.fillStyle = '#fff'; c.fillText(l, x, y); });
   const leg = document.getElementById('lpLegend'); if (leg) leg.innerHTML = lpLegendHTML(st);
 }
 
@@ -138,26 +138,26 @@ function spark(r) {
 function altAt(r, t) { const p = active(), lat = p.site.lat * D2R; return altaz(r.pr.ra, r.pr.dec, lstDeg(t, +p.site.lon), Math.sin(lat), Math.cos(lat)); }
 function nowCell(r) {
   const [a, z] = altAt(r, Dome.time); const b = Math.max(+active().session.minAlt || 0, state.res.lut[Math.round(z) % 360]);
-  return a <= 0 ? `<span style="color:var(--ink-4)">sotto</span><small>orizzonte</small>` : `${Math.round(a)}°<small>${azName(z)} · ${a >= b ? 'libero' : 'coperto'}</small>`;
+  return a <= 0 ? `<span style="color:var(--ink-4)">${tx('sotto')}</span><small>${tx('orizzonte')}</small>` : `${Math.round(a)}°<small>${azName(z)} · ${tx(a >= b ? 'libero' : 'coperto')}</small>`;
 }
 function rowHTML(r, i) {
   const o = r.o, e = r.e, b = e.best, n = state.res.night;
   let plan;
-  if (!b) plan = `<span style="color:var(--ink-3)">—</span><small>serve la banda larga</small>`;
+  if (!b) plan = `<span style="color:var(--ink-3)">—</span><small>${tx('serve la banda larga')}</small>`;
   else {
     const h = isFinite(b.tonight) ? b.tonight : b.ideal, nt = b.nights;
-    const ntx = !isFinite(nt) ? '' : nt <= 1 ? '1 notte' : (nt < 10 ? it(nt) : Math.round(nt)) + ' notti';
+    const ntx = !isFinite(nt) ? '' : nt <= 1 ? tx('1 notte') : tx('{n} notti', { n: nt < 10 ? it(nt) : Math.round(nt) });
     const cls = nt <= 1 ? 'n1' : nt <= 3 ? 'n2' : 'n3';
-    plan = `<b>${fmtH(h)}</b>${ntx ? `<span class="nights ${cls}">${ntx}</span>` : ''}${state.cfgs.length > 1 ? `<span class="rig" title="Setup consigliato: ${esc(e.cfg.label)} · ${e.cfg.short}"><i></i><span>${esc(e.cfg.tag)}</span><em>${e.cfg.short}</em></span>` : ''}<small>${esc(b.label)}${b.deep ? ` · profondo ${fmtH(isFinite(b.tonightDeep) ? b.tonightDeep : b.idealDeep)}` : ''}</small>`;
+    plan = `<b>${fmtH(h)}</b>${ntx ? `<span class="nights ${cls}">${ntx}</span>` : ''}${state.cfgs.length > 1 ? `<span class="rig" title="${tx('Setup consigliato')}: ${esc(e.cfg.label)} · ${e.cfg.short}"><i></i><span>${esc(e.cfg.tag)}</span><em>${e.cfg.short}</em></span>` : ''}<small>${esc(b.label)}${b.deep ? ` · ${tx('profondo')} ${fmtH(isFinite(b.tonightDeep) ? b.tonightDeep : b.idealDeep)}` : ''}</small>`;
   }
   const win = r.first >= 0 ? `${fmtT(n.t[r.first])}–${fmtT(n.t[r.last] + DT)}` : '';
-  const vis = r.usableH > 0 ? `${fmtDur(r.usableH)} · max ${Math.round(r.maxA)}°<small>${win}</small>` : `<span style="color:var(--ink-3)">non riprendibile</span><small>coperto o sotto ${active().session.minAlt}°</small>`;
+  const vis = r.usableH > 0 ? `${fmtDur(r.usableH)} · max ${Math.round(r.maxA)}°<small>${win}</small>` : `<span style="color:var(--ink-3)">${tx('non riprendibile')}</span><small>${tx('coperto o sotto {a}°', { a: active().session.minAlt })}</small>`;
   const size = `${o.a >= 10 ? Math.round(o.a) : it(o.a, 1)}′${o.b !== o.a ? '×' + (o.b >= 10 ? Math.round(o.b) : it(o.b, 1)) + '′' : ''}`;
   return `<div class="row${r.usableH < 0.25 ? ' dim' : ''}${state.sel === o.id ? ' sel' : ''}${i < 24 ? ' enter' : ''}" style="${i < 24 ? `animation-delay:${i * 22}ms` : ''}" role="button" tabindex="0" data-id="${esc(o.id)}">
     <div class="c-score"><div class="score" data-v="${r.score}" style="--c:${scoreColor(r.score)}"><b>${r.score}</b></div></div>
     <div class="c-name"><div class="nm"><span class="id">${esc(o.id)}</span><span class="nick">${esc(o.nick)}</span></div>
-      <div class="meta"><span class="tchip" style="color:${TYPE_COLOR[o.type]}">${TYPES_PL[o.type]}</span><span class="num">${size}</span><span>${esc(CONST_NAMES[o.con] || o.con)}</span>${o.classic ? '' : '<span class="gem">fuori dai soliti</span>'}</div></div>
-    <div class="c-frame frame">${frameGlyph(r)}<div>${esc(e.fill.label)}<small>${esc(e.fill.sub)}</small></div></div>
+      <div class="meta"><span class="tchip" style="color:${TYPE_COLOR[o.type]}">${tx(TYPES_PL[o.type])}</span><span class="num">${size}</span><span>${esc(CONST_NAMES[o.con] || o.con)}</span>${o.classic ? '' : `<span class="gem">${tx('fuori dai soliti')}</span>`}</div></div>
+    <div class="c-frame frame">${frameGlyph(r)}<div>${esc(tx(e.fill.label))}<small>${esc(e.fill.sub)}</small></div></div>
     <div class="c-vis vis">${spark(r)}<div>${vis}</div></div>
     <div class="c-plan plan">${plan}</div>
     <div class="c-now now">${nowCell(r)}</div></div>`;
@@ -166,8 +166,8 @@ function renderList() {
   const L = state.filtered, shown = L.slice(0, state.page);
   const visN = state.res.results.filter((r) => r.usableH >= 0.25).length;
   $('#toListN').textContent = L.length;
-  $('#count').innerHTML = `<span class="num">${L.length}</span> target su ${visN} riprendibili la notte del ${new Date(state.res.night.t0).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}`;
-  $('#list').innerHTML = shown.length ? shown.map(rowHTML).join('') + (L.length > shown.length ? `<button class="btn more" id="moreBtn">Mostra altri ${Math.min(60, L.length - shown.length)}</button>` : '') : `<div class="empty">Nessun target con questi filtri. Allarga i criteri o azzera i filtri.</div>`;
+  $('#count').innerHTML = tx('{n} target su {v} riprendibili la notte del {d}', { n: `<span class="num">${L.length}</span>`, v: visN, d: new Date(state.res.night.t0).toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' }) });
+  $('#list').innerHTML = shown.length ? shown.map(rowHTML).join('') + (L.length > shown.length ? `<button class="btn more" id="moreBtn">${tx('Mostra altri {n}', { n: Math.min(60, L.length - shown.length) })}</button>` : '') : `<div class="empty">${tx('Nessun target con questi filtri. Allarga i criteri o azzera i filtri.')}</div>`;
   requestAnimationFrame(() => $$('#list .score').forEach((el) => el.style.setProperty('--v', el.dataset.v)));
   const mb = $('#moreBtn'); if (mb) mb.onclick = () => { state.page += 60; renderList(); };
 }
@@ -209,72 +209,77 @@ function renderDetail() {
   // rotazione e centro migliori per questa configurazione (ricalcolati quando cambi setup)
   const fr = framingFor(o, r.field, g), bestRot = fr.free ? 90 : fr.pa;
   if (state.rotFor !== e.cfg.key) { state.rot = bestRot; state.frameOff = [fr.dx, fr.dy]; state.rotFor = e.cfg.key; }
-  const tabs = r.evals.length > 1 ? `<div class="tabs" role="tablist">${r.evals.map((x) => `<button class="tab" role="tab" data-cfg="${esc(x.cfg.key)}" aria-selected="${x.cfg.key === e.cfg.key}">${esc(x.cfg.label)}<span class="sc" style="color:${scoreColor(x.score)}">${x.score}</span><small>${x.cfg.short} · ${esc(x.fill.label.toLowerCase())}${x.best ? ' · ' + fmtH(isFinite(x.best.tonight) ? x.best.tonight : x.best.ideal) : ''}</small></button>`).join('')}</div>` : '';
+  const tabs = r.evals.length > 1 ? `<div class="tabs" role="tablist">${r.evals.map((x) => `<button class="tab" role="tab" data-cfg="${esc(x.cfg.key)}" aria-selected="${x.cfg.key === e.cfg.key}">${esc(x.cfg.label)}<span class="sc" style="color:${scoreColor(x.score)}">${x.score}</span><small>${x.cfg.short} · ${esc(tx(x.fill.label).toLowerCase())}${x.best ? ' · ' + fmtH(isFinite(x.best.tonight) ? x.best.tonight : x.best.ideal) : ''}</small></button>`).join('')}</div>` : '';
   $('#drawer').innerHTML = `
   <div class="d-head"><div><h2>${esc(o.id)}</h2>${o.nick ? `<div class="nick">${esc(o.nick)}</div>` : ''}
-    <div class="sub">${TYPES[o.type]} in ${esc(CONST_NAMES[o.con] || o.con)} · ${size}${o.mag != null ? ' · mag ' + it(o.mag, 1) : ''} · LS ${it(o.sb, 1)} mag/″²${o.alias.length ? ' · ' + esc(o.alias.slice(0, 4).join(', ')) : ''}</div></div>
-    <button class="btn ghost x" id="dClose">Chiudi</button></div>
-  <div class="d-actions"><button class="btn sm" id="copyCoord">Copia coordinate J2000</button>${Math.hypot(fr.dx, fr.dy) > 2 ? '<button class="btn sm" id="copyFrame">Copia centro inquadratura</button>' : ''}<a class="btn sm ghost" href="${aladin}" target="_blank" rel="noopener">Aladin ↗</a><a class="btn sm ghost" href="${stel}" target="_blank" rel="noopener">Stellarium Web ↗</a></div>
+    <div class="sub">${tx('{type} in {con}', { type: tx(TYPES[o.type]), con: esc(CONST_NAMES[o.con] || o.con) })} · ${size}${o.mag != null ? ' · mag ' + it(o.mag, 1) : ''} · ${tx('LS')} ${it(o.sb, 1)} mag/″²${o.alias.length ? ' · ' + esc(o.alias.slice(0, 4).join(', ')) : ''}</div></div>
+    <button class="btn ghost x" id="dClose">${tx('Chiudi')}</button></div>
+  <div class="d-actions"><button class="btn sm" id="copyCoord">${tx('Copia coordinate J2000')}</button>${Math.hypot(fr.dx, fr.dy) > 2 ? `<button class="btn sm" id="copyFrame">${tx('Copia centro inquadratura')}</button>` : ''}<a class="btn sm ghost" href="${aladin}" target="_blank" rel="noopener">Aladin ↗</a><a class="btn sm ghost" href="${stel}" target="_blank" rel="noopener">Stellarium Web ↗</a></div>
   ${tabs}
   <div class="kpis">
-    <div class="kpi"><div class="lbl">Punteggio</div><div class="v" style="color:${scoreColor(e.score)}">${e.score}</div><div class="s">su 100</div></div>
-    <div class="kpi"><div class="lbl">Inquadratura</div><div class="v">${Math.round(e.fill.score * 100)}</div><div class="s">${esc(e.fill.label)}</div></div>
-    <div class="kpi"><div class="lbl">Visibilità</div><div class="v">${Math.round(r.vis * 100)}</div><div class="s">${fmtDur(r.usableH)} libero col buio</div></div>
-    <div class="kpi"><div class="lbl">Impegno</div><div class="v">${Math.round(e.effort * 100)}</div><div class="s">${b && isFinite(b.nights) ? (b.nights <= 1 ? 'si chiude stanotte' : '≈ ' + it(b.nights) + ' notti così') : 'non stanotte'}</div></div>
+    <div class="kpi"><div class="lbl">${tx('Punteggio')}</div><div class="v" style="color:${scoreColor(e.score)}">${e.score}</div><div class="s">${tx('su 100')}</div></div>
+    <div class="kpi"><div class="lbl">${tx('Inquadratura')}</div><div class="v">${Math.round(e.fill.score * 100)}</div><div class="s">${esc(tx(e.fill.label))}</div></div>
+    <div class="kpi"><div class="lbl">${tx('Visibilità')}</div><div class="v">${Math.round(r.vis * 100)}</div><div class="s">${tx('{d} libero col buio', { d: fmtDur(r.usableH) })}</div></div>
+    <div class="kpi"><div class="lbl">${tx('Impegno')}</div><div class="v">${Math.round(e.effort * 100)}</div><div class="s">${b && isFinite(b.nights) ? (b.nights <= 1 ? tx('si chiude stanotte') : tx('≈ {n} notti così', { n: it(b.nights) })) : tx('non stanotte')}</div></div>
   </div>
-  <div class="period" id="period"><span class="lbl">Periodo giusto</span><span class="pt">Calcolo quando conviene…</span></div>
-  <div class="sec"><h3>Piano di ripresa <small>qualità ${QLABEL[p.session.quality] || 'buona'} · ${esc(e.cfg.label)} a ${e.cfg.short} · con il cielo di stanotte</small></h3>
+  <div class="period" id="period"><span class="lbl">${tx('Periodo giusto')}</span><span class="pt">${tx('Calcolo quando conviene…')}</span></div>
+  <div class="sec"><h3>${tx('Piano di ripresa')} <small>${tx('qualità {q} · {cfg} a {f} · con il cielo di stanotte', { q: tx(QLABEL[p.session.quality] || 'buona'), cfg: esc(e.cfg.label), f: e.cfg.short })}</small></h3>
     ${plan ? `<div class="plan-card"><div class="head"><span class="t">${esc(b.label)}</span><span class="h">${fmtH(planTot)}</span></div>
-      ${b.deep ? `<div class="deep">Per far uscire anche l’Hα diffuso attorno (${it(o.ha, 1)} R nella mappa all-sky di Finkbeiner) servono <b>${fmtH(planDeep)}</b> in tutto.</div>` : ''}
-      <div class="steps">${plan.map((s) => `<div class="step${s.optional ? ' opt' : ''}"><div class="f">${esc(s.filter)}<small>${esc(s.what)}${s.optional ? ' · facoltativo' : s.drive ? ' · il tempo lo decidono: ' + esc(s.drive) : ''}</small></div><div class="h">${fmtH(s.h)}${s.hDeep > s.h * 1.15 ? `<small>${fmtH(s.hDeep)} profondo</small>` : ''}</div><div class="sb">sub ${s.sub} s</div></div>`).join('')}</div>
-      ${b.panels > 1 ? `<div class="note">Tempi totali per ${b.panels} pannelli di mosaico.</div>` : ''}
-      ${alts.length ? `<div class="alts"><span class="lbl">Altre strade, non da sommare</span>${alts.map((s) => `<div class="a"><span>${esc(s.label)}</span><b>${fmtH(hOf(s))}${isFinite(s.nights) ? ` · ${s.nights <= 1 ? '1 notte' : it(s.nights) + ' notti'}` : ''}</b></div>`).join('')}</div>` : ''}
-      <div class="note">Senza Luna e al transito servirebbero ${fmtH(b.ideal)}. Sub scelti filtro per filtro: coprono il rumore di lettura con il cielo di stanotte (Luna compresa) e restano nei valori pratici di quel tipo di filtro.</div></div>`
-    : `<p class="hint">Con i filtri di questo profilo non c’è una strategia adatta a ${TYPES_PL[o.type].toLowerCase()}.</p>`}
+      ${b.deep ? `<div class="deep">${tx('Per far uscire anche l’Hα diffuso attorno ({r} R nella mappa all-sky di Finkbeiner) servono <b>{h}</b> in tutto.', { r: it(o.ha, 1), h: fmtH(planDeep) })}</div>` : ''}
+      <div class="steps">${plan.map((s) => `<div class="step${s.optional ? ' opt' : ''}"><div class="f">${esc(s.filter)}<small>${esc(s.what)}${s.optional ? ' · ' + tx('facoltativo') : s.drive ? ' · ' + tx('il tempo lo decidono:') + ' ' + esc(s.drive) : ''}</small></div><div class="h">${fmtH(s.h)}${s.hDeep > s.h * 1.15 ? `<small>${fmtH(s.hDeep)} ${tx('profondo')}</small>` : ''}</div><div class="sb">sub ${s.sub} s</div></div>`).join('')}</div>
+      ${b.panels > 1 ? `<div class="note">${tx('Tempi totali per {n} pannelli di mosaico.', { n: b.panels })}</div>` : ''}
+      ${alts.length ? `<div class="alts"><span class="lbl">${tx('Altre strade, non da sommare')}</span>${alts.map((s) => `<div class="a"><span>${esc(s.label)}</span><b>${fmtH(hOf(s))}${isFinite(s.nights) ? ` · ${s.nights <= 1 ? tx('1 notte') : tx('{n} notti', { n: it(s.nights) })}` : ''}</b></div>`).join('')}</div>` : ''}
+      <div class="note">${tx('Senza Luna e al transito servirebbero {h}. Sub scelti filtro per filtro: coprono il rumore di lettura con il cielo di stanotte (Luna compresa) e restano nei valori pratici di quel tipo di filtro.', { h: fmtH(b.ideal) })}</div></div>`
+    : `<p class="hint">${tx('Con i filtri di questo profilo non c’è una strategia adatta a {t}.', { t: tx(TYPES_PL[o.type]).toLowerCase() })}</p>`}
   </div>
-  <div class="sec"><h3>Consigli</h3><div class="tips">${tips.map((t) => `<div class="tip k-${esc(t.k.replace(/[^\w]/g, ''))}"><div class="k">${esc(t.k)}</div><div>${esc(t.t)}</div></div>`).join('')}</div></div>
-  <div class="sec"><h3>Campo inquadrato <small>${fmtDeg(g.W)} × ${fmtDeg(g.H)} · ${Math.round(g.fEff)} mm · nord in alto, est a sinistra</small></h3>
-    <div class="fovbox"><canvas id="fov" aria-label="Anteprima del campo"></canvas>
-    <div class="fovctl"><label for="rot">Lato lungo a PA</label><input id="rot" type="range" min="0" max="179" step="1" value="${Math.round(state.rot)}"><span class="num" id="rotV">${Math.round(state.rot)}°</span>
-      <button class="btn sm ghost" id="rotBest">Allinea (${bestRot}°)</button>
-      ${e.fill.nx * e.fill.ny > 1 ? `<label class="chk"><input type="checkbox" id="mos" ${state.mosaic ? 'checked' : ''}> Mosaico ${e.fill.nx}×${e.fill.ny}</label>` : ''}
-      <label class="chk"><input type="checkbox" id="realSky" ${state.realSky ? 'checked' : ''}> Foto reale</label></div></div>
-    <p class="note"><span id="skyNote"></span>. Rettangolo, scala e orientamento sono calcolati sul tuo sensore.</p></div>
-  <div class="sec"><h3>La notte <small>zona rossa: coperto dall’orizzonte o sotto ${p.session.minAlt}°</small></h3><div class="charts"><div class="chartbox draw ia" id="altBox">${altChart(r)}</div><div class="chartbox draw ia" id="polBox">${polar(r)}</div></div><p class="note">Passa sopra i grafici per leggere ora e altezza; clicca o trascina per spostare l’ora (si muove anche la cupola).</p></div>
-  <div class="sec"><h3>Nei prossimi 12 mesi <small>ore libere col buio, senza contare la Luna · clicca un mese per aprirne la notte più buia</small></h3><div class="chartbox season" id="season"></div></div>
-  <details class="how"><summary>Come vengono stimati i tempi</summary>
-    <p>Ogni filtro è modellato con le sue bande reali (schede dei produttori). Per ogni banda calcolo quanta luce dell’oggetto passa (continuo più le righe Hα, [NII], Hβ, OIII, SII, pesate dalla risposta dei pixel rossi, verdi e blu se la camera è a colori) e quanto fondo cielo: il tuo SQM, diviso tra un continuo tipo LED e le righe di mercurio e sodio, più la luce lunare di ogni 5 minuti.</p>
+  <div class="sec"><h3>${tx('Consigli')}</h3><div class="tips">${tips.map((q) => `<div class="tip k-${esc(q.k.replace(/[^\w]/g, ''))}"><div class="k">${esc(tx(q.k))}</div><div>${esc(q.t)}</div></div>`).join('')}</div></div>
+  <div class="sec"><h3>${tx('Campo inquadrato')} <small>${fmtDeg(g.W)} × ${fmtDeg(g.H)} · ${Math.round(g.fEff)} mm · ${tx('nord in alto, est a sinistra')}</small></h3>
+    <div class="fovbox"><canvas id="fov" aria-label="${tx('Anteprima del campo')}"></canvas>
+    <div class="fovctl"><label for="rot">${tx('Lato lungo a PA')}</label><input id="rot" type="range" min="0" max="179" step="1" value="${Math.round(state.rot)}"><span class="num" id="rotV">${Math.round(state.rot)}°</span>
+      <button class="btn sm ghost" id="rotBest">${tx('Allinea')} (${bestRot}°)</button>
+      ${e.fill.nx * e.fill.ny > 1 ? `<label class="chk"><input type="checkbox" id="mos" ${state.mosaic ? 'checked' : ''}> ${tx('Mosaico')} ${e.fill.nx}×${e.fill.ny}</label>` : ''}
+      <label class="chk"><input type="checkbox" id="realSky" ${state.realSky ? 'checked' : ''}> ${tx('Foto reale')}</label></div></div>
+    <p class="note"><span id="skyNote"></span>. ${tx('Rettangolo, scala e orientamento sono calcolati sul tuo sensore.')}</p></div>
+  <div class="sec"><h3>${tx('La notte')} <small>${tx('zona rossa: coperto dall’orizzonte o sotto {a}°', { a: p.session.minAlt })}</small></h3><div class="charts"><div class="chartbox draw ia" id="altBox">${altChart(r)}</div><div class="chartbox draw ia" id="polBox">${polar(r)}</div></div><p class="note">${tx('Passa sopra i grafici per leggere ora e altezza; clicca o trascina per spostare l’ora (si muove anche la cupola).')}</p></div>
+  <div class="sec"><h3>${tx('Nei prossimi 12 mesi')} <small>${tx('ore libere col buio, senza contare la Luna · clicca un mese per aprirne la notte più buia')}</small></h3><div class="chartbox season" id="season"></div></div>
+  <details class="how"><summary>${tx('Come vengono stimati i tempi')}</summary>
+    <p>${tx('HOW1')}</p>
+    <p>${tx('HOW2')}</p>
+    <p>${tx('HOW3')}</p>
+    <p>${tx('HOW4')}</p></details>`;
+  const HOW_IT = `<p>Ogni filtro è modellato con le sue bande reali (schede dei produttori). Per ogni banda calcolo quanta luce dell’oggetto passa (continuo più le righe Hα, [NII], Hβ, OIII, SII, pesate dalla risposta dei pixel rossi, verdi e blu se la camera è a colori) e quanto fondo cielo: il tuo SQM, diviso tra un continuo tipo LED e le righe di mercurio e sodio, più la luce lunare di ogni 5 minuti.</p>
     <p>Il fondo cielo cambia con la direzione: SQM allo zenit dall’atlante di Lorenz 2025 (o dal tuo valore), più brillante verso l’orizzonte e verso le luci con i pesi per azimut calcolati dall’atlante.</p>
     <p>La qualità è un SNR per elemento di risoluzione (il più grande tra pixel e 2″, la scala del seeing) su tre livelli: la luminosità media del catalogo, le parti deboli (aloni, bracci esterni) e, se ci sono, le polveri estese attorno (a LS ≥ 25). Il tempo “profondo” aggiunge l’Hα diffuso misurato attorno all’oggetto nella mappa all-sky di Finkbeiner (2003). Le righe deboli (OIII e SII in una regione HII) sono chieste in proporzione alla loro intensità, come fai in elaborazione. Nelle bolle di Wolf-Rayet conta anche il guscio esterno in OIII, molto più debole dei filamenti. Se due filtri lasciano passare la stessa riga (l’OIII di L-eXtreme e L-Synergy), il segnale si somma e le ore si dividono tra i due.</p>
-    <p>Taratura: con 800 mm f/5, OSC e SQM 19,3 la Cocoon esce a 56 h (base) e 95 h (profondo); un’immagine reale con quel campo ne ha richieste 100. Sono stime per scegliere, non promesse: seeing, trasparenza ed elaborazione contano molto.</p></details>`;
+    <p>Taratura: con 800 mm f/5, OSC e SQM 19,3 la Cocoon esce a 56 h (base) e 95 h (profondo); un’immagine reale con quel campo ne ha richieste 100. Sono stime per scegliere, non promesse: seeing, trasparenza ed elaborazione contano molto.</p>`;
+  if (LANG === 'it') $('#drawer details.how').innerHTML = `<summary>${tx('Come vengono stimati i tempi')}</summary>` + HOW_IT;
   $('#dClose').onclick = closeDetail;
   $('#copyCoord').onclick = () => copyText(`${o.id} ${raStr(o.ra)} ${decStr(o.dec).replace('−', '-')}`);
   $$('#drawer .tab').forEach((t) => (t.onclick = () => { state.selCfg = t.dataset.cfg; const sc = $('#drawer').scrollTop; renderDetail(); $('#drawer').scrollTop = sc; }));
   $('#rot').oninput = (ev) => { state.rot = +ev.target.value; $('#rotV').textContent = state.rot + '°'; drawPreview(); };
   $('#rotBest').onclick = () => { state.rot = bestRot; state.frameOff = [fr.dx, fr.dy]; $('#rot').value = bestRot; $('#rotV').textContent = bestRot + '°'; drawPreview(); };
-  const cf = $('#copyFrame'); if (cf) cf.onclick = () => copyText(`${o.id} (centro inquadratura) ${raStr(fr.ra)} ${decStr(fr.dec).replace('−', '-')} · PA lato lungo ${bestRot}°`);
+  const cf = $('#copyFrame'); if (cf) cf.onclick = () => copyText(`${o.id} (${tx('centro inquadratura')}) ${raStr(fr.ra)} ${decStr(fr.dec).replace('−', '-')} · ${tx('PA lato lungo')} ${bestRot}°`);
   const m = $('#mos'); if (m) m.onchange = (ev) => { state.mosaic = ev.target.checked; drawPreview(); };
   $('#realSky').onchange = (ev) => { state.realSky = ev.target.checked; LS.set('sf.realSky', state.realSky); drawPreview(); };
   requestAnimationFrame(() => { drawPreview(); renderSeason(r); wireNightCharts(); setTimeout(() => renderPeriod(r), 30); });
 }
 /* ---------- quando conviene ---------- */
 const periodCache = new Map();
-const fmtDayLong = (t) => new Date(t).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'long' });
+const fmtDayLong = (t) => new Date(t).toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'long' });
 function renderPeriod(r) {
   const el = $('#period'); if (!el || state.sel !== r.o.id) return;
   const p = active(), ds = state.res.night.ds, key = [r.o.id, siteKey(p.site), ds, p.session.minAlt, p.session.sunThr, JSON.stringify(p.horizon)].join('|');
   let bp = periodCache.get(key); if (!bp) { bp = bestPeriod(r.o, p, state.res.lut, ds); periodCache.set(key, bp); }
-  let t, go = null;
-  if (bp.none) t = `Da qui non ha ore utili in nessun periodo dell’anno: col buio non supera ${p.session.minAlt}° o resta dietro l’orizzonte.`;
+  let msg, go = null;
+  if (bp.none) msg = tx('Da qui non ha ore utili in nessun periodo dell’anno: col buio non supera {a}° o resta dietro l’orizzonte.', { a: p.session.minAlt });
   else if (bp.inNow) {
-    t = `<b>È il suo periodo.</b> Stanotte ${fmtDur(bp.now)} libere col buio (il massimo dell’anno è ${fmtDur(bp.max)}); resta così fino a ${fmtDayLong(bp.to)}.`;
-    if (bp.dark) { t += ` Prima notte senza Luna: <b>${fmtDayLong(bp.dark)}</b> (${fmtDur(bp.darkH)}).`; go = bp.dark; }
+    msg = tx('<b>È il suo periodo.</b> Stanotte {now} libere col buio (il massimo dell’anno è {max}); resta così fino a {to}.', { now: fmtDur(bp.now), max: fmtDur(bp.max), to: fmtDayLong(bp.to) });
+    if (bp.dark) { msg += ' ' + tx('Prima notte senza Luna: <b>{d}</b> ({h}).', { d: fmtDayLong(bp.dark), h: fmtDur(bp.darkH) }); go = bp.dark; }
   } else {
-    t = `<b>Non è ancora il suo periodo.</b> Stanotte ${bp.now > 0.05 ? fmtDur(bp.now) + ' libere' : 'non è libero col buio'}. Il periodo giusto va da <b>${fmtDayLong(bp.from)}</b> a ${fmtDayLong(bp.to)}, con fino a ${fmtDur(bp.peakH)} per notte verso ${fmtDayLong(bp.peak)}.`;
-    if (bp.dark) { t += ` Prima notte senza Luna in quel periodo: <b>${fmtDayLong(bp.dark)}</b>.`; go = bp.dark; }
+    msg = tx('<b>Non è ancora il suo periodo.</b> Stanotte {now}. Il periodo giusto va da <b>{from}</b> a {to}, con fino a {peak} per notte verso {pk}.', { now: bp.now > 0.05 ? tx('{d} libere', { d: fmtDur(bp.now) }) : tx('non è libero col buio'), from: fmtDayLong(bp.from), to: fmtDayLong(bp.to), peak: fmtDur(bp.peakH), pk: fmtDayLong(bp.peak) });
+    if (bp.dark) { msg += ' ' + tx('Prima notte senza Luna in quel periodo: <b>{d}</b>.', { d: fmtDayLong(bp.dark) }); go = bp.dark; }
   }
   el.dataset.state = bp.none ? 'none' : bp.inNow ? 'now' : 'later';
-  el.innerHTML = `<span class="lbl">Periodo giusto</span><span class="pt">${t}</span>${go ? `<button class="btn sm" id="periodGo">Apri quella notte</button>` : ''}`;
+  el.innerHTML = `<span class="lbl">${tx('Periodo giusto')}</span><span class="pt">${msg}</span>${go ? `<button class="btn sm" id="periodGo">${tx('Apri quella notte')}</button>` : ''}`;
   const b = $('#periodGo'); if (b) b.onclick = () => goNight(go);
 }
 /* porta l'app su un'altra notte lasciando aperto il target */
@@ -282,7 +287,7 @@ function goNight(t0) {
   const d = new Date(t0), ds = dateStr(d);
   $('#nightDate').value = ds; state.live = ds === defaultNightStr(); state.playing = false;
   $('#liveBtn').setAttribute('aria-pressed', String(state.live)); $('#playBtn').setAttribute('aria-pressed', 'false');
-  refresh(); toast('Notte del ' + d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }));
+  refresh(); toast(tx('Notte del {d}', { d: d.toLocaleDateString(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' }) }));
 }
 /* ---------- grafici della notte: lettura al passaggio, clic/trascina per l'ora ---------- */
 function setTimeFromChart(i) {
@@ -297,8 +302,8 @@ function chartTip(box, html, x, y) {
 }
 function stepInfo(r, i) {
   const n = state.res.night, a = r.alt[i], minAlt = +active().session.minAlt || 0;
-  const st = !n.darkAll[i] ? 'cielo non buio' : a <= 0 ? 'sotto l’orizzonte' : a < minAlt ? 'troppo basso' : a < r.blk[i] ? 'coperto dall’orizzonte' : 'libero';
-  return `<b>${fmtT(n.t[i])}</b> · ${Math.round(a)}° ${azName(r.az[i])} · <span class="${st === 'libero' ? 'ok' : 'ko'}">${st}</span>${n.mAlt[i] > 0 ? `<small>Luna a ${Math.round(n.mAlt[i])}°</small>` : ''}`;
+  const stk = !n.darkAll[i] ? 'cielo non buio' : a <= 0 ? 'sotto l’orizzonte' : a < minAlt ? 'troppo basso' : a < r.blk[i] ? 'coperto dall’orizzonte' : 'libero', st = tx(stk);
+  return `<b>${fmtT(n.t[i])}</b> · ${Math.round(a)}° ${azName(r.az[i])} · <span class="${stk === 'libero' ? 'ok' : 'ko'}">${st}</span>${n.mAlt[i] > 0 ? `<small>${tx('Luna a {a}°', { a: Math.round(n.mAlt[i]) })}</small>` : ''}`;
 }
 function wireNightCharts() {
   const r = state.byId.get(state.sel), n = state.res.night; if (!r) return;
@@ -337,7 +342,7 @@ function renderSeason(r) {
   const el = $('#season'); if (!el) return;
   const s = seasonality(r.o, active(), state.res.lut); const W = 640, H = 150, pad = 26, bw = (W - pad * 2) / 12, max = Math.max(4, ...s.map((x) => x.h));
   const Y = (h) => H - 24 - h / max * (H - 44);
-  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Ore utili per mese">`;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${tx('Ore utili per mese')}">`;
   [0, Math.round(max / 2), Math.round(max)].forEach((v) => { svg += `<line x1="${pad}" x2="${W - 6}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${pad - 5}" y="${Y(v) + 4}" fill="var(--ink-3)" font-size="10" text-anchor="end" font-family="IBM Plex Mono">${v}h</text>`; });
   const best = s.reduce((a, x) => (x.h > a.h ? x : a), s[0]);
   s.forEach((x, i) => { const hgt = H - 24 - Y(x.h); svg += `<rect class="b" style="animation-delay:${i * 40}ms" x="${pad + i * bw + 5}" y="${Y(x.h)}" width="${bw - 10}" height="${Math.max(0, hgt)}" rx="3" fill="${x === best ? 'var(--oiii)' : i === 0 ? '#5d6a80' : '#2b3647'}"/><text x="${pad + i * bw + bw / 2}" y="${H - 8}" fill="${i === 0 ? 'var(--ink)' : 'var(--ink-3)'}" font-size="11" text-anchor="middle" font-family="IBM Plex Sans">${x.label.replace('.', '')}</text>`; if (x.h > 0.2) svg += `<text x="${pad + i * bw + bw / 2}" y="${Y(x.h) - 4}" fill="var(--ink-2)" font-size="10" text-anchor="middle" font-family="IBM Plex Mono">${it(x.h, 1)}</text>`; });
@@ -347,8 +352,8 @@ function renderSeason(r) {
   sv.onpointermove = (e) => {
     const k = e.target.dataset && e.target.dataset.k; $$('#season rect.b').forEach((b, i) => b.classList.toggle('hl', String(i) === k));
     if (k == null) { chartTip(el, null); return; }
-    const x = s[+k], b = el.getBoundingClientRect(), mon = new Date(x.t0).toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
-    chartTip(el, `<b>${mon}</b> · ${x.h > 0.05 ? fmtDur(x.h) + ' libere col buio' : 'nessuna ora utile'}<small>clicca per aprire la notte più buia del mese</small>`, e.clientX - b.left, 6);
+    const x = s[+k], b = el.getBoundingClientRect(), mon = new Date(x.t0).toLocaleDateString(LOCALE, { month: 'long', year: 'numeric' });
+    chartTip(el, `<b>${mon}</b> · ${x.h > 0.05 ? tx('{d} libere col buio', { d: fmtDur(x.h) }) : tx('nessuna ora utile')}<small>${tx('clicca per aprire la notte più buia del mese')}</small>`, e.clientX - b.left, 6);
   };
   sv.onpointerleave = () => { chartTip(el, null); $$('#season rect.b').forEach((b) => b.classList.remove('hl')); };
   sv.onclick = (e) => {
@@ -364,7 +369,7 @@ function renderSeason(r) {
 function altChart(r) {
   const n = state.res.night, p = active(), i0 = n.w0, i1 = n.w1; const W = 640, H = 230, l = 34, rr = 10, t = 10, b = 26, pw = W - l - rr, ph = H - t - b;
   const X = (i) => (l + (i - i0) / (i1 - i0) * pw).toFixed(1), Y = (a) => (t + ph - clamp(a, 0, 90) / 90 * ph).toFixed(1);
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Altezza nella notte">`;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${tx('Altezza nella notte')}">`;
   const col = (v) => (v >= -0.833 ? '#1C2433' : v >= -6 ? '#161E2B' : v >= -12 ? '#121925' : v >= n.thr ? '#0E141E' : null);
   for (let i = i0; i < i1; i++) { const c = col(n.sun[i]); if (c) s += `<rect x="${X(i)}" y="${t}" width="${(X(i + 1) - X(i) + 0.5).toFixed(1)}" height="${ph}" fill="${c}"/>`; }
   let blk = `M${X(i0)},${Y(0)}`; for (let i = i0; i <= i1; i++) blk += `L${X(i)},${Y(r.blk[i])}`; blk += `L${X(i1)},${Y(0)}Z`;
@@ -373,7 +378,7 @@ function altChart(r) {
   const h0 = new Date(n.t[i0]); h0.setMinutes(0, 0, 0);
   for (let ms = h0.getTime() + 3600000; ms < n.t[i1]; ms += 3600000) { const i = i0 + (ms - n.t[i0]) / DT; s += `<text x="${X(i)}" y="${H - 8}" fill="var(--ink-3)" font-size="11" text-anchor="middle" font-family="IBM Plex Mono">${String(new Date(ms).getHours()).padStart(2, '0')}</text>`; }
   let mp = '', on = false; for (let i = i0; i <= i1; i++) { if (n.mAlt[i] > 0) { mp += (on ? 'L' : 'M') + X(i) + ',' + Y(n.mAlt[i]); on = true; } else on = false; }
-  if (mp) s += `<path d="${mp}" fill="none" stroke="#CFC8B4" stroke-width="1.2" stroke-dasharray="4 4" opacity=".7"/><text x="${W - rr}" y="${t + 12}" fill="#CFC8B4" font-size="11" text-anchor="end" opacity=".8" font-family="IBM Plex Sans">- - Luna ${Math.round(n.moonIll * 100)}%</text>`;
+  if (mp) s += `<path d="${mp}" fill="none" stroke="#CFC8B4" stroke-width="1.2" stroke-dasharray="4 4" opacity=".7"/><text x="${W - rr}" y="${t + 12}" fill="#CFC8B4" font-size="11" text-anchor="end" opacity=".8" font-family="IBM Plex Sans">- - ${tx('Luna')} ${Math.round(n.moonIll * 100)}%</text>`;
   let op = ''; for (let i = i0; i <= i1; i++) op += (i === i0 ? 'M' : 'L') + X(i) + ',' + Y(r.alt[i]);
   s += `<path class="trace" d="${op}" fill="none" stroke="var(--ink-3)" stroke-width="1.3"/>`;
   let seg = []; for (let i = i0; i <= i1 + 1; i++) { if (i <= i1 && r.use[i]) seg.push(X(i) + ',' + Y(r.alt[i])); else if (seg.length) { s += `<polyline class="trace" points="${seg.join(' ')}" fill="none" stroke="var(--oiii)" stroke-width="3" stroke-linecap="round"/>`; seg = []; } }
@@ -384,17 +389,17 @@ function altChart(r) {
 function polar(r) {
   const n = state.res.night, p = active(), R = 96, c = 110; const P = (alt, az) => { const rr = (90 - clamp(alt, 0, 90)) / 90 * R, a = az * D2R; return [c - rr * Math.sin(a), c - rr * Math.cos(a)]; };
   const lut = state.res.lut; let hp = ''; for (let a = 0; a <= 360; a += 3) { const q = P(lut[a % 360], a); hp += (a ? 'L' : 'M') + q[0].toFixed(1) + ',' + q[1].toFixed(1); }
-  let s = `<svg viewBox="0 0 220 236" role="img" aria-label="Percorso nel cielo"><circle cx="${c}" cy="${c}" r="${R}" fill="rgba(228,87,75,.16)"/><path d="${hp}Z" fill="#070A10"/>`;
+  let s = `<svg viewBox="0 0 220 236" role="img" aria-label="${tx('Percorso nel cielo')}"><circle cx="${c}" cy="${c}" r="${R}" fill="rgba(228,87,75,.16)"/><path d="${hp}Z" fill="#070A10"/>`;
   s += `<circle cx="${c}" cy="${c}" r="${(90 - (+p.session.minAlt || 0)) / 90 * R}" fill="none" stroke="rgba(69,200,180,.4)" stroke-dasharray="3 3"/>`;
   [30, 60].forEach((a) => (s += `<circle cx="${c}" cy="${c}" r="${(90 - a) / 90 * R}" fill="none" stroke="var(--line-2)" stroke-width=".6"/>`));
   s += `<circle cx="${c}" cy="${c}" r="${R}" fill="none" stroke="var(--line-2)"/>`;
-  [['N', 0], ['E', 90], ['S', 180], ['O', 270]].forEach(([l, a]) => { const q = P(-10, a); s += `<text x="${q[0].toFixed(1)}" y="${(q[1] + 4).toFixed(1)}" fill="var(--ink-2)" font-size="11" text-anchor="middle" font-family="Saira Condensed" font-weight="600">${l}</text>`; });
+  [['N', 0], [tx('E'), 90], ['S', 180], [tx('O'), 270]].forEach(([l, a]) => { const q = P(-10, a); s += `<text x="${q[0].toFixed(1)}" y="${(q[1] + 4).toFixed(1)}" fill="var(--ink-2)" font-size="11" text-anchor="middle" font-family="Saira Condensed" font-weight="600">${l}</text>`; });
   let tr = '', on = false; for (let i = n.w0; i <= n.w1; i++) { if (r.alt[i] > 0 && n.darkAll[i]) { const q = P(r.alt[i], r.az[i]); tr += (on ? 'L' : 'M') + q[0].toFixed(1) + ',' + q[1].toFixed(1); on = true; } else on = false; }
   s += `<path class="trace" d="${tr}" fill="none" stroke="var(--ink-3)" stroke-width="1.2"/>`;
   let seg = []; for (let i = n.w0; i <= n.w1 + 1; i++) { if (i <= n.w1 && r.use[i]) { const q = P(r.alt[i], r.az[i]); seg.push(q[0].toFixed(1) + ',' + q[1].toFixed(1)); } else if (seg.length) { s += `<polyline class="trace" points="${seg.join(' ')}" fill="none" stroke="var(--oiii)" stroke-width="2.6" stroke-linecap="round"/>`; seg = []; } }
   const [a, z] = altAt(r, Dome.time); if (a > 0) { const q = P(a, z); s += `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="4" fill="#fff"/>`; }
   s += `<circle class="hov" cx="0" cy="0" r="5" fill="none" stroke="var(--oiii)" stroke-width="1.5" opacity="0"/>`;
-  return s + `<text x="110" y="232" fill="var(--ink-3)" font-size="10" text-anchor="middle" font-family="IBM Plex Sans">come la cupola · pallino = ora scelta</text></svg>`;
+  return s + `<text x="110" y="232" fill="var(--ink-3)" font-size="10" text-anchor="middle" font-family="IBM Plex Sans">${tx('come la cupola · pallino = ora scelta')}</text></svg>`;
 }
 
 /* ============================ anteprima del campo ============================ */
@@ -407,8 +412,8 @@ function realSkyImage(o, w, h, k, dpr) {
     { url: `https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=${encodeURIComponent('CDS/P/DSS2/color')}&width=${pw}&height=${ph}&fov=${fw.toFixed(4)}&projection=TAN&coordsys=icrs&ra=${o.ra.toFixed(5)}&dec=${o.dec.toFixed(5)}&format=jpg`, label: 'Foto reale DSS2 a colori (CDS)' },
     { url: `https://skyview.gsfc.nasa.gov/current/cgi/runquery.pl?Survey=${encodeURIComponent('DSS2 Red')}&position=${o.ra.toFixed(5)},${o.dec.toFixed(5)}&Size=${fw.toFixed(4)},${fh.toFixed(4)}&Pixels=${Math.min(pw, 900)},${Math.round(Math.min(pw, 900) * h / w)}&Return=JPEG&Scaling=Log`, label: 'Foto reale DSS2 rosso (NASA SkyView)' }];
   const ent = { img: null, ok: false, label: '' }; skyCache.set(key, ent);
-  const tryN = (i) => { if (i >= srcs.length) { setTimeout(() => skyCache.delete(key), 60000); if (state.sel === o.id) setSkyNote('Foto reale non disponibile (sei offline?): anteprima schematica'); return; }
-    const img = new Image(); img.onload = () => { ent.img = img; ent.ok = true; ent.label = srcs[i].label; if (state.sel === o.id) drawPreview(); }; img.onerror = () => tryN(i + 1); img.src = srcs[i].url; };
+  const tryN = (i) => { if (i >= srcs.length) { setTimeout(() => skyCache.delete(key), 60000); if (state.sel === o.id) setSkyNote(tx('Foto reale non disponibile (sei offline?): anteprima schematica')); return; }
+    const img = new Image(); img.onload = () => { ent.img = img; ent.ok = true; ent.label = tx(srcs[i].label); if (state.sel === o.id) drawPreview(); }; img.onerror = () => tryN(i + 1); img.src = srcs[i].url; };
   tryN(0); return null;
 }
 function drawPreview() {
@@ -426,7 +431,7 @@ function drawPreview() {
   const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.7); bg.addColorStop(0, '#0A0E16'); bg.addColorStop(1, '#03050A'); ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
   const real = state.realSky ? realSkyImage(o, w, h, k, dpr) : null;
   if (real) { if (/SkyView/.test(real.label)) ctx.filter = 'brightness(0.62) contrast(2.1)'; ctx.drawImage(real.img, 0, 0, w, h); ctx.filter = 'none'; frameOverlay(ctx, e, g, k, w, h, mos); setSkyNote(real.label); return; }
-  setSkyNote(state.realSky ? 'Scarico la foto reale DSS2… intanto anteprima schematica' : 'Anteprima schematica: stelle e dettagli illustrativi');
+  setSkyNote(tx(state.realSky ? 'Scarico la foto reale DSS2… intanto anteprima schematica' : 'Anteprima schematica: stelle e dettagli illustrativi'));
   const A = Math.max(o.a / 2 * k, 2), B = Math.max(o.b / 2 * k, 2), pa = o.pa * D2R;
   const inObj = (x, y) => { const dx = x - cx, dy = y - cy, u = dx * Math.cos(pa) - dy * Math.sin(pa), v = dx * Math.sin(pa) + dy * Math.cos(pa); return Math.sqrt((u / B) ** 2 + (v / A) ** 2); };
   const ns = Math.round(clamp((w / k) * (h / k) * 0.05, 140, 1900));

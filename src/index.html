@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="it">
+<html lang="it" translate="no">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -21,6 +21,7 @@
       <input id="nightDate" type="date" class="inp num" aria-label="Notte del">
       <button id="todayBtn" class="btn ghost">Stanotte</button>
       <button id="nightBtn" class="btn ghost" aria-pressed="false" title="Visione notturna: tinge tutto di rosso">Luce rossa</button>
+      <select id="langSel" class="sel" aria-label="Lingua"></select>
       <span class="sync" id="sync"><i></i><span></span></span>
     </div>
   </header>
@@ -142,9 +143,9 @@
               <div class="hzbar" style="margin:6px 0 4px"><button class="btn sm" id="lpmBtn" type="button">Prendi la mappa all-sky dal sito</button><span class="hint" style="margin:0">Parte da sola quando sposti lo spillo o scegli un luogo.</span></div>
               <p class="hint" style="margin:4px 0 0">In alternativa, a mano:</p>
               <ol>
-                <li><a id="lpmOpen" href="https://www.lightpollutionmap.info" target="_blank" rel="noopener">Apri lightpollutionmap sul tuo punto ↗</a>, scegli il livello <i>Sky brightness</i> e clicca sul terrazzo.</li>
-                <li>Nel riquadro premi <i>All-sky</i>, poi salva l’immagine (fisheye o panoramica vanno bene).</li>
-                <li>Trascinala qui oppure <label class="linklike" for="skyFile">scegli il file</label>.</li>
+                <li data-t><a id="lpmOpen" href="https://www.lightpollutionmap.info" target="_blank" rel="noopener">Apri lightpollutionmap sul tuo punto ↗</a>, scegli il livello <i>Sky brightness</i> e clicca sul terrazzo.</li>
+                <li data-t>Nel riquadro premi <i>All-sky</i>, poi salva l’immagine (fisheye o panoramica vanno bene).</li>
+                <li data-t>Trascinala qui oppure <label class="linklike" for="skyFile">scegli il file</label>.</li>
               </ol>
               <input id="skyFile" type="file" accept="image/png,image/jpeg,image/webp" hidden>
               <div id="skyImp" class="skyimp" hidden>
@@ -159,7 +160,7 @@
               <p class="hint" id="skyMsg"></p>
               <button class="btn sm ghost" id="skyRemove" type="button" hidden>Rimuovi la mappa importata</button>
             </div>
-            <p class="hint">Senza mappa importata, SQM e forma del cielo sono stimati dall’<a href="https://djlorenz.github.io/astronomy/lp/" target="_blank" rel="noopener">atlante di David Lorenz</a> (VIIRS 2025) con un modello di cupole di luce tarato su una mappa all-sky reale. Se hai una misura col tuo SQM, scrivila nel campo e prevale.</p>
+            <p class="hint" data-t>Senza mappa importata, SQM e forma del cielo sono stimati dall’<a href="https://djlorenz.github.io/astronomy/lp/" target="_blank" rel="noopener">atlante di David Lorenz</a> (VIIRS 2025) con un modello di cupole di luce tarato su una mappa all-sky reale. Se hai una misura col tuo SQM, scrivila nel campo e prevale.</p>
           </div>
         </div>
       </section>
@@ -177,7 +178,7 @@
       <section class="fs">
         <h3>Orizzonte</h3>
         <div class="hz"><svg id="hzSvg" viewBox="0 0 720 196" aria-label="Editor dell'orizzonte"></svg></div>
-        <p class="hint">Clic o trascina per disegnare l’orizzonte. <b>Shift+clic</b> o clic destro toglie il punto più vicino. Tratteggio = altezza minima.</p>
+        <p class="hint" data-t>Clic o trascina per disegnare l’orizzonte. <b>Shift+clic</b> o clic destro toglie il punto più vicino. Tratteggio = altezza minima.</p>
         <div class="hzbar">
           <label class="btn sm" for="hzFile">Importa .hrz (N.I.N.A.) o Stellarium</label><input id="hzFile" type="file" accept=".hrz,.txt,.csv,.ini,.dat" hidden>
           <button class="btn sm ghost" id="hzPasteBtn">Incolla testo</button>
@@ -209,6 +210,8 @@
 <script src="data/sky.js"></script>
 <script src="data/dso.js"></script>
 <script src="data/filters.js"></script>
+<script src="i18n/en.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/astro.js"></script>
 <script src="js/model.js"></script>
 <script src="js/dome.js"></script>

@@ -329,7 +329,7 @@ const stars = json('stars.6.json').features.filter((f) => f.properties.mag <= 6.
   return [r1(ra * 10) / 10, r1(lat * 10) / 10, r1(f.properties.mag * 10) / 10, f.properties.bv === '' ? 0.6 : r1(parseFloat(f.properties.bv) * 10) / 10];
 }).sort((a, b) => a[2] - b[2]);
 const lines = json('constellations.lines.json').features.map((f) => ({ id: f.id, l: f.geometry.coordinates.map((ln) => ln.map(([x, y]) => [r1(x < 0 ? x + 360 : x), r1(y)])) }));
-const names = json('constellations.json').features.map((f) => ({ id: f.id, n: f.properties.it || f.properties.name, r: +f.properties.rank, p: [r1(f.geometry.coordinates[0] < 0 ? f.geometry.coordinates[0] + 360 : f.geometry.coordinates[0]), r1(f.geometry.coordinates[1])] }));
+const names = json('constellations.json').features.map((f) => ({ id: f.id, n: f.properties.it || f.properties.name, la: f.properties.name, r: +f.properties.rank, p: [r1(f.geometry.coordinates[0] < 0 ? f.geometry.coordinates[0] + 360 : f.geometry.coordinates[0]), r1(f.geometry.coordinates[1])] }));
 function simplify(ring, step) { const out = []; for (let i = 0; i < ring.length; i += step) out.push(ring[i]); return out; }
 const mw = json('mw.json').features.map((f, lvl) => f.geometry.coordinates.map((poly) => poly.map((ring) => simplify(ring, lvl < 2 ? 3 : 2).map(([x, y]) => [r1(x < 0 ? x + 360 : x), r1(y)]))));
 fs.writeFileSync(path.join(OUT, 'sky.js'),

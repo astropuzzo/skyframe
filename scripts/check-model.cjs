@@ -4,7 +4,9 @@ const path = require('path'), fs = require('fs'), vm = require('vm');
 const src = (f) => path.join(__dirname, '..', 'src', f);
 global.window = {};
 ['data/filters.js', 'data/dso.js', 'data/sky.js'].forEach((f) => require(src(f)));
-vm.runInThisContext(fs.readFileSync(src('js/astro.js'), 'utf8') + '\n' + fs.readFileSync(src('js/model.js'), 'utf8') +
+// lingua fissa per il controllo: frasi italiane con i segnaposto riempiti
+const I18N_STUB = "const LANG = 'it', LOCALE = 'it-IT', txName = (n) => n, tx = (s, p) => (p ? s.replace(/[{](\w+)[}]/g, (m, k) => (k in p ? p[k] : m)) : s);";
+vm.runInThisContext(I18N_STUB + ';' + fs.readFileSync(src('js/astro.js'), 'utf8') + '\n' + fs.readFileSync(src('js/model.js'), 'utf8') +
   '\n;globalThis.__m={templateProfile,profileConfigs,computeAll,planOf};');
 const M = globalThis.__m;
 

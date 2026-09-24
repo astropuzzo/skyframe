@@ -151,7 +151,7 @@ const Dome = (() => {
     // anelli e punti cardinali
     ctx.strokeStyle = 'rgba(160,175,200,.25)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
     ctx.font = `600 ${Math.round(11 * sc + 3)}px "Saira Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(200,210,225,.8)';
-    [['N', 0], ['E', 90], ['S', 180], ['O', 270]].forEach(([l, az]) => { const r = R + 12, a = az * D2R; ctx.fillText(l, cx - r * Math.sin(a), cy - r * Math.cos(a) + 4); });
+    [['N', 0], [tx('E'), 90], ['S', 180], [tx('O'), 270]].forEach(([l, az]) => { const r = R + 12, a = az * D2R; ctx.fillText(l, cx - r * Math.sin(a), cy - r * Math.cos(a) + 4); });
     if (lpOn && lpCache) { // legenda della scala mag/″² del luogo
       const st = lpCache.st, lx = S - 128, ly = S - 26, w = 110;
       for (let i = 0; i < w; i++) { const c = lpColor(st.hi - (st.hi - st.lo) * i / w, st); ctx.fillStyle = `rgb(${c})`; ctx.fillRect(lx + i, ly, 1, 7); }
@@ -184,12 +184,12 @@ const Dome = (() => {
       const q = skyAt(e); if (!q) { tipEl.hidden = true; return; }
       const mag = data.sky.mag(q.alt, q.az), blk = data.lut && q.alt < Math.max(data.lut[Math.round(q.az) % 360], 0);
       tipEl.hidden = false; tipEl.style.left = q.x + 'px'; tipEl.style.top = (q.y - 6) + 'px';
-      tipEl.innerHTML = `<b>SQM ${it(mag, 2)}</b> mag/″²<small>${Math.round(q.alt)}° ${azName(q.az)} (${Math.round(q.az)}°)${blk ? ' · dietro l’orizzonte' : ''} · senza Luna${data.sky.source === 'allsky' ? ' · all-sky lightpollutionmap' : data.sky.dir ? ' · stima atlante' : ''}</small>`;
+      tipEl.innerHTML = `<b>SQM ${it(mag, 2)}</b> mag/″²<small>${Math.round(q.alt)}° ${azName(q.az)} (${Math.round(q.az)}°)${blk ? ' · ' + tx('dietro l’orizzonte') : ''} · ${tx('senza Luna')}${data.sky.source === 'allsky' ? ' · all-sky lightpollutionmap' : data.sky.dir ? ' · ' + tx('stima atlante') : ''}</small>`;
       return;
     }
     cv.style.cursor = 'pointer';
     const o = m.r.o; tipEl.hidden = false; tipEl.style.left = m.x + 'px'; tipEl.style.top = (m.y - m.rad) + 'px';
-    tipEl.innerHTML = `<b>${esc(o.id)}</b>${o.nick ? ' · ' + esc(o.nick) : ''}<small>${Math.round(m.a)}° ${azName(m.z)} · ${m.blocked ? 'coperto' : 'libero'} · punti ${m.r.score}</small>`;
+    tipEl.innerHTML = `<b>${esc(o.id)}</b>${o.nick ? ' · ' + esc(o.nick) : ''}<small>${Math.round(m.a)}° ${azName(m.z)} · ${tx(m.blocked ? 'coperto' : 'libero')} · ${tx('punti')} ${m.r.score}</small>`;
   }
   function loop(now) {
     requestAnimationFrame(loop);

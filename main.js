@@ -174,8 +174,14 @@ async function lpmAllSky(lat, lon, year) { // year può essere corretto dal riqu
     await waitFor(() => js(`!!document.querySelector('#map canvas') && typeof $ === 'function'`), 30000).catch(async (e) => { await shot('load'); log(await js(`document.title + ' | canvas ' + document.querySelectorAll('canvas').length + ' | $ ' + typeof $`)); throw e; });
     log('mappa pronta');
     await sleep(2500);
-    // eventuale banner del consenso: si rifiuta
-    await js(`(() => { const b = [...document.querySelectorAll('button, a')].find((x) => /^(do not consent|non acconsento|rifiuta|reject all|decline)/i.test((x.textContent || '').trim())); if (b) b.click(); return !!b; })()`);
+    // eventuale banner del consenso (Google Funding Choices): si rifiuta, oppure "More options" → conferma senza consensi
+    const consent = (re) => js(`(() => { const b = [...document.querySelectorAll('button, a, .fc-button')].find((x) => x.offsetParent && ${re}.test((x.textContent || '').trim())); if (b) b.click(); return !!b; })()`);
+    for (let k = 0; k < 3; k++) {
+      if (await consent('/^(do not consent|non acconsento|rifiuta|reject all|decline)/i')) break;
+      if (await consent('/^(more options|manage options|altre opzioni|gestisci opzioni)/i')) { await sleep(1500); await consent('/^(reject all|rifiuta tutto)/i'); await sleep(500); if (await consent('/^(confirm choices|conferma le scelte|save|salva)/i')) break; }
+      await sleep(1000);
+    }
+    await sleep(800);
     const p = await js(`(() => { const b = document.querySelector('#map').getBoundingClientRect(); return { x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2) }; })()`);
     for (let attempt = 0; attempt < 3; attempt++) {
       w.webContents.sendInputEvent({ type: 'mouseMove', x: p.x, y: p.y });

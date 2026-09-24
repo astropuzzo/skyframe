@@ -11,13 +11,13 @@ const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage non disponibile */ } },
 };
-const it = (x, d = 1) => Number(x).toFixed(d).replace('.', ',');
-const fmtT = (ms) => new Date(ms).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-const fmtDay = (ms) => new Date(ms).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+const it = (x, d = 1) => (LANG === 'it' ? Number(x).toFixed(d).replace('.', ',') : Number(x).toFixed(d)); // numero con i decimali della lingua
+const fmtT = (ms) => new Date(ms).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
+const fmtDay = (ms) => new Date(ms).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' });
 function fmtDur(h) { if (!isFinite(h)) return '—'; const m = Math.round(h * 60); if (m < 60) return m + ' min'; const hh = Math.floor(m / 60), mm = m % 60; return hh + ' h' + (mm ? ' ' + String(mm).padStart(2, '0') : ''); }
 function fmtH(h) { if (h == null || !isFinite(h)) return '—'; if (h < 1) return Math.max(5, Math.round(h * 12) * 5) + ' min'; if (h < 10) return it(h) + ' h'; return Math.round(h) + ' h'; }
 const fmtDeg = (am) => (am >= 60 ? it(am / 60, 2) + '°' : Math.round(am) + '′');
-const AZN = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+const AZN = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'].map((x) => tx(x));
 const azName = (a) => AZN[Math.round(norm360(a) / 45) % 8];
 function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
