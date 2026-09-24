@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://alasky.cds.unistra.fr https://skyview.gsfc.nasa.gov https://tile.openstreetmap.org https://djlorenz.github.io; connect-src 'self'">
+<title>Skyframe</title>
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand"><h1>Sky<b>frame</b></h1><small id="brandSub"></small></div>
+    <div class="tools">
+      <select id="profileSel" class="sel" aria-label="Profilo attivo"></select>
+      <button id="editBtn" class="btn">Modifica profilo</button>
+      <button id="newBtn" class="btn ghost">Nuovo profilo</button>
+      <input id="nightDate" type="date" class="inp num" aria-label="Notte del">
+      <button id="todayBtn" class="btn ghost">Stanotte</button>
+      <button id="nightBtn" class="btn ghost" aria-pressed="false" title="Visione notturna: tinge tutto di rosso">Luce rossa</button>
+      <span class="sync" id="sync"><i></i><span></span></span>
+    </div>
+  </header>
+  <div class="main">
+    <aside class="sky" aria-label="Cielo">
+      <div class="dome-wrap"><canvas id="dome" aria-label="Cielo visto dal tuo luogo"></canvas><div id="domeTip" class="dome-tip" hidden></div></div>
+      <div class="clock">
+        <div class="time num" id="clockTime">--:--</div>
+        <div class="when" id="clockWhen"></div>
+        <div class="ctl">
+          <button class="btn sm" id="lpToggle" aria-pressed="false" title="Mostra la luminosità del cielo dovuta alle luci artificiali">Luci</button>
+          <button class="btn sm" id="liveBtn" aria-pressed="true">Adesso</button>
+          <button class="btn sm" id="playBtn" aria-pressed="false">Scorri la notte</button>
+        </div>
+      </div>
+      <div class="strip" id="strip" aria-label="Notte: trascina per cambiare ora"><canvas id="stripCv"></canvas></div>
+      <div class="facts" id="facts"></div>
+      <div class="setups" id="setups" hidden></div>
+    </aside>
+    <section class="work">
+      <div id="notice"></div>
+      <div class="bar">
+        <div class="row1">
+          <input id="q" class="inp" type="search" placeholder="Cerca: M 31, Sh2-129, LDN 1235, Cave…" aria-label="Cerca target">
+          <select id="sortSel" class="sel" aria-label="Ordina per">
+            <option value="score">Punteggio</option>
+            <option value="usable">Ore utili stanotte</option>
+            <option value="hours">Integrazione più breve</option>
+            <option value="fill">Riempimento del frame</option>
+            <option value="transit">Orario di culmine</option>
+            <option value="now">Più alto all'ora scelta</option>
+            <option value="sb">Più debole (sfida)</option>
+          </select>
+          <button class="btn" id="advBtn" aria-expanded="false">Filtri <span class="badge" id="advCount" hidden>0</span></button>
+        </div>
+        <div class="chips" id="typeChips"></div>
+        <div class="adv" id="adv" hidden>
+          <div class="f"><span class="lbl">Cataloghi</span><div class="chips" id="srcChips"></div></div>
+          <label class="f"><span class="rv"><span>Ore utili stanotte, almeno</span><b class="num" id="minUseV"></b></span><input type="range" id="minUse" min="0" max="8" step="0.5"></label>
+          <label class="f"><span class="rv"><span>Chiudibile in al massimo</span><b class="num" id="maxNightsV"></b></span><input type="range" id="maxNights" min="1" max="11" step="1"></label>
+          <label class="f"><span class="rv"><span>Luminosità superficiale fino a</span><b class="num" id="maxSbV"></b></span><input type="range" id="maxSb" min="19" max="26" step="0.25"></label>
+          <label class="f"><span class="lbl">Inquadratura</span><select id="fillSel" class="sel"><option value="any">Qualsiasi</option><option value="fits">Sta nel campo e lo riempie</option><option value="small">Piccoli (da ritagliare)</option><option value="mosaic">Richiedono mosaico</option></select></label>
+          <label class="f"><span class="lbl">Tecnica</span><select id="bandSel" class="sel"><option value="any">Qualsiasi</option><option value="nb">Si fanno in banda stretta</option><option value="bb">Solo banda larga</option></select></label>
+          <label class="f"><span class="lbl">Costellazione</span><select id="conSel" class="sel"></select></label>
+          <div class="f"><span class="lbl">Altro</span>
+            <label class="chk"><input type="checkbox" id="hideClassic"> Nascondi i classici (Messier e i soliti noti)</label>
+            <label class="chk"><input type="checkbox" id="showAll"> Mostra anche i non visibili stanotte</label>
+            <button class="btn sm ghost" id="resetF" style="align-self:flex-start;margin-top:4px">Azzera filtri</button>
+          </div>
+        </div>
+      </div>
+      <div class="count" id="count"></div>
+      <main class="list" id="list"></main>
+    </section>
+  </div>
+</div>
+
+<div id="backdrop" class="backdrop" hidden></div>
+<aside id="drawer" class="drawer" hidden aria-label="Dettaglio target" tabindex="-1"></aside>
+
+<div id="editor" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="edTitle">
+  <div class="sheet">
+    <header class="sheet-head"><h2 id="edTitle">Profilo</h2><button class="btn ghost" id="edClose">Chiudi</button></header>
+    <div class="sheet-body">
+      <section class="fs"><div class="grid"><label class="field wide"><span>Nome profilo</span><input id="f_name" maxlength="80"></label></div></section>
+      <section class="fs">
+        <h3>Camera</h3>
+        <div class="grid">
+          <label class="field w2"><span>Modello</span><select id="f_cam"></select></label>
+          <label class="field"><span>Tipo</span><select id="f_ctype"><option value="osc">A colori (OSC)</option><option value="mono">Monocromatica</option><option value="dslr">Reflex / mirrorless</option></select></label>
+          <label class="field"><span>Binning</span><select id="f_bin"><option value="1">1×1</option><option value="2">2×2</option><option value="3">3×3</option></select></label>
+          <label class="field"><span>Larghezza sensore (px)</span><input id="f_cw" type="number" min="100" step="1"></label>
+          <label class="field"><span>Altezza sensore (px)</span><input id="f_ch" type="number" min="100" step="1"></label>
+          <label class="field"><span>Pixel (µm)</span><input id="f_pix" type="number" min="1" step="0.01"></label>
+          <label class="field"><span>QE di picco (%)</span><input id="f_qe" type="number" min="10" max="100" step="1"></label>
+          <label class="field"><span>Rumore di lettura (e⁻)</span><input id="f_rn" type="number" min="0.3" step="0.1"></label>
+        </div>
+      </section>
+      <section class="fs">
+        <h3>Ottica e accessori</h3>
+        <div class="grid">
+          <label class="field w2"><span>Telescopio / obiettivo</span><select id="f_opt"></select></label>
+          <label class="field"><span>Apertura (mm)</span><input id="f_ap" type="number" min="10" step="1"></label>
+          <label class="field"><span>Focale nativa (mm)</span><input id="f_fl" type="number" min="10" step="1"></label>
+          <label class="field"><span>Ostruzione (% diametro)</span><input id="f_obs" type="number" min="0" max="60" step="1"></label>
+        </div>
+        <label class="chk" style="margin-top:12px"><input type="checkbox" id="f_native"> Uso anche l’ottica senza accessori</label>
+        <div class="accs" id="accs"></div>
+        <div class="hzbar"><select id="accPreset" class="sel"></select><button class="btn sm" id="accAdd">Aggiungi accessorio</button></div>
+        <p class="hint">Ogni accessorio è una configurazione in più: Skyframe le valuta tutte e per ogni target ti dice quale conviene. Correttori e riduttori sotto 1× accorciano la focale, allargano il campo e rendono il sistema più veloce.</p>
+      </section>
+      <section class="fs">
+        <h3>Filtri che possiedi</h3>
+        <div id="filterPick"></div>
+        <p class="hint">Bande prese dalle schede dei produttori (link su ogni filtro). Quelli segnati “stima” non hanno bande pubblicate in numeri.</p>
+      </section>
+      <section class="fs">
+        <h3>Luogo e inquinamento luminoso</h3>
+        <div class="geo">
+          <div class="geosearch">
+            <input id="geoQ" type="search" class="inp" placeholder="Cerca un luogo: città, via, località…" autocomplete="off" aria-label="Cerca un luogo">
+            <div id="geoList" class="geolist" hidden></div>
+          </div>
+          <div id="geoMap" class="geomap" aria-label="Mappa: clicca o trascina lo spillo"></div>
+          <p class="hint" id="geoHint">Clicca sulla mappa o trascina lo spillo sul tuo terrazzo. Sopra c’è l’atlante dell’inquinamento luminoso 2025: grigio e blu = cielo buio, verde e giallo = campagna e periferia, rosso e bianco = città.</p>
+        </div>
+        <div class="grid">
+          <label class="field w2"><span>Nome del luogo</span><input id="f_site" maxlength="60"></label>
+          <label class="field"><span>Latitudine (°N)</span><input id="f_lat" type="number" min="-90" max="90" step="0.0001"></label>
+          <label class="field"><span>Longitudine (°E)</span><input id="f_lon" type="number" min="-180" max="180" step="0.0001"></label>
+          <label class="field"><span>Altitudine (m s.l.m.)</span><input id="f_elev" type="number" min="-400" max="6000" step="1"></label>
+          <label class="field"><span>Scala di Bortle</span><select id="f_bortle"></select></label>
+          <label class="field"><span>SQM allo zenit (mag/″²)</span><input id="f_sqm" type="number" min="16" max="22.2" step="0.01"></label>
+        </div>
+        <div class="lpbox">
+          <canvas id="lpSky" width="340" height="340" aria-label="Luminosità del cielo per direzione"></canvas>
+          <div>
+            <div id="lpLegend"></div>
+            <div class="hzbar" style="margin-top:0"><button class="btn sm" id="lpBtn">Calcola dall’atlante 2025</button><span id="lpMsg" class="hint" style="margin:0"></span></div>
+            <p class="hint">L’SQM allo zenit e la distribuzione delle luci attorno arrivano dall’<a href="https://djlorenz.github.io/astronomy/lp/" target="_blank" rel="noopener">atlante di David Lorenz</a> (dati satellitari VIIRS 2025). La mappa a sinistra è la luminosità stimata in ogni direzione: più chiaro = cielo più brillante. Altri modelli (per esempio <a href="https://www.lightpollutionmap.info" target="_blank" rel="noopener">lightpollutionmap.info</a>) possono differire di qualche decimo: se hai una misura col tuo SQM, scrivila nel campo e prevale.</p>
+          </div>
+        </div>
+      </section>
+      <section class="fs">
+        <h3>Sessione</h3>
+        <div class="grid">
+          <label class="field"><span>Altezza minima (°)</span><input id="f_minalt" type="number" min="0" max="80" step="1"></label>
+          <label class="field"><span>Inizio del buio</span><select id="f_thr"><option value="-12">Sole a −12° (nautico)</option><option value="-15">Sole a −15°</option><option value="-18">Sole a −18° (astronomico)</option></select></label>
+          <label class="field"><span>Dalle (facoltativo)</span><input id="f_from" type="time"></label>
+          <label class="field"><span>Alle (facoltativo)</span><input id="f_to" type="time"></label>
+          <label class="field"><span>Qualità</span><select id="f_quality"><option value="quick">Rapida (SNR 12 / 3)</option><option value="good">Buona (SNR 20 / 5)</option><option value="great">Eccellente (SNR 30 / 8)</option></select></label>
+        </div>
+        <p class="hint">Qualità = SNR sulla parte principale / sulle parti deboli e sulle polveri. I sub non si impostano qui: Skyframe li sceglie per ogni filtro (banda larga 60–180 s, dual-band 180–600 s, banda stretta 300–900 s) in base al cielo e alla Luna.</p>
+      </section>
+      <section class="fs">
+        <h3>Orizzonte</h3>
+        <div class="hz"><svg id="hzSvg" viewBox="0 0 720 196" aria-label="Editor dell'orizzonte"></svg></div>
+        <p class="hint">Clic o trascina per disegnare l’orizzonte. <b>Shift+clic</b> o clic destro toglie il punto più vicino. Tratteggio = altezza minima.</p>
+        <div class="hzbar">
+          <label class="btn sm" for="hzFile">Importa .hrz (N.I.N.A.) o Stellarium</label><input id="hzFile" type="file" accept=".hrz,.txt,.csv,.ini,.dat" hidden>
+          <button class="btn sm ghost" id="hzPasteBtn">Incolla testo</button>
+          <button class="btn sm ghost" id="hzFlat">Azzera</button>
+          <button class="btn sm ghost" id="hzCopyNina">Copia per N.I.N.A.</button>
+          <button class="btn sm ghost" id="hzCopyStel">Copia per Stellarium</button>
+        </div>
+        <div id="hzPaste" hidden style="margin-top:10px">
+          <label class="field wide"><span>Una riga per punto: azimut altezza (gradi). Righe con # o ; ignorate.</span><textarea id="hzText" spellcheck="false"></textarea></label>
+          <div class="hzbar"><button class="btn sm" id="hzApply">Applica</button><span id="hzMsg" class="hint"></span></div>
+        </div>
+      </section>
+    </div>
+    <footer class="sheet-foot">
+      <button class="btn danger" id="edDelete">Elimina</button>
+      <span id="delConfirm" hidden>Eliminare davvero? <button class="btn danger sm" id="delYes">Elimina</button> <button class="btn ghost sm" id="delNo">Annulla</button></span>
+      <span class="sp"></span>
+      <button class="btn ghost" id="edImport">Importa profili</button>
+      <button class="btn ghost" id="edExport">Esporta profili</button>
+      <button class="btn ghost" id="edDup">Duplica</button>
+      <button class="btn primary" id="edSave">Salva profilo</button>
+    </footer>
+  </div>
+</div>
+<div id="veil" class="veil" hidden></div>
+
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="data/sky.js"></script>
+<script src="data/dso.js"></script>
+<script src="data/filters.js"></script>
+<script src="js/astro.js"></script>
+<script src="js/model.js"></script>
+<script src="js/dome.js"></script>
+<script src="js/views.js"></script>
+<script src="js/editor.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+out/
+*.log
+.DS_Store
+Thumbs.db
+smoke.png
+smoke-main.png
+smoke-editor.png
+smoke-map.png
+scripts/raw/
+.claude/

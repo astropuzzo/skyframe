@@ -1,0 +1,98 @@
+{
+  "name": "skyframe",
+  "productName": "Skyframe",
+  "version": "0.1.0",
+  "description": "Pianificatore di target per astrofotografia: sceglie cosa riprendere stanotte in base a setup, orizzonte e inquinamento luminoso.",
+  "main": "main.js",
+  "author": {
+    "name": "astropuzzo",
+    "email": "astropuzzo@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/astropuzzo/skyframe",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/astropuzzo/skyframe.git"
+  },
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "smoke": "node -e \"process.env.SKYFRAME_SMOKE=require('path').resolve('smoke.png');require('child_process').spawnSync(require('electron'),['.'],{stdio:'inherit',env:process.env})\"",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux",
+    "data": "node scripts/build-data.mjs",
+    "check": "node scripts/check-model.cjs"
+  },
+  "devDependencies": {
+    "electron": "^37.2.0",
+    "electron-builder": "^26.0.12",
+    "leaflet": "^1.9.4"
+  },
+  "build": {
+    "appId": "io.github.astropuzzo.skyframe",
+    "productName": "Skyframe",
+    "artifactName": "Skyframe-${version}-${os}-${arch}.${ext}",
+    "files": [
+      "main.js",
+      "lpatlas.js",
+      "preload.js",
+      "src/**/*",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "publish": null,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Skyframe-${version}-setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "Skyframe-${version}-portable.${ext}"
+    },
+    "mac": {
+      "category": "public.app-category.education",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "category": "Science",
+      "maintainer": "astropuzzo <astropuzzo@users.noreply.github.com>",
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    }
+  },
+  "allowScripts": {
+    "electron@37.10.3": true,
+    "electron-winstaller@5.4.0": true
+  }
+}

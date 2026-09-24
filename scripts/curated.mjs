@@ -1,0 +1,137 @@
+// Dati scritti a mano: soprannomi usati davvero dagli astrofotografi, oggetti composti che non stanno
+// in nessun catalogo, resti di supernova visibili in ottico e note pratiche di ripresa.
+
+// Soprannomi per oggetti fuori da OpenNGC (per NGC/IC si usa il campo "Common names" di OpenNGC).
+export const NICK = {
+  'Sh2-101': 'Tulip Nebula', 'Sh2-106': 'Celestial Snow Angel', 'Sh2-119': 'Clamshell Nebula', 'Sh2-129': 'Flying Bat Nebula',
+  'Sh2-132': 'Lion Nebula', 'Sh2-155': 'Cave Nebula', 'Sh2-157': 'Lobster Claw Nebula', 'Sh2-240': 'Spaghetti Nebula',
+  'Sh2-261': "Lower's Nebula", 'Sh2-264': 'Lambda Orionis Ring', 'Sh2-276': "Barnard's Loop", 'Sh2-308': 'Dolphin Nebula',
+  'Sh2-296': 'Seagull Nebula', 'Sh2-27': 'Zeta Ophiuchi region',
+  'LDN 1235': 'Shark Nebula', 'LDN 1622': 'Boogeyman Nebula', 'B 150': 'Seahorse Nebula', 'B 72': 'Snake Nebula',
+  'B 33': 'Horsehead Nebula', 'B 142': "Barnard's E", 'B 86': 'Ink Spot', 'vdB 141': 'Ghost Nebula', 'vdB 142': "Elephant's Trunk",
+  'vdB 152': "Wolf's Cave", 'Abell 21': 'Medusa Nebula', 'Abell 33': 'Diamond Ring', 'JnEr 1': 'Headphone Nebula',
+};
+
+// Soprannomi corretti/sostituiti per oggetti OpenNGC (quando il campo manca o è ambiguo).
+export const NICK_NGC = {
+  'NGC 7000': 'North America Nebula', 'IC 5070': 'Pelican Nebula', 'IC 1805': 'Heart Nebula', 'IC 1848': 'Soul Nebula',
+  'NGC 281': 'Pacman Nebula', 'NGC 7635': 'Bubble Nebula', 'NGC 7380': 'Wizard Nebula', 'NGC 6888': 'Crescent Nebula',
+  'IC 405': 'Flaming Star Nebula', 'IC 410': 'Tadpoles', 'IC 443': 'Jellyfish Nebula', 'NGC 2237': 'Rosette Nebula',
+  'NGC 2264': 'Cone Nebula & Christmas Tree', 'IC 434': 'Horsehead region', 'NGC 1499': 'California Nebula',
+  'NGC 2174': 'Monkey Head Nebula', 'IC 5146': 'Cocoon Nebula', 'NGC 7023': 'Iris Nebula', 'NGC 7293': 'Helix Nebula',
+  'NGC 6960': 'Western Veil', 'NGC 6992': 'Eastern Veil', 'NGC 6979': "Pickering's Triangle", 'IC 1396': "Elephant's Trunk region",
+  'NGC 2359': "Thor's Helmet", 'NGC 1977': 'Running Man Nebula', 'NGC 4565': 'Needle Galaxy', 'NGC 4631': 'Whale Galaxy',
+  'NGC 4656': 'Hockey Stick Galaxy', 'NGC 3628': 'Hamburger Galaxy', 'NGC 5907': 'Splinter Galaxy', 'NGC 6946': 'Fireworks Galaxy',
+  'IC 342': 'Hidden Galaxy', 'NGC 253': 'Sculptor Galaxy', 'NGC 891': 'Silver Sliver', 'NGC 2403': '', 'NGC 869': 'Double Cluster',
+  'NGC 6543': "Cat's Eye Nebula", 'NGC 7662': 'Blue Snowball', 'NGC 2392': 'Eskimo Nebula', 'NGC 7009': 'Saturn Nebula',
+  'NGC 6826': 'Blinking Planetary', 'NGC 1514': 'Crystal Ball Nebula', 'NGC 40': 'Bow-Tie Nebula', 'IC 1795': 'Fish Head Nebula',
+  'NGC 1333': 'Embryo Nebula', 'NGC 2024': 'Flame Nebula', 'IC 2118': 'Witch Head Nebula', 'IC 2177': 'Seagull Nebula',
+  'NGC 6914': '', 'NGC 7822': '', 'IC 59': 'Ghost of Cassiopeia', 'IC 63': 'Ghost of Cassiopeia', 'NGC 6820': '',
+  'NGC 7129': '', 'NGC 1491': 'Fossil Footprint Nebula', 'NGC 2170': 'Angel Nebula', 'IC 417': 'Spider Nebula', 'NGC 1931': 'Fly Nebula',
+  'NGC 7789': "Caroline's Rose", 'NGC 457': 'Owl Cluster', 'NGC 2261': "Hubble's Variable Nebula", 'IC 1318': 'Sadr region',
+};
+
+// Oggetti composti / gruppi che si inquadrano insieme. RA in ore, Dec in gradi.
+export const EXTRA = [
+  { id: 'Leo Triplet', nick: 'M 65 · M 66 · NGC 3628', type: 'Gx', ra: 11.327, dec: 13.28, a: 45, b: 32, pa: 0, sb: 22.4, con: 'Leo' },
+  { id: "Markarian's Chain", nick: 'M 84 → NGC 4477', type: 'Gx', ra: 12.458, dec: 13.17, a: 95, b: 35, pa: 58, sb: 22.6, con: 'Vir' },
+  { id: "Stephan's Quintet", nick: 'HCG 92', type: 'Gx', ra: 22.600, dec: 33.965, a: 4, b: 3.2, pa: 0, sb: 22.6, con: 'Peg' },
+  { id: 'Draco Trio', nick: 'NGC 5981 · 5982 · 5985', type: 'Gx', ra: 15.645, dec: 59.35, a: 22, b: 10, pa: 90, sb: 22.7, con: 'Dra' },
+  { id: 'M 81 + M 82', nick: "Bode's & Cigar", type: 'Gx', ra: 9.928, dec: 69.37, a: 62, b: 36, pa: 0, sb: 22.4, con: 'UMa' },
+  { id: 'Heart & Soul', nick: 'IC 1805 + IC 1848', type: 'EN', ra: 2.700, dec: 61.0, a: 290, b: 150, pa: 115, sb: 23.0, con: 'Cas' },
+  { id: 'Rho Ophiuchi', nick: 'Rho Oph cloud complex', type: 'RN', ra: 16.427, dec: -23.9, a: 240, b: 180, pa: 0, sb: 23.3, con: 'Oph' },
+  { id: 'Cygnus Loop', nick: 'Veil complex', type: 'SNR', ra: 20.850, dec: 30.67, a: 230, b: 160, pa: 0, sb: 23.7, con: 'Cyg' },
+];
+
+// Resti di supernova con controparte ottica, dal catalogo di Green (VII/297): nome Green → dati.
+export const SNR_OPTICAL = {
+  'G116.9+00.2': { id: 'CTB 1', nick: 'Abell 85', sb: 24.8 },
+  'G065.3+05.7': { id: 'G65.3+5.7', nick: '', sb: 25.2 },
+  'G089.0+04.7': { id: 'HB 21', nick: '', sb: 25.3 },
+  'G160.9+02.6': { id: 'HB 9', nick: '', sb: 25.2 },
+  'G166.0+04.3': { id: 'VRO 42.05.01', nick: '', sb: 24.9 },
+  'G205.5+00.5': { id: 'Monoceros Loop', nick: '', sb: 24.9 },
+  'G082.2+05.3': { id: 'W63', nick: '', sb: 25.1 },
+  'G078.2+02.1': { id: 'Gamma Cygni SNR', nick: 'DR 4', sb: 24.4 },
+  'G119.5+10.2': { id: 'CTA 1', nick: '', sb: 25.4 },
+  'G093.3+06.9': { id: 'DA 530', nick: '', sb: 25.5 },
+  'G156.2+05.7': { id: 'G156.2+5.7', nick: '', sb: 25.6 },
+  'G206.9+02.3': { id: 'PKS 0646+06', nick: '', sb: 25.2 },
+  'G069.0+02.7': { id: 'CTB 80', nick: '', sb: 25.3 },
+  'G180.0-01.7': { id: 'Simeis 147', nick: 'Spaghetti Nebula', sb: 25.0 },
+  'G189.1+03.0': { id: 'IC 443', nick: 'Jellyfish Nebula', sb: 23.6 },
+};
+
+// Oggetti che tutti riprendono: servono al filtro "nascondi i classici".
+export const CLASSIC = new Set([
+  'NGC 7000', 'IC 5070', 'NGC 6960', 'NGC 6992', 'IC 1805', 'IC 1848', 'NGC 281', 'NGC 7635', 'IC 434', 'NGC 2237', 'NGC 1499',
+  'NGC 2264', 'IC 1396', 'NGC 6888', 'NGC 7293', 'NGC 891', 'NGC 4565', 'NGC 253', 'NGC 869', 'NGC 2403', 'NGC 7331', 'IC 443',
+  'NGC 6946', 'IC 342', 'NGC 1977', 'NGC 7023', 'IC 5146', 'IC 405', 'IC 410', 'NGC 2174', 'Sh2-155', 'NGC 7380', 'NGC 2024',
+  'Leo Triplet', "Markarian's Chain", 'M 81 + M 82', 'Heart & Soul', 'Cygnus Loop', 'NGC 4631', 'NGC 2359', 'NGC 1333',
+  'Sh2-240', 'Sh2-276', 'IC 2118', "Stephan's Quintet", 'NGC 6543', 'NGC 7662', 'NGC 2392', 'NGC 3628',
+]);
+
+// Note di ripresa: concrete, verificabili, niente frasi da brochure.
+export const TIPS = {
+  'M 31': ['Il nucleo satura molto prima dei bracci: aggiungi 30–60 pose da 10–30 s per un HDR del centro.', 'Le regioni HII rosse lungo i bracci escono meglio con un canale Hα aggiunto (HaRGB).', 'M 32 e M 110 sono nel campo: non tagliarle con la rotazione.'],
+  'M 33': ['Luminosità superficiale bassa: è tra le prime galassie a sparire con cielo chiaro o Luna.', 'NGC 604, la grande regione HII, risponde benissimo a un canale Hα.'],
+  'M 42': ['Il Trapezio satura in pochi secondi: fai serie HDR da 5, 30 e 180 s.', 'Con meno di 400 mm entra anche NGC 1977 (Running Man) a nord.'],
+  'M 45': ['È luce stellare riflessa: la banda stretta non serve a niente.', 'La polvere del Toro attorno alle Pleiadi vuole cielo buio e tante ore; in città accontentati delle nebulose vicine alle stelle.', 'Stelle di mag 3: attenzione agli aloni dei filtri economici.'],
+  'M 51': ['Solo 11′: sotto i 600 mm sarà un ritaglio.', 'Il ponte di marea verso NGC 5195 è debole: serve integrazione, non esposizioni più lunghe.'],
+  'M 81 + M 82': ['M 82 ha filamenti Hα spettacolari: se hai la mono, aggiungi Hα.', 'Attorno c’è la nebulosità integrata (IFN): esce solo con cieli sotto SQM 21 e molte ore.'],
+  'M 82': ['I filamenti Hα perpendicolari al disco sono il dettaglio da cercare: canale Hα dedicato.'],
+  'M 101': ['Grande e diffusa: soffre molto la Luna e il cielo chiaro.', 'Le regioni HII (NGC 5461, 5462, 5471) meritano un canale Hα.'],
+  'M 27': ['Luminosa in OIII e Hα: ottima anche in città e con la Luna.', 'L’alone esterno “a orecchie” è debole: servono molte ore.'],
+  'M 57': ['Piccolissima (1,4′): serve focale lunga o è un puntino.', 'L’alone esterno in Hα è molto più debole del corpo principale.'],
+  'M 1': ['Filamenti Hα su un nucleo di luce di sincrotrone: HOO o HaRGB.', 'Piccola (6′): punta a focali oltre i 700 mm.'],
+  'M 8': ['Dall’Italia resta bassa: riprendi solo attorno al transito, sotto 25° la foschia uccide il contrasto.'],
+  'M 16': ['I Pilastri della Creazione al centro sono piccoli: a focali corte fai un ritaglio.', 'Ottima in SHO.'],
+  'M 13': ['NGC 6207 (galassia di mag 11) è a 28′: con una rotazione ben scelta entra nel campo.', 'Esposizioni brevi (60–120 s) per non bruciare il centro.'],
+  'M 97': ['M 108 è a 48′: a focali sotto i 500 mm stanno nello stesso campo.'],
+  'M 108': ['M 97 (Owl) è a 48′: a focali sotto i 500 mm stanno nello stesso campo.'],
+  'NGC 7000': ['Hα ovunque, OIII concentrato sulla Cygnus Wall.', 'Con meno di 300 mm entra insieme al Pellicano (IC 5070).'],
+  'IC 5070': ['La cresta del Pellicano ha filamenti OIII: HOO la fa risaltare.'],
+  'NGC 6960': ['Hα e OIII quasi in egual misura: HOO dà i colori classici.', '52 Cygni (mag 4) è sopra il filamento: gestisci riflessi e aloni.'],
+  'NGC 6992': ['Hα e OIII intrecciati: HOO. A focali lunghe il dettaglio dei filamenti è impressionante.'],
+  'Cygnus Loop': ['3° × 3°: sotto i 200 mm entra in un colpo, altrimenti mosaico.', 'OIII forte quanto l’Hα: HOO è la scelta naturale.'],
+  'IC 1805': ['Hα molto forte, OIII e SII deboli: in città l’Hα da solo regge già bene.', 'Melotte 15 al centro e la Fish Head (IC 1795) sul bordo.'],
+  'IC 1848': ['Stessa firma dell’Heart: Hα forte, OIII debole.'],
+  'Heart & Soul': ['5° × 2,5°: entra con 135 mm su APS-C o 200 mm su full frame.'],
+  'NGC 281': ['OIII buono per una HII: SHO dà ottimi risultati.', 'Globuli di Bok al centro: servono focali oltre i 600 mm per vederli.'],
+  'NGC 7635': ['La bolla è piccola (15′): a focali corte inquadrala con M 52 e la regione Sh2-157.'],
+  'Sh2-155': ['Hα debole con tanta polvere: serve tempo e un buon controllo del fondo cielo.'],
+  'NGC 6888': ['Guscio esterno in OIII, filamenti interni in Hα: HOO consigliato.', 'Il guscio OIII è debolissimo: dagli almeno il 50% del tempo.'],
+  'IC 405': ['Flaming Star e Tadpoles (IC 410) stanno in un campo di 2°.', 'Mix di emissione e riflessione blu vicino a AE Aurigae.'],
+  'IC 410': ['I “girini” sono piccoli: servono almeno 500 mm per vederli bene.'],
+  'IC 443': ['Hα e SII forti, OIII su un arco: SHO rende bene.', 'Eta Geminorum (mag 3) al bordo: attenzione ai riflessi.'],
+  'Simeis 147': ['3°, debolissima: solo banda stretta e decine di ore. Perfetta per ottiche corte.'],
+  'NGC 2237': ['Hα forte e OIII buono: facile anche in città con filtri stretti.'],
+  'NGC 2264': ['Emissione (Cone) e riflessione blu (Fox Fur) insieme: banda larga + Hα.'],
+  'IC 434': ['Alnitak (mag 1,8) nel campo: gestisci riflessi e diffrazione.', 'La Horsehead è polvere scura davanti a IC 434 che emette in Hα.'],
+  'NGC 1499': ['Quasi solo Hα: perfetta in Hα mono o dual-band anche in città.'],
+  'IC 1396': ['La proboscide (vdB 142) è al bordo ovest: il complesso intero misura 3°.', 'Mu Cephei, la stella granata, è appena fuori a nord.'],
+  'Sh2-129': ['Ou4 (Squid) dentro il Pipistrello emette quasi solo OIII ed è debolissima: servono 20+ ore di OIII.', 'L’Hα del Pipistrello arriva in 3–4 ore.'],
+  'NGC 7023': ['Riflessione: solo banda larga. La polvere scura attorno (LDN 1174) vuole cielo buio.'],
+  'LDN 1235': ['Polvere pura: niente banda stretta, serve cielo buio e L/RGB in abbondanza.'],
+  'B 150': ['Nebulosa oscura: il contrasto viene dal fondo stellare, quindi cielo buio e molte ore di banda larga.'],
+  'NGC 7293': ['Bassa dall’Italia (−21°): riprendi solo al transito.', 'Hα e OIII; l’alone esterno è debole.'],
+  'NGC 891': ['Edge-on sottile (13′ × 2,5′): la banda di polvere vuole seeing buono e focali oltre 800 mm.'],
+  'NGC 4565': ['16′ di lunghezza: a 1000 mm riempie bene il lato lungo.'],
+  'NGC 7331': ["Stephan's Quintet è a 30′ a sud-ovest: con 1000 mm e rotazione giusta stanno insieme."],
+  "Stephan's Quintet": ['Solo 4′: serve focale lunga (1500 mm+) e seeing buono.'],
+  'NGC 4631': ['La Hockey Stick (NGC 4656) è a 30′: inquadratura doppia a 800–1000 mm.'],
+  'Leo Triplet': ['A 500–700 mm le tre galassie riempiono il campo; NGC 3628 ha una coda mareale debole.'],
+  "Markarian's Chain": ['1,5° di galassie in fila: a 400–500 mm su APS-C entra tutta.'],
+  'NGC 6946': ['Sta dietro la polvere della Via Lattea: soffre più di altre il cielo chiaro.', 'NGC 6939 (ammasso aperto) a 40′.'],
+  'IC 342': ['Molto arrossata dalla polvere galattica: luminosità superficiale bassissima.'],
+  'NGC 869': ['Stelle luminose: pose brevi (30–60 s) per non saturarle e non gonfiarle.'],
+  'NGC 2359': ['OIII forte nel guscio: HOO.'],
+  'Sh2-308': ['Bolla OIII attorno a una Wolf-Rayet: bassa dall’Italia (−24°), serve un orizzonte sud libero.'],
+  'Abell 21': ['Grande e debole: Hα e OIII, molte ore. Ottima a 600–1000 mm.'],
+  'Sh2-276': ['10°: si fa con obiettivi da 50–85 mm e filtro Hα.'],
+  'Sh2-264': ['Anello Hα di 5°: obiettivi da 85–135 mm.'],
+  'LDN 1622': ['Vicina al Barnard’s Loop: nebulosa oscura su fondo Hα, serve cielo buio.'],
+  'vdB 141': ['Riflessione debole con polvere: cielo buio, solo banda larga.'],
+  'NGC 1333': ['Nube molecolare con getti Herbig-Haro: banda larga e cielo buio.'],
+  'IC 2118': ['Riflessione illuminata da Rigel: debolissima, vuole cielo buio e ottiche corte veloci.'],
+};
