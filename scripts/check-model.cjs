@@ -33,6 +33,11 @@ let p = base(19.26); p.optics = lens800; p.filters.owned = ['uvir', 'lextreme', 
 run('OSC 2600MC · 800 mm f/5 · SQM 19,26', p, ['IC 5146', 'Sh2-206', 'M 31', 'NGC 7000', 'M 27', 'NGC 7635', 'M 51', 'LDN 1235', 'NGC 1333', 'M 78', 'NGC 7023']);
 p = base(19.26); p.optics = lens800; p.filters.owned = ['uvir', 'lextreme', 'lsynergy'];
 run('OSC 2600MC · 800 mm f/5 · SQM 19,26 · L-eXtreme + L-Synergy (rif. reali: WR 134 ≈ 95 h, Cocoon ≈ 100 h)', p, ['WR 134', 'IC 5146', 'NGC 6888', 'Sh2-129']);
+const newt = [{ id: 'o1', name: '200/800 f/4', ap: 200, fl: 800, obs: 33, useNative: true, accessories: [] }];
+for (const sqm of [19.25, 21.3]) {
+  p = base(sqm); p.optics = newt; p.filters.owned = ['uvir', 'lqef', 'askard2', 'poahpro'];
+  run(`OSC 2600MC · 200/800 f/4 · SQM ${String(sqm).replace('.', ',')} · quad-band + due dual-band (rif. reale: NGC 281 almeno 4–5 h per il corpo)`, p, ['NGC 281', 'IC 5146', 'WR 134', 'M 27', 'M 51']);
+}
 p = base(19.26); p.filters.owned = ['uvir', 'lextreme'];
 run('OSC 2600MC · RedCat 51 · SQM 19,26', p, ['M 31', 'NGC 7000', 'IC 1805', 'Sh2-206', 'M 45']);
 p = base(18.6); p.filters.owned = ['uvir', 'lextreme'];

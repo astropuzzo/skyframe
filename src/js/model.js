@@ -8,8 +8,8 @@ const SOURCES = { M: 'Messier', NGC: 'NGC', IC: 'IC', Caldwell: 'Caldwell', Sh2:
 const LINES = { EN: { Ha: 1.5, OIII: 0.3, SII: 0.25, cont: 0.3 }, PN: { Ha: 0.8, OIII: 2.0, SII: 0.05, cont: 0.2 }, SNR: { Ha: 1.0, OIII: 0.6, SII: 0.6, cont: 0.3 }, WR: { Ha: 0.9, OIII: 1.4, SII: 0.2, cont: 0.2 }, WRS: { Ha: 0.25, OIII: 1.4, SII: 0.03, cont: 0.05 } }; // WR: bolle di Wolf-Rayet (NGC 6888, WR 134, Sh2-308, NGC 2359); WRS: il loro guscio esterno, quasi solo OIII
 const TYPE_SNR = { OC: 0.4, GC: 0.45 };
 const CAT = (window.DSO || []).map((r) => {
-  const [id, alias, nick, type, ra, dec, a, b, pa, mag, sb, con, src, classic, tip, ctx, ha, lk, dust] = r;
-  return { id, alias: alias ? alias.split('|') : [], nick, type, ra, dec, a, b: b || a, pa, mag, sb, con, src, classic: !!classic, tip, ctx: ctx ? ctx.split('|') : [], ha: ha || 0, lk: lk || type, dust: dust || 0, search: (id + ' ' + alias + ' ' + nick).toLowerCase().replace(/\s+/g, '') };
+  const [id, alias, nick, type, ra, dec, a, b, pa, mag, sb, con, src, classic, tip, ctx, ha, lk, dust, haM, haF] = r;
+  return { id, alias: alias ? alias.split('|') : [], nick, type, ra, dec, a, b: b || a, pa, mag, sb, con, src, classic: !!classic, tip, ctx: ctx ? ctx.split('|') : [], ha: ha || 0, lk: lk || type, dust: dust || 0, haM: haM || 0, haF: haF || 0, search: (id + ' ' + alias + ' ' + nick).toLowerCase().replace(/\s+/g, '') };
 });
 const CAT_BY_ID = new Map(CAT.map((o) => [o.id, o]));
 const CONST_NAMES = Object.fromEntries(((window.SKY && window.SKY.names) || []).map((n) => [n.id, LANG === 'it' ? n.n : n.la || n.n]));
@@ -493,27 +493,50 @@ function skyModel(site) {
 
 /* ============================ calcolo target ============================ */
 const F0 = 1000, MOON0 = Math.pow(10, -0.4 * 17.8);
-/* Qualità = SNR per elemento di risoluzione (il più grande tra pixel e 2″) sulla luminosità media dell'oggetto
-   e sulle sue parti deboli (FAINT_DELTA mag più deboli); il contesto di polveri va portato al SNR "debole". */
-/* SNR per elemento di risoluzione. La parte principale "buona" a 40 (≈ 20 per pixel a 1″/px): con 20 un'immagine è
-   ancora rumorosa, e NGC 281 usciva in 35 min contro le 4–5 h che servono davvero. Parti deboli e polveri restano ai
-   livelli tarati sulle riprese reali (Cocoon, WR 134). */
-const QUALITY = { quick: { main: 25, faint: 3 }, good: { main: 40, faint: 5 }, great: { main: 60, faint: 8 } };
-/* oggetti oltre 40′: la loro LS media è dominata dalle zone deboli e si guardano rimpiccioliti; la richiesta sulla parte
-   principale scende fino a metà per i più grandi */
-const sizeK = (o) => clamp(Math.sqrt(40 / Math.max(o.a, 1)), 0.5, 1);
-/* galassie: la LS di catalogo è la media dentro l'isofota 25, dominata dal disco esterno; il corpo che si guarda è
-   ~0,75 mag più luminoso (i bracci esterni restano le parti deboli, a +1,5) */
-const MAIN_DELTA = { Gx: -0.75 };
-const FAINT_DELTA = { Gx: 1.5, EN: 1.0, PN: 4.5, SNR: 0.7, RN: 1.0, DN: 0, OC: 0, GC: 0 }; // PN: gli aloni esterni sono 4–5 mag sotto il corpo
-/* la polvere è una struttura grande e liscia: si valuta a LS ≥ 25 e con 1,6× il SNR "debole" per non uscire a chiazze */
-const DUST_SB = 25.0, DUST_SNR = 1.6;
+/* Qualità = SNR per elemento di risoluzione sulla parte principale dell'oggetto e sulle sue parti deboli.
+   Taratura sulle foto reali (README, «Taratura»; scripts/calibrate.cjs): 190 foto su AstroBin di 23 oggetti, con
+   strumento, filtri, cielo e integrazione dichiarati; il modello rifà i conti con la loro attrezzatura e si confronta
+   con le ore vere:
+   - l'elemento di risoluzione è proporzionale al diametro (RES_DL/D: 2,3″ a 200 mm, 4,7″ a 100 mm) e non fisso: ogni
+     telescopio si guarda al dettaglio che sa dare. Con un elemento fisso le foto reali uscivano ~D^2,6 più lunghe del
+     previsto (piccoli strumenti troppo pessimisti, grandi troppo ottimisti); così lo scarto non dipende più né
+     dall'apertura né dalla scala (coefficienti −0,04 e −0,12);
+   - lo SNR richiesto cresce con la luminosità superficiale (SNR_B): sugli oggetti luminosi si pretende più pulizia e
+     dettaglio, su quelli deboli si accetta più rumore. Fuori campione (lasciando fuori un oggetto alla volta) l'errore
+     sull'oggetto scende da ×4,6 a ×2,7. Dipende solo dall'oggetto: cielo, Luna, filtri e camera restano pura fisica;
+   - i livelli: "buona" = la mediana delle foto (in pratica il tipico scatto apprezzato), "rapida" ≈ il quartile basso
+     (tipico da città con camera a colori), "eccellente" ≈ il quartile alto (tipico da cielo buio o in mono). */
+const QUALITY = { quick: { main: 50, faint: 6 }, good: { main: 75, faint: 9.5 }, great: { main: 120, faint: 15 } };
+const RES_DL = 468; // ″·mm: 4× il limite di diffrazione (1,03 λ/D a 550 nm)
+const SNR_B = { main: 0.45, faint: 0.4 }, SNR_SB0 = 22;
+const snrK = (sb, b) => Math.pow(10, -0.4 * b * (sb - SNR_SB0));
+/* dimensione: gli oggetti piccoli si guardano ingranditi e se ne vuole il dettaglio, i grandi un po' rimpiccioliti. La
+   richiesta sulla parte principale va come (40′/a)^¼: ×1,5 a 6′, ×2 sotto 2,5′, ×0,71 a 160′ (tarato sulle foto reali) */
+const sizeK = (o) => clamp(Math.pow(40 / Math.max(o.a, 1), 0.25), 0.5, 2);
+/* Nebulose a emissione: la LS che conta per i tempi viene dall'Hα misurato nell'oggetto (NSNS/SHASSA, Rayleigh), non
+   dalla LS di catalogo; senza misura, la LS di catalogo corretta col rapporto mediano misurato/catalogo del tipo. */
+const HA_CORR = window.HA_CORR || {};
+function sbFromHa(o, R) { return -2.5 * Math.log10(R_TO_PH * R / (F0 * 880 * ((LINES[o.lk] || LINES[o.type] || LINES.EN).Ha))); }
+function lineSB(o) {
+  if (!LINES[o.lk]) return { main: o.sb, faint: o.sb + (FAINT_DELTA[o.type] || 0), measured: false };
+  // planetarie: le parti deboli sono l'alone esterno, fuori dall'ellisse misurata (4–5 mag sotto il corpo)
+  if (o.haM > 0) { const main = sbFromHa(o, o.haM); return { main, faint: o.type === 'PN' ? main + FAINT_DELTA.PN : sbFromHa(o, o.haF || o.haM * 0.5), measured: true }; }
+  const k = HA_CORR[o.type] || 1, main = o.sb - 2.5 * Math.log10(k);
+  return { main, faint: main + (FAINT_DELTA[o.type] || 0), measured: false };
+}
+/* galassie: la LS di catalogo è la media dentro l'isofota 25; il corpo che si guarda è ~0,5 mag più luminoso, e una
+   buona foto mostra il disco fino a ~3,5 mag sotto la media (oltre l'isofota 25: bracci esterni, aloni). Tarato sulle
+   foto reali di M 31, M 33, M 51, M 81, M 101: con le parti deboli a +1,5 le galassie uscivano ~5 volte troppo brevi. */
+const MAIN_DELTA = { Gx: -0.5 };
+const FAINT_DELTA = { Gx: 3.5, EN: 1.0, PN: 4.5, SNR: 0.7, RN: 1.0, DN: 0, OC: 0, GC: 0 }; // PN: gli aloni esterni sono 4–5 mag sotto il corpo
+/* la polvere è una struttura grande e liscia: si valuta a LS ≥ 26,5 e con 1,6× il SNR "debole" per non uscire a chiazze */
+const DUST_SB = 26.5, DUST_SNR = 1.6;
 /* Hα diffuso misurato attorno all'oggetto (mappa Finkbeiner 2003, Rayleigh): 1 R = 10⁶/4π fotoni/s/cm²/sr in Hα
    = 1,87·10⁻⁶ fotoni/s/cm²/″². Conta per nebulose, polveri e ammassi della Via Lattea, non per galassie e globulari. */
 const R_TO_PH = 1.87e-6, DIFF_MIN_R = 3, DIFF_REL = 0.02, NO_DIFF = { Gx: 1, GC: 1, PN: 1 };
 /* Bolle di Wolf-Rayet: oltre ai filamenti in Hα c'è un guscio esterno quasi solo in OIII, SHELL mag/″² più debole.
-   Calibrato su WR 134 (≈ 95 h tra Hα+OIII e SII+OIII a 800 mm f/5 sotto SQM 19,3 per un SNR discreto). */
-const SHELL = { WR: 3.2 };
+   Tarato sulle foto reali di WR 134 e NGC 6888. */
+const SHELL = { WR: 5.5 };
 /* polveri che contano davvero per il campo e i tempi: estese rispetto all'oggetto */
 const bigDust = (o, c) => (c.type === 'DN' || c.type === 'RN') && c.a >= Math.max(20, 0.5 * o.a);
 /* polveri diffuse attorno all'oggetto misurate sulla mappa SFD (anche quando nei cataloghi sono solo pezzi piccoli):
@@ -570,7 +593,7 @@ function configConst(cfg) {
   const p = cfg.profile, g = cfg.geom;
   const qe = (+p.camera.qe || 70) / 100, rn = +p.camera.rn || 2, dark = p.camera.type === 'dslr' ? 0.05 : 0.003;
   const Dcm = g.D / 10, obs = (+cfg.optic.obs || 0) / 100, Aeff0 = Math.PI * Dcm * Dcm / 4 * (1 - obs * obs) * 0.85 * qe;
-  const res = Math.max(g.px, 2.0), area = res * res, npix = Math.pow(res / g.px, 2);
+  const res = Math.max(g.px, RES_DL / g.D), area = res * res, npix = Math.pow(res / g.px, 2);
   // posa più lunga in banda larga indicata per il telescopio (stelle non sature); con un accessorio scala col quadrato del fattore
   const sm = +cfg.optic.subMax, fac = +cfg.acc.fac || 1, subMax = sm > 0 ? (fac === 1 ? Math.round(sm) : niceFloor(sm * fac * fac * 1.05)) : 0;
   return { Aeff0, geo: Aeff0 * area, npix, rn, dark, fr: g.fr, pxArea: g.px * g.px, haMul: p.camera.type === 'dslr' ? 0.3 : 1, subMax };
@@ -593,13 +616,15 @@ for (const t of Object.keys(LINES)) OBJ_LINES[t] = objLines(t).map((x, i) => [x[
    dell'oggetto, luce lunare). T: cielo al transito senza Luna, per il tempo "ideale". */
 function evalStrategies(o, S, K, U, Q, T, field) {
   const lines = LINES[o.lk];
-  const qMain = o.type === 'DN' ? Q.faint * DUST_SNR : Q.main * (TYPE_SNR[o.type] || 1) * sizeK(o), sbMain = o.type === 'DN' ? Math.max(o.sb, DUST_SB) : o.sb + (MAIN_DELTA[o.type] || 0);
+  const LSB = lineSB(o), qMain = o.type === 'DN' ? Q.faint * DUST_SNR : Q.main * (TYPE_SNR[o.type] || 1) * sizeK(o);
+  const sbMain = o.type === 'DN' ? Math.max(o.sb, DUST_SB) : LINES[o.lk] ? LSB.main : o.sb + (MAIN_DELTA[o.type] || 0);
   const dust = dustOf(o, field);
   const faintHa = field.ctx.filter((c) => c.type === 'EN').sort((a, b) => a.sb - b.sb)[0];
   const bbS = S.find((s) => s.suits === 'all');
   const ef = T.ef || 1; // estinzione ridotta con la quota del luogo
-  const haObj = lines ? F0 * Math.pow(10, -0.4 * o.sb) * 880 * LINES[o.lk].Ha : 0;
+  const haObj = lines ? F0 * Math.pow(10, -0.4 * LSB.main) * 880 * LINES[o.lk].Ha : 0;
   const diffOn = o.ha >= DIFF_MIN_R && !NO_DIFF[o.type] && lines && R_TO_PH * o.ha >= DIFF_REL * haObj;
+  const sbDiff = diffOn ? -2.5 * Math.log10(R_TO_PH * o.ha / (F0 * 880 * LINES.EN.Ha)) : 0;
   const smax = lines ? Math.max(...['Ha', 'OIII', 'SII'].map((g) => OBJ_LINES[o.lk].filter((x) => x[1] === g).reduce((a, x) => a + x[2], 0))) : 1;
   const avg = { art: 0, nat: 0, mf: 0 }; for (let u = 0; u < U.n; u++) { avg.art += U.art[u]; avg.nat += U.nat[u]; avg.mf += U.mf[u]; }
   if (U.n) { avg.art /= U.n; avg.nat /= U.n; avg.mf /= U.n; } else { avg.art = T.art; avg.nat = T.nat; }
@@ -613,15 +638,15 @@ function evalStrategies(o, S, K, U, Q, T, field) {
       const R = [];
       if (st.purpose !== 'dust') {
         const w = c.target === 'all' ? 1 : clamp(Math.pow(chanStrength(c, o.lk) / smax, 0.75), 0.25, 1); // le righe deboli si accettano più rumorose, come in elaborazione
-        R.push({ S: chanSignal(c, o.lk, sbMain, K), snr: qMain * w * (c.snr || 1), what: 'main' });
-        if (FAINT_DELTA[o.type] > 0) R.push({ S: chanSignal(c, o.lk, o.sb + FAINT_DELTA[o.type], K), snr: Q.faint * w * (c.snr || 1), what: 'faint' });
-        if (faintHa && (c.target === 'all' || c.target.includes('Ha'))) R.push({ S: chanSignal(c, 'EN', faintHa.sb, K), snr: Q.faint * (c.snr || 1), what: 'ctxHa' });
-        if (SHELL[o.lk] && (c.target === 'all' || c.target.includes('OIII'))) R.push({ S: chanSignal(c, 'WRS', o.sb + SHELL[o.lk], K), snr: Q.faint * (c.snr || 1), what: 'shell' });
+        R.push({ S: chanSignal(c, o.lk, sbMain, K), snr: qMain * w * (c.snr || 1) * snrK(sbMain, SNR_B.main), what: 'main' });
+        if (FAINT_DELTA[o.type] > 0) R.push({ S: chanSignal(c, o.lk, LSB.faint, K), snr: Q.faint * w * (c.snr || 1) * snrK(LSB.faint, SNR_B.faint), what: 'faint' });
+        if (faintHa && (c.target === 'all' || c.target.includes('Ha'))) R.push({ S: chanSignal(c, 'EN', faintHa.sb, K), snr: Q.faint * (c.snr || 1) * snrK(faintHa.sb, SNR_B.faint), what: 'ctxHa' });
+        if (SHELL[o.lk] && (c.target === 'all' || c.target.includes('OIII'))) R.push({ S: chanSignal(c, 'WRS', LSB.main + SHELL[o.lk], K), snr: Q.faint * (c.snr || 1) * snrK(LSB.main + SHELL[o.lk], SNR_B.faint), what: 'shell' });
         // Hα diffuso: solo sui canali a banda stretta e solo se nel campo si vede (≥ 2% dell'Hα dell'oggetto). Va nel tempo "profondo".
         if (diffOn && c.target !== 'all' && c.target.includes('Ha') && c.lineW.Ha > 0.02)
-          R.push({ S: R_TO_PH * o.ha * K.haMul * (c.lineW.Ha + 0.3 * (0.25 * c.lineW.NIIa + 0.75 * c.lineW.NIIb)) * K.geo, snr: Q.faint * (c.snr || 1), what: 'diffHa', deep: true });
+          R.push({ S: R_TO_PH * o.ha * K.haMul * (c.lineW.Ha + 0.3 * (0.25 * c.lineW.NIIa + 0.75 * c.lineW.NIIb)) * K.geo, snr: Q.faint * (c.snr || 1) * snrK(sbDiff, SNR_B.faint), what: 'diffHa', deep: true });
       }
-      if (dust && c.target === 'all') R.push({ S: chanSignal(c, 'DN', Math.max(dust.sb, DUST_SB), K), snr: Q.faint * DUST_SNR * (c.snr || 1), what: 'dust' });
+      if (dust && c.target === 'all') R.push({ S: chanSignal(c, 'DN', Math.max(dust.sb, DUST_SB), K), snr: Q.faint * DUST_SNR * (c.snr || 1) * snrK(Math.max(dust.sb, DUST_SB), SNR_B.faint), what: 'dust' });
       // sub: minimo perché il fondo cielo (con la Luna di stanotte) copra 10× il rumore di lettura; poi limiti pratici del filtro
       const skyPx = F0 * K.Aeff0 * K.pxArea * ((0.75 * c.I + 44 * c.skyL) * avg.art + c.I * (avg.nat + avg.mf)) / PIX_FRAC[c.w];
       // oltre il minimo che copre il rumore di lettura l'SNR non cambia: in banda larga decide la posa più lunga che le stelle

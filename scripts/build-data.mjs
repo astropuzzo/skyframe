@@ -360,6 +360,33 @@ function dustAround(o) {
 }
 for (const o of list) o.dust = dustAround(o);
 
+/* ---------- Hα misurato dentro l'oggetto ----------
+   Le LS di catalogo delle nebulose a emissione vengono da magnitudini visuali (spesso con le stelle dentro) o da stime:
+   misurate, molte sono 2–10 volte più deboli. scripts/measure-halpha.mjs misura l'Hα vero (Rayleigh) nell'ellisse di
+   catalogo con la NSNS (Dec −1°…+76°, 10″) e la SHASSA a sud (decimi di Rayleigh: tarata sulla NSNS in 16 nebulose
+   in comune, rapporto 0,100 ± 3%). Mediana = corpo dell'oggetto, 25° percentile = parti deboli. I resti di supernova
+   sono filamenti con cielo in mezzo: lì il corpo è il 75° percentile e le parti deboli la mediana (con la mediana il
+   Velo usciva 10–100 volte più lungo delle foto reali).
+   Per gli oggetti non misurati (troppo piccoli o fuori dalle due survey) si applica, per tipo, il rapporto mediano fra
+   Hα misurato e Hα che la LS di catalogo implicherebbe. */
+const HA_LINE = { EN: 1.5, PN: 0.8, SNR: 1.0 }; // come LINES[tipo].Ha nel modello (src/js/model.js)
+const MEAS = fs.existsSync(path.join(RAW, 'halpha-meas.json')) ? JSON.parse(raw('halpha-meas.json')) : {};
+const haImplied = (o) => 1000 * Math.pow(10, -0.4 * o.sb) * 880 * HA_LINE[o.type] / 1.87e-6;
+const haRatio = { EN: [], PN: [], SNR: [] };
+for (const o of list) {
+  if (!HA_LINE[o.type]) continue;
+  const m = MEAS[o.id]; let v = null;
+  if (m && m.nsns && m.nsns[3] >= 20 && m.nsns[1] > 3) v = m.nsns.slice(0, 3);
+  else if (m && m.shassa && m.shassa[3] >= 10 && m.shassa[1] > 30) v = m.shassa.slice(0, 3).map((x) => x / 10);
+  if (!v) continue;
+  if (o.type === 'SNR') v = [v[1], v[2]]; // filamenti
+  o.haM = r1(v[1]); o.haF = r1(Math.max(v[0], v[1] * 0.2));
+  haRatio[o.type].push(o.haM / haImplied(o));
+}
+const HA_CORR = {};
+for (const [t, r] of Object.entries(haRatio)) { r.sort((a, b) => a - b); HA_CORR[t] = r.length >= 5 ? Math.round(r[Math.floor(r.length / 2)] * 1000) / 1000 : 1; }
+console.log('Hα misurato:', Object.fromEntries(Object.entries(haRatio).map(([t, r]) => [t, r.length])), 'rapporto mediano misurato/catalogo:', HA_CORR);
+
 /* ---------- uscita ---------- */
 const typeCount = {};
 const tipIds = new Set(Object.keys(TIPS));
@@ -368,12 +395,12 @@ const rows = list.map((o) => {
   const all = [o.id, ...o.alias];
   const classic = o.src === 'M' || all.some((x) => CLASSIC.has(x)) ? 1 : 0;
   const tipKey = all.find((x) => tipIds.has(x)) || '';
-  return [o.id, o.alias.join('|'), o.nick || '', o.type, r4(o.ra), r4(o.dec), r1(o.a), r1(o.b), Math.round(o.pa || 0), o.mag == null ? null : r1(o.mag), r1(Math.min(26, Math.max(15, o.sb))), o.con || '', o.src, classic, tipKey, (o.ctx || []).join('|'), r1(o.ha), all.map((x) => LINE_KEY[x]).find(Boolean) || '', o.dust || 0];
+  return [o.id, o.alias.join('|'), o.nick || '', o.type, r4(o.ra), r4(o.dec), r1(o.a), r1(o.b), Math.round(o.pa || 0), o.mag == null ? null : r1(o.mag), r1(Math.min(26, Math.max(15, o.sb))), o.con || '', o.src, classic, tipKey, (o.ctx || []).join('|'), r1(o.ha), all.map((x) => LINE_KEY[x]).find(Boolean) || '', o.dust || 0, o.haM || 0, o.haF || 0];
 });
 fs.writeFileSync(path.join(OUT, 'dso.js'),
   '// Generato da scripts/build-data.mjs — non modificare a mano.\n' +
-  '// [id, alias, soprannome, tipo, RA°, Dec°, asse maggiore′, minore′, PA°, mag, LS mag/″², costellazione, catalogo, classico, chiave note, contesto, Hα diffuso attorno (Rayleigh, Finkbeiner 2003), profilo di righe, polveri attorno (mediana E(B−V), SFD 1998; 0 = non contano)]\n' +
-  'window.DSO=' + JSON.stringify(rows) + ';\nwindow.TIPS=' + JSON.stringify(TIPS) + ';\n');
+  '// [id, alias, soprannome, tipo, RA°, Dec°, asse maggiore′, minore′, PA°, mag, LS mag/″², costellazione, catalogo, classico, chiave note, contesto, Hα diffuso attorno (Rayleigh, Finkbeiner 2003), profilo di righe, polveri attorno (mediana E(B−V), SFD 1998; 0 = non contano), Hα misurato nel corpo e nelle parti deboli (Rayleigh; 0 = non misurato)]\n' +
+  'window.DSO=' + JSON.stringify(rows) + ';\nwindow.TIPS=' + JSON.stringify(TIPS) + ';\nwindow.HA_CORR=' + JSON.stringify(HA_CORR) + ';\n');
 console.log('oggetti:', rows.length, typeCount);
 
 /* ---------- cielo: stelle, costellazioni, Via Lattea ---------- */
