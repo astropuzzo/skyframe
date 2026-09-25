@@ -1045,7 +1045,7 @@ function adviceFor(r, e, ctx) {
   if (b) {
     const subs = b.steps.map((s) => `${fname(s.f)} ${Math.max(...s.subs.map((x) => x.s))} s`);
     const mins = b.steps.map((s) => Math.max(...s.subs.map((x) => x.min)));
-    let t = tx('Esposizioni singole: {subs}. Sotto {mins} il rumore di lettura pesa; oltre, decidono inseguimento, stelle sature e quante pose puoi permetterti di buttare.', { subs: subs.join(', '), mins: mins.map((m) => Math.max(1, m) + ' s').join(' / ') });
+    let t = tx('Esposizioni singole indicative: {subs}. Sotto {mins} il rumore di lettura pesa; oltre, decidono inseguimento, stelle sature e quante pose puoi permetterti di buttare.', { subs: subs.join(', '), mins: mins.map((m) => Math.max(1, m) + ' s').join(' / ') });
     if (b.steps.some((s) => s.f.kind === 'bb' || s.f.kind === 'lp')) t += ' ' + (e.K.subMax ? tx('In banda larga uso la posa più lunga che hai indicato per il telescopio ({s} s in questa configurazione).', { s: e.K.subMax }) : tx('In banda larga propongo il minimo pratico: se le stelle reggono pose più lunghe, scrivi nel telescopio la posa più lunga che usi e la userò.'));
     tips.push({ k: 'Sub', t });
   }

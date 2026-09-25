@@ -15,6 +15,7 @@ window.I18N.en = {
   "Clic o trascina per disegnare l’orizzonte. <b>Shift+clic</b> o clic destro toglie il punto più vicino. Tratteggio = altezza minima.": "Click or drag to draw the horizon. <b>Shift+click</b> or right click removes the nearest point. Dashed line = minimum altitude.",
   "Modifica profilo": "Edit profile",
   // piano più chiaro
+  "Durata indicativa della singola posa": "Indicative length of a single exposure",
   "per il colore delle stelle": "for star colour",
   "le ore servono ad avere pulito il corpo dell’oggetto": "the hours are for a clean body of the object",
   "le ore servono a far uscire le parti deboli (aloni, bracci esterni)": "the hours are for bringing out the faint parts (haloes, outer arms)",
@@ -25,8 +26,8 @@ window.I18N.en = {
   "raccoglie {w}": "collects {w}",
   "senza Luna, indicative": "without the Moon, indicative",
   "Ore di posa indicative, senza Luna, lungo il percorso del target in questa notte": "Indicative exposure hours, without the Moon, along the target’s path on this night",
-  "Tempi indicativi: stime del modello per scegliere e organizzare le notti, non garanzie. Seeing, trasparenza, calibrazione, elaborazione e il tuo livello di pulizia possono cambiarli anche del doppio.": "Indicative times: model estimates to choose targets and plan nights, not guarantees. Seeing, transparency, calibration, processing and how clean you want the result can change them by a factor of two.",
-  "Sub = durata della singola posa per quel filtro: abbastanza lunga da coprire il rumore di lettura col cielo di stanotte, entro i valori pratici del filtro (o la posa più lunga che hai indicato nel telescopio).": "Sub = length of a single exposure for that filter: long enough to swamp the read noise with tonight’s sky, within the practical range of the filter (or the longest sub you set for the telescope).",
+  "Tempi indicativi, sia le ore totali sia la durata delle pose (sub): sono stime del modello per scegliere e organizzare le notti, non garanzie. Seeing, trasparenza, calibrazione, elaborazione e il tuo livello di pulizia possono cambiare le ore anche del doppio; le pose vanno regolate su stelle sature, inseguimento e quante pose puoi permetterti di scartare.": "Indicative times, both total hours and sub length: model estimates to choose targets and plan nights, not guarantees. Seeing, transparency, calibration, processing and how clean you want the result can change the hours by a factor of two; subs have to be adjusted for saturated stars, tracking and how many frames you can afford to throw away.",
+  "Sub = durata indicativa della singola posa per quel filtro: abbastanza lunga da coprire il rumore di lettura col cielo di stanotte, entro i valori pratici del filtro (o la posa più lunga che hai indicato nel telescopio).": "Sub = indicative length of a single exposure for that filter: long enough to swamp the read noise with tonight’s sky, within the practical range of the filter (or the longest sub you set for the telescope).",
   // immagini del target
   "autore sconosciuto": "unknown author",
   "Carico l’immagine…": "Loading the image…",
@@ -313,7 +314,7 @@ window.I18N.en = {
   "A {fl} mm misura {px} px: per i dettagli serve una focale più lunga.": "At {fl} mm it spans {px} px: details need a longer focal length.",
   "Meglio {a} a {fa} che {b} a {fb}: {la} contro {lb}": "Better {a} at {fa} than {b} at {fb}: {la} against {lb}",
   ", {a} contro {b} stanotte": ", {a} against {b} tonight",
-  "Esposizioni singole: {subs}. Sotto {mins} il rumore di lettura pesa; oltre, decidono inseguimento, stelle sature e quante pose puoi permetterti di buttare.": "Single exposures: {subs}. Below {mins} read noise matters; above that, tracking, saturated stars and how many subs you can afford to throw away decide.",
+  "Esposizioni singole indicative: {subs}. Sotto {mins} il rumore di lettura pesa; oltre, decidono inseguimento, stelle sature e quante pose puoi permetterti di buttare.": "Indicative single exposures: {subs}. Below {mins} read noise matters; above that, tracking, saturated stars and how many subs you can afford to throw away decide.",
   "Con i filtri di questo profilo non c’è una strategia adatta: per {t} serve la banda larga.": "No suitable strategy with this profile's filters: {t} need broadband.",
   "Luce riflessa o polvere: la banda stretta non serve. Rende davvero solo sotto un cielo buio.": "Reflected light or dust: narrowband doesn't help. It only really works under a dark sky.",
   "Con {n} ci vorrebbero {a} invece di {b}.": "With {n} it would take {a} instead of {b}.",
