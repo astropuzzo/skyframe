@@ -173,7 +173,7 @@ function rowHTML(r, i) {
   if (!b) plan = `<span style="color:var(--ink-3)">—</span><small>${tx('serve la banda larga')}</small>`;
   else {
     const h = hoursOf(b), hm = moonHoursOf(b);
-    plan = `<b title="${tx('Ore di posa senza Luna, lungo il percorso del target in questa notte')}">${fmtH(h)}</b><span class="nt">${nightsTag(r, e)}</span>${state.cfgs.length > 1 ? `<span class="rig" title="${tx('Setup consigliato')}: ${esc(e.cfg.label)} · ${e.cfg.short}"><i></i><span>${esc(e.cfg.tag)}</span><em>${e.cfg.short}</em></span>` : ''}<small>${esc(b.label)}${b.deep ? ` · ${tx('profondo')} ${fmtH(deepHoursOf(b))}` : ''}${isFinite(hm) && hm > h * 1.15 ? ` · <span class="moonh">${tx('con la Luna di stanotte {h}', { h: fmtH(hm) })}</span>` : ''}</small>`;
+    plan = `<b title="${tx('Ore di posa indicative, senza Luna, lungo il percorso del target in questa notte')}">≈ ${fmtH(h)}</b><span class="nt">${nightsTag(r, e)}</span>${state.cfgs.length > 1 ? `<span class="rig" title="${tx('Setup consigliato')}: ${esc(e.cfg.label)} · ${e.cfg.short}"><i></i><span>${esc(e.cfg.tag)}</span><em>${e.cfg.short}</em></span>` : ''}<small>${esc(b.label)}${b.deep ? ` · ${tx('profondo')} ${fmtH(deepHoursOf(b))}` : ''}${isFinite(hm) && hm > h * 1.15 ? ` · <span class="moonh">${tx('con la Luna di stanotte {h}', { h: fmtH(hm) })}</span>` : ''}</small>`;
   }
   plan += `<span class="lh">${locHint(r)}</span>`;
   const win = r.first >= 0 ? `${fmtT(n.t[r.first])}–${fmtT(n.t[r.last] + DT)}` : '';
@@ -224,7 +224,7 @@ function locHint(r) {
   const b = betterLoc(r); if (!b) return '';
   const name = esc(b.l.site.name), h = fmtH(b.s.h);
   const title = b.gain == null ? tx('Da qui stanotte non si riprende; a {l} bastano {h}', { l: name, h }) : tx('A {l} basterebbero {h} invece di {x}', { l: name, h, x: fmtH(b.here) });
-  return `<span class="lochint" title="${title}"><i aria-hidden="true"></i>${name} ${h}${b.gain != null ? ` <em>−${Math.round(b.gain * 100)}%</em>` : ''}</span>`;
+  return `<span class="lochint" title="${title}"><i aria-hidden="true"></i>${name} ≈ ${h}${b.gain != null ? ` <em>−${Math.round(b.gain * 100)}%</em>` : ''}</span>`;
 }
 function renderList() {
   const L = state.filtered, shown = L.slice(0, state.page);
@@ -420,7 +420,7 @@ function renderDetail() {
 
   // riassunto sempre visibile: ore senza Luna, notti e fine, strategia
   const nightsTxt = !cal ? '' : !cal.done ? tx('oltre un anno') : cal.sessions <= 1 && cal.done === cal.nights[0].t0 ? tx('si chiude stanotte') : `${nNights(cal.sessions)} · ${tx('fino a {d}', { d: fmtDay(cal.done) })}`;
-  const summary = b ? `<b>${fmtH(planTot)}</b> ${tx('senza Luna')}${nightsTxt ? ` · <b>${nightsTxt}</b>` : ''}<span class="strat"> · ${esc(b.label)}</span>` : `<span class="strat">${tx('Con i filtri di questo profilo non c’è una strategia adatta a {t}.', { t: tx(TYPES_PL[o.type]).toLowerCase() })}</span>`;
+  const summary = b ? `<b>≈ ${fmtH(planTot)}</b> ${tx('senza Luna, indicative')}${nightsTxt ? ` · <b>${nightsTxt}</b>` : ''}<span class="strat"> · ${esc(b.label)}</span>` : `<span class="strat">${tx('Con i filtri di questo profilo non c’è una strategia adatta a {t}.', { t: tx(TYPES_PL[o.type]).toLowerCase() })}</span>`;
   const scoreTip = `${tx('Punteggio')} ${e.score}/100 · ${tx('Inquadratura')} ${Math.round(e.fill.score * 100)} · ${tx('Visibilità')} ${Math.round(r.vis * 100)} · ${tx('Impegno')} ${Math.round(e.effort * 100)}`;
 
   // fatti rapidi della scheda Piano
@@ -432,17 +432,18 @@ function renderDetail() {
     moonCost ? `<span class="hc warn">${tx('Luna {p}%: stanotte {h}', { p: Math.round(n.moonIll * 100), h: fmtH(hm) })}</span>` : '',
     `<span class="hc" id="periodChip">${tx('Periodo…')}</span>`,
     `<span class="hc">${esc(tx(e.fill.label))}${e.fill.sub ? ` · ${esc(e.fill.sub)}` : ''}</span>`,
-    bl ? `<span class="hc loc">${esc(bl.l.site.name)} ${fmtH(bl.s.h)}${bl.gain != null ? ` (−${Math.round(bl.gain * 100)}%)` : ''}</span>` : '',
+    bl ? `<span class="hc loc">${esc(bl.l.site.name)} ≈ ${fmtH(bl.s.h)}${bl.gain != null ? ` (−${Math.round(bl.gain * 100)}%)` : ''}</span>` : '',
   ].join('');
   // setup del profilo: scelta compatta
   const cfgs = r.evals.length > 1 ? `<div class="cfgs" role="radiogroup" aria-label="${tx('Setup')}">${r.evals.map((x) => `<button class="cfg" role="radio" data-cfg="${esc(x.cfg.key)}" aria-checked="${x.cfg.key === e.cfg.key}"><span class="t">${esc(x.cfg.tag)}</span><span class="d">${x.cfg.short} · ${x.best ? fmtH(hoursOf(x.best)) : '—'}</span><span class="sc" style="color:${scoreColor(x.score)}">${x.score}</span></button>`).join('')}</div>` : '';
 
-  const planHTML = plan ? `<div class="plan-card"><div class="head"><span class="t">${esc(b.label)}</span><span class="h">${fmtH(planTot)}</span></div>
+  const planHTML = plan ? `<div class="plan-card"><div class="head"><span class="t">${esc(b.label)}</span><span class="h">≈ ${fmtH(planTot)}</span></div>
       <div class="pc-sub">${tx('qualità {q} · {cfg} a {f} · senza Luna, lungo il percorso del target in questa notte', { q: tx(QLABEL[p.session.quality] || 'buona'), cfg: esc(e.cfg.label), f: e.cfg.short })}</div>
+      <div class="indic">${tx('Tempi indicativi: stime del modello per scegliere e organizzare le notti, non garanzie. Seeing, trasparenza, calibrazione, elaborazione e il tuo livello di pulizia possono cambiarli anche del doppio.')}</div>
       ${b.deep ? `<div class="deep">${tx('Per far uscire anche l’Hα diffuso attorno ({r} R nella mappa all-sky di Finkbeiner) servono <b>{h}</b> in tutto.', { r: it(o.ha, 1), h: fmtH(planDeep) })}</div>` : ''}
-      <div class="steps">${plan.map((s) => `<div class="step${s.optional ? ' opt' : ''}"><div class="f">${esc(s.filter)}<small>${esc(s.what)}${s.optional ? ' · ' + tx('facoltativo') : s.drive ? ' · ' + tx('il tempo lo decidono:') + ' ' + esc(s.drive) : ''}</small></div><div class="h">${fmtH(s.h)}${s.hDeep > s.h * 1.15 ? `<small>${fmtH(s.hDeep)} ${tx('profondo')}</small>` : ''}</div><div class="sb">sub ${s.sub} s</div></div>`).join('')}</div>
+      <div class="steps">${plan.map((s) => `<div class="step${s.optional ? ' opt' : ''}"><div class="f">${esc(s.filter)}<small>${s.optional ? `${esc(s.what)} · ${tx('facoltativo')}` : tx('raccoglie {w}', { w: esc(s.what) }) + (s.why ? ' · ' + esc(s.why) : '')}</small></div><div class="h">${fmtH(s.h)}${s.hDeep > s.h * 1.15 ? `<small title="${esc(s.whyDeep)}">${fmtH(s.hDeep)} ${tx('profondo')}</small>` : ''}</div><div class="sb">sub ${s.sub} s</div></div>`).join('')}</div>
       ${b.panels > 1 ? `<div class="note">${tx('Tempi totali per {n} pannelli di mosaico.', { n: b.panels })}</div>` : ''}
-      <div class="note">${moonCost ? tx('Con la Luna di stanotte ne servirebbero {m}: le notti di ripresa (scheda Quando) tengono conto della Luna notte per notte.', { m: fmtH(hm) }) + ' ' : ''}${tx('Sub scelti filtro per filtro: coprono il rumore di lettura con il cielo di stanotte (Luna compresa) e restano nei valori pratici di quel tipo di filtro.')}</div>
+      <div class="note">${moonCost ? tx('Con la Luna di stanotte ne servirebbero {m}: le notti di ripresa (scheda Quando) tengono conto della Luna notte per notte.', { m: fmtH(hm) }) + ' ' : ''}${tx('Sub = durata della singola posa per quel filtro: abbastanza lunga da coprire il rumore di lettura col cielo di stanotte, entro i valori pratici del filtro (o la posa più lunga che hai indicato nel telescopio).')}</div>
       ${alts.length ? `<details class="alts"><summary>${tx('Altre strade, non da sommare')} <span class="num">(${alts.length})</span></summary>${alts.map((s) => { const c = shootCalendar(state.res.C, r, { ...e, best: s }, false); return `<div class="a"><span>${esc(s.label)}</span><b>${fmtH(hoursOf(s))}${c ? ` · ${c.done ? nNights(c.sessions) : tx('oltre un anno')}` : ''}</b></div>`; }).join('')}</details>` : ''}</div>`
     : `<p class="hint">${tx('Con i filtri di questo profilo non c’è una strategia adatta a {t}.', { t: tx(TYPES_PL[o.type]).toLowerCase() })}</p>`;
 
@@ -524,7 +525,7 @@ function renderLocCmp() {
     const cur = l.id === state.locId;
     const vis = !x ? tx('non sale sopra {a}°', { a: l.minAlt }) : x.usableH >= 0.25 ? `${fmtDur(x.usableH)} · max ${Math.round(x.maxA)}°` : tx('coperto stanotte');
     const bb = x && x.e.best, deep = bb && bb.deep ? deepHoursOf(bb) : null;
-    const plan = isFinite(h) ? `<b>${fmtH(h)}</b>${cal ? ` · ${cal.done ? nNights(cal.sessions) : tx('oltre un anno')}` : ''}${deep ? `<small>${tx('profondo')} ${fmtH(deep)}</small>` : ''}${state.cfgs.length > 1 ? `<small>${esc(x.e.cfg.tag)}</small>` : ''}` : '<b>—</b>';
+    const plan = isFinite(h) ? `<b>≈ ${fmtH(h)}</b>${cal ? ` · ${cal.done ? nNights(cal.sessions) : tx('oltre un anno')}` : ''}${deep ? `<small>${tx('profondo')} ${fmtH(deep)}</small>` : ''}${state.cfgs.length > 1 ? `<small>${esc(x.e.cfg.tag)}</small>` : ''}` : '<b>—</b>';
     return `<div class="lr${cur ? ' cur' : ''}${isFinite(h) && h === bestH && rows.length > 1 ? ' best' : ''}"><div class="n">${esc(l.site.name)}<small>SQM ${it(+l.site.sqm, 2)}${x && x.skyMag != null ? ' · ' + tx('cielo sul target {m}', { m: it(x.skyMag, 2) }) : ''}</small></div><div class="v">${vis}</div><div class="p">${plan}</div>${cur ? `<span class="here">${tx('attivo')}</span>` : `<button class="btn sm" data-loc="${esc(l.id)}">${tx('Passa qui')}</button>`}</div>`;
   }).join('');
 }

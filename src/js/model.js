@@ -978,6 +978,12 @@ function framingTip(o, fr, field) {
 /* ============================ piano e consigli ============================ */
 const KEY_LABEL = { all: 'banda larga', L: 'L', R: 'R', G: 'G', B: 'B', Ha: 'Hα', OIII: 'OIII', SII: 'SII', HaO: 'Hα+OIII' };
 const DRIVE_LABEL = { main: 'parte principale', faint: 'parti deboli', dust: 'polveri attorno', ctxHa: 'nebulosità deboli attorno', diffHa: 'Hα diffuso attorno', shell: 'guscio OIII' };
+/* a cosa servono le ore di un filtro, detto per esteso (è il requisito più lento fra quelli che quel filtro deve soddisfare) */
+const DRIVE_WHY = {
+  main: 'le ore servono ad avere pulito il corpo dell’oggetto', faint: 'le ore servono a far uscire le parti deboli (aloni, bracci esterni)',
+  dust: 'le ore servono a far uscire le polveri attorno', ctxHa: 'le ore servono a far uscire le nebulosità deboli attorno',
+  diffHa: 'le ore servono a far uscire l’Hα diffuso attorno', shell: 'le ore servono a far uscire il guscio esterno in OIII',
+};
 /* Piano di ripresa: un passo per filtro con ore e sub. Si usa una sola strategia, non tutti i filtri che hai:
    l'unica aggiunta è la banda larga per le stelle quando il piano OSC è solo in banda stretta. */
 function planOf(s, cfg, mode = 'dark') {
@@ -986,12 +992,12 @@ function planOf(s, cfg, mode = 'dark') {
   const rows = s.steps.map((st) => ({
     filter: fname(st.f), what: st.purpose === 'dust' ? tx('polveri e stelle') : st.keys.map((k) => tx(KEY_LABEL[k])).join(' + '),
     h: pick(st[k], st.hI), hDeep: pick(st[kd], st.hID),
-    sub: st.subs.map((x) => x.s).reduce((a, b) => Math.max(a, b), 0), drive: tx(DRIVE_LABEL[st.drive] || ''), driveDeep: tx(DRIVE_LABEL[st.driveDeep] || ''),
+    sub: st.subs.map((x) => x.s).reduce((a, b) => Math.max(a, b), 0), drive: tx(DRIVE_LABEL[st.drive] || ''), driveDeep: tx(DRIVE_LABEL[st.driveDeep] || ''), why: tx(DRIVE_WHY[st.drive] || ''), whyDeep: tx(DRIVE_WHY[st.driveDeep] || ''),
   }));
   const star = cfg.strategies.starFilter;
   if (s.lineOnly && !s.hybrid && star) {
     const tot = rows.reduce((a, r) => a + r.h, 0);
-    const h = clamp(tot * 0.1, 1, 4); rows.push({ filter: fname(star), what: tx('stelle a colori'), h, hDeep: h, sub: 60, optional: true, drive: '' });
+    const h = clamp(tot * 0.1, 1, 4); rows.push({ filter: fname(star), what: tx('per il colore delle stelle'), h, hDeep: h, sub: 60, optional: true, drive: '' });
   }
   return rows;
 }
