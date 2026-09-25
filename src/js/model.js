@@ -352,7 +352,7 @@ function buildStrategies(camType, ownedIds) {
     const duo = owned.find((f) => f.kind === 'multi' && f.for === 'both');
     if (duo) S.push({ id: 'duo-mono', label: `${fname(duo)} (${tx('Hα+OIII insieme')})`, short: 'HO', suits: 'line', pal: 'ha', penalty: 1.3, steps: [{ f: duo, ch: [channelSpec(duo, 'mono', ['Ha', 'OIII', 'Hb'], { key: 'HaO' })] }] });
     if (!S.length) { const f = { id: 'nofilter', name: tx('senza filtri'), brand: 'Generico', bands: [[400, 700, 1]] }; S.push({ id: 'none', label: tx('Senza filtri'), short: 'L', suits: 'all', pal: 'mono', penalty: 1.35, steps: [one(f, 'L', 'all', 1)] }); }
-    S.starFilter = null;
+    S.starFilter = R && G && B ? { id: 'rgb-stars', brand: 'Generico', name: 'R + G + B', kind: 'bb', bands: [[400, 700, 1]] } : null;
   }
   S.forEach((s) => { s.chs = s.steps.flatMap((st) => st.ch); });
   return S;
@@ -495,7 +495,16 @@ function skyModel(site) {
 const F0 = 1000, MOON0 = Math.pow(10, -0.4 * 17.8);
 /* Qualità = SNR per elemento di risoluzione (il più grande tra pixel e 2″) sulla luminosità media dell'oggetto
    e sulle sue parti deboli (FAINT_DELTA mag più deboli); il contesto di polveri va portato al SNR "debole". */
-const QUALITY = { quick: { main: 12, faint: 3 }, good: { main: 20, faint: 5 }, great: { main: 30, faint: 8 } };
+/* SNR per elemento di risoluzione. La parte principale "buona" a 40 (≈ 20 per pixel a 1″/px): con 20 un'immagine è
+   ancora rumorosa, e NGC 281 usciva in 35 min contro le 4–5 h che servono davvero. Parti deboli e polveri restano ai
+   livelli tarati sulle riprese reali (Cocoon, WR 134). */
+const QUALITY = { quick: { main: 25, faint: 3 }, good: { main: 40, faint: 5 }, great: { main: 60, faint: 8 } };
+/* oggetti oltre 40′: la loro LS media è dominata dalle zone deboli e si guardano rimpiccioliti; la richiesta sulla parte
+   principale scende fino a metà per i più grandi */
+const sizeK = (o) => clamp(Math.sqrt(40 / Math.max(o.a, 1)), 0.5, 1);
+/* galassie: la LS di catalogo è la media dentro l'isofota 25, dominata dal disco esterno; il corpo che si guarda è
+   ~0,75 mag più luminoso (i bracci esterni restano le parti deboli, a +1,5) */
+const MAIN_DELTA = { Gx: -0.75 };
 const FAINT_DELTA = { Gx: 1.5, EN: 1.0, PN: 4.5, SNR: 0.7, RN: 1.0, DN: 0, OC: 0, GC: 0 }; // PN: gli aloni esterni sono 4–5 mag sotto il corpo
 /* la polvere è una struttura grande e liscia: si valuta a LS ≥ 25 e con 1,6× il SNR "debole" per non uscire a chiazze */
 const DUST_SB = 25.0, DUST_SNR = 1.6;
@@ -584,7 +593,7 @@ for (const t of Object.keys(LINES)) OBJ_LINES[t] = objLines(t).map((x, i) => [x[
    dell'oggetto, luce lunare). T: cielo al transito senza Luna, per il tempo "ideale". */
 function evalStrategies(o, S, K, U, Q, T, field) {
   const lines = LINES[o.lk];
-  const qMain = o.type === 'DN' ? Q.faint * DUST_SNR : Q.main * (TYPE_SNR[o.type] || 1), sbMain = o.type === 'DN' ? Math.max(o.sb, DUST_SB) : o.sb;
+  const qMain = o.type === 'DN' ? Q.faint * DUST_SNR : Q.main * (TYPE_SNR[o.type] || 1) * sizeK(o), sbMain = o.type === 'DN' ? Math.max(o.sb, DUST_SB) : o.sb + (MAIN_DELTA[o.type] || 0);
   const dust = dustOf(o, field);
   const faintHa = field.ctx.filter((c) => c.type === 'EN').sort((a, b) => a.sb - b.sb)[0];
   const bbS = S.find((s) => s.suits === 'all');
@@ -603,7 +612,7 @@ function evalStrategies(o, S, K, U, Q, T, field) {
     s.steps.forEach((st) => st.ch.forEach((c) => {
       const R = [];
       if (st.purpose !== 'dust') {
-        const w = c.target === 'all' ? 1 : clamp(Math.sqrt(chanStrength(c, o.lk) / smax), 0.35, 1);
+        const w = c.target === 'all' ? 1 : clamp(Math.pow(chanStrength(c, o.lk) / smax, 0.75), 0.25, 1); // le righe deboli si accettano più rumorose, come in elaborazione
         R.push({ S: chanSignal(c, o.lk, sbMain, K), snr: qMain * w * (c.snr || 1), what: 'main' });
         if (FAINT_DELTA[o.type] > 0) R.push({ S: chanSignal(c, o.lk, o.sb + FAINT_DELTA[o.type], K), snr: Q.faint * w * (c.snr || 1), what: 'faint' });
         if (faintHa && (c.target === 'all' || c.target.includes('Ha'))) R.push({ S: chanSignal(c, 'EN', faintHa.sb, K), snr: Q.faint * (c.snr || 1), what: 'ctxHa' });
@@ -683,9 +692,25 @@ function evalStrategies(o, S, K, U, Q, T, field) {
 /* Sotto un cielo non buio l'emissione si riprende in banda stretta (la banda larga resta per stelle e polveri):
    il solo SNR premierebbe la banda larga quando le polveri la rendono comunque necessaria, ma il contrasto delle
    strutture in Hα/OIII sotto l'inquinamento luminoso non lo misura. */
-function pickBest(strat, preferLine) {
-  const pool = preferLine && strat.some((s) => s.lineOnly) ? strat.filter((s) => s.lineOnly) : strat;
-  let best = null; for (const s of pool) { const k = (isFinite(s.tonight) ? s.tonight : s.ideal) * s.penalty; if (!best || k < best._k) { best = s; best._k = k; } } return best;
+/* Scelta della strategia. Oggetti a emissione (nebulose, resti di supernova, planetarie, bolle WR): se ci sono filtri a
+   banda stretta si usa la banda stretta, anche sotto un cielo buio (la banda larga resta per le stelle, facoltativa, o per
+   le polveri attorno). Fra le strade in banda stretta si preferisce quella che raccoglie tutte le righe importanti
+   dell'oggetto (SHO dove c'è SII, HOO nelle planetarie), purché non costi più di 8 volte la più rapida (su una camera a
+   colori l'SII passa solo dai pixel rossi ed è debole: costa, ma è la combinazione giusta). Il resto: tempo
+   senza Luna × penalità. */
+const LINE_KEYS = { Ha: ['Ha'], OIII: ['OIII'], SII: ['SII'], HaO: ['Ha', 'OIII'] };
+function linesOf(lk) { const L = LINES[lk]; if (!L) return []; const m = Math.max(L.Ha, L.OIII, L.SII); return ['Ha', 'OIII', 'SII'].filter((g) => L[g] >= 0.12 * m); }
+function pickBest(strat, o) {
+  const cost = (s) => hoursOf(s) * s.penalty;
+  const need = linesOf(o.lk), line = need.length ? strat.filter((s) => s.lineOnly) : [];
+  const pool = line.length ? line : strat;
+  let best = null; for (const s of pool) if (!best || cost(s) < cost(best)) best = s;
+  if (line.length && best && need.length > 1) {
+    const covers = (s) => { const got = new Set(s.steps.flatMap((st) => st.keys.flatMap((k) => LINE_KEYS[k] || []))); return need.every((g) => got.has(g)); };
+    let full = null; for (const s of pool) if (covers(s) && (!full || cost(s) < cost(full))) full = s;
+    if (full && cost(full) <= 8 * cost(best)) best = full;
+  }
+  return best;
 }
 /* mosaico: ogni pannello richiede lo stesso tempo */
 function scalePanels(strat, n) {
@@ -736,7 +761,7 @@ function computeObj(C, o) {
   const evals = cfgs.map((cfg, ci) => {
     const fill = fillInfo(o, cfg.geom, field);
     const strat = scalePanels(evalStrategies(o, cfg.strategies, consts[ci], U, Q, T, field), fill.nx * fill.ny);
-    const best = pickBest(strat, !!LINES[o.lk] && sky.sqm < 21);
+    const best = pickBest(strat, o);
     let effort = 0.05; if (best) { const n = isFinite(best.nights) ? best.nights : 99; effort = n <= 1 ? 1 : 1 / Math.sqrt(n); }
     const score = vis > 0 ? Math.round(100 * Math.pow(fill.score, 0.45) * Math.pow(vis, 0.35) * Math.pow(effort, 0.3)) : 0;
     return { cfg, ci, strat, best, fill, effort, score, K: consts[ci] };
@@ -964,7 +989,7 @@ function planOf(s, cfg, mode = 'dark') {
     sub: st.subs.map((x) => x.s).reduce((a, b) => Math.max(a, b), 0), drive: tx(DRIVE_LABEL[st.drive] || ''), driveDeep: tx(DRIVE_LABEL[st.driveDeep] || ''),
   }));
   const star = cfg.strategies.starFilter;
-  if (s.lineOnly && !s.hybrid && star && cfg.profile.camera.type !== 'mono') {
+  if (s.lineOnly && !s.hybrid && star) {
     const tot = rows.reduce((a, r) => a + r.h, 0);
     const h = clamp(tot * 0.1, 1, 4); rows.push({ filter: fname(star), what: tx('stelle a colori'), h, hDeep: h, sub: 60, optional: true, drive: '' });
   }

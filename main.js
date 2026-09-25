@@ -131,7 +131,7 @@ function smokeTest(win, out) {
         const hints = state.filtered.slice(0, 60).filter((r) => betterLoc(r)).length, r0 = state.filtered[0]; openDetail(r0.o.id);
         const out = { luoghi: state.locs.length, pending: cmp.pending, suggerimenti: hints, righe: document.querySelectorAll('#locCmp .lr').length, pannello: !$('#locs').hidden };
         closeDetail(); state.locs = saved; refresh(true); return out; } catch (e) { return { err: e.stack }; } })()`);
-      if (locs.err || locs.righe !== 2 || locs.pending) throw new Error('confronto luoghi ' + JSON.stringify(locs));
+      if (locs.err || locs.righe !== locs.luoghi || locs.pending) throw new Error('confronto luoghi ' + JSON.stringify(locs));
       await win.webContents.executeJavaScript(`closeDetail(); openLocEditor(state.locId); setGeo(41.9109, 12.4764, 'Roma, Piazza del Popolo', 12);`);
       // la mappa all-sky di lightpollutionmap arriva in 10–20 s
       for (let i = 0; i < 60; i++) { await wait(1000); if (await win.webContents.executeJavaScript(`!lpmBusy && !!draft.site.skyMap`)) break; }

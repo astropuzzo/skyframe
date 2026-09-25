@@ -62,10 +62,14 @@ Riferimenti di taratura, tutti con OSC e 800 mm f/5 sotto SQM 19,3 salvo dove in
 
 | Target | Skyframe | Immagine reale |
 | --- | --- | --- |
-| Cocoon (IC 5146 + B 168), L-eXtreme + banda larga | 56 h base, 95 h profondo | 100 h (65 banda larga + 35 banda stretta) |
-| WR 134, L-eXtreme + L-Synergy | 101 h (50 + 50), guidate dal guscio OIII | ≈ 95 h tra HOO e SII+OIII per un SNR discreto |
+| Cocoon (IC 5146 + B 168), L-eXtreme + banda larga | 59 h base, 95 h profondo | 100 h (65 banda larga + 35 banda stretta) |
+| Cocoon, L-eXtreme + L-Synergy + banda larga | 67 h base, 103 h profondo | 100 h |
+| WR 134, L-eXtreme + L-Synergy | 101 h (25 + 76) | ≈ 95 h tra HOO e SII+OIII per un SNR discreto |
+| NGC 281, 200/800 f/4, dual-band + D2, SQM 19,25 | 9 h in SHO (2,7 h col solo dual-band) | almeno 4–5 h per il corpo centrale |
 | M 31, RedCat 51, SQM 18,6–19,3 | 10–18 h | — |
-| NGC 7000, L-eXtreme | 7–12 h | — |
+| NGC 7000, L-eXtreme | 9–16 h | — |
+
+La qualità "buona" chiede SNR 40 per elemento di risoluzione sulla parte principale (≈ 20 per pixel a 1″/px) e 5 sulle parti deboli; negli oggetti oltre 40′ la richiesta sulla parte principale scende fino a metà, e nelle galassie la parte principale è il corpo (0,75 mag sopra la media di catalogo). Le righe deboli (SII in una nebulosa a emissione, Hα in una planetaria) si accettano più rumorose, in proporzione alla loro intensità. Per gli oggetti a emissione si consiglia la banda stretta anche sotto un cielo buio, e fra le combinazioni quella che raccoglie tutte le righe importanti (SHO dove c'è SII) purché non costi più di 8 volte la più rapida; un po' di banda larga per il colore delle stelle è facoltativa.
 
 Sono stime per scegliere, non promesse.
 
