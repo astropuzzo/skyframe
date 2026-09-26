@@ -191,8 +191,17 @@ const Dome = (() => {
     const o = m.r.o; tipEl.hidden = false; tipEl.style.left = m.x + 'px'; tipEl.style.top = (m.y - m.rad) + 'px';
     tipEl.innerHTML = `<b>${esc(o.id)}</b>${o.nick ? ' · ' + esc(o.nick) : ''}<small>${Math.round(m.a)}° ${azName(m.z)} · ${tx(m.blocked ? 'coperto' : 'libero')} · ${tx('punti')} ${m.r.score}</small>`;
   }
+  // passaggio morbido a un'altra ora della stessa notte: tempo interpolato con la molla, a ogni fotogramma
+  let tw = null;
+  function tweenStep(now) {
+    if (!tw) return;
+    const P = Motion.spring('snap').points, k = Math.min(P.length - 1, (now - tw.t0) / (1000 / 60)), i = Math.floor(k), p = i >= P.length - 1 ? 1 : P[i] + (P[i + 1] - P[i]) * (k - i);
+    time = tw.a + (tw.b - tw.a) * p; dirty = true; if (tw.cb) tw.cb();
+    if (p >= 1) tw = null;
+  }
   function loop(now) {
     requestAnimationFrame(loop);
+    tweenStep(now);
     if (document.hidden || !cv.offsetParent) return; // sezione nascosta: niente disegni
     const introOn = now - t0 < 1800, twinkle = !reduced() && now - lastDraw > 66;
     if (dirty || anim || introOn || twinkle) { draw(now); lastDraw = now; dirty = false; }
@@ -200,7 +209,9 @@ const Dome = (() => {
   return {
     init, onPick(fn) { pick = fn; },
     setData(d) { data = d; dirty = true; },
-    setTime(ms) { time = ms; dirty = true; },
+    setTime(ms) { tw = null; time = ms; dirty = true; },
+    // stessa notte e animazioni accese: ci si arriva girando; altrimenti subito. cb a ogni passo (orologio, lista)
+    tweenTo(ms, cb) { if (reduced() || Math.abs(ms - time) > 18 * 3600000 || Math.abs(ms - time) < 60000) { tw = null; time = ms; dirty = true; if (cb) cb(); return; } tw = { a: time, b: ms, t0: performance.now(), cb }; },
     get time() { return time; },
     setAnimating(v) { anim = v; },
     setLP(v) { lpOn = !!v; dirty = true; },

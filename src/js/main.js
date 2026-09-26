@@ -271,7 +271,7 @@ function setPlayIcon() { const b = $('#playBtn'); b.setAttribute('aria-pressed',
 function setLive() {
   state.playing = false; setPlayIcon(); Dome.setAnimating(false);
   if ($('#nightDate').value !== defaultNightStr()) { $('#nightDate').value = defaultNightStr(); state.live = true; refresh(); }
-  state.live = true; $('#liveBtn').setAttribute('aria-pressed', 'true'); Dome.setTime(Date.now()); onTime();
+  state.live = true; $('#liveBtn').setAttribute('aria-pressed', 'true'); Dome.tweenTo(Date.now(), onTime);
 }
 function togglePlay() {
   state.playing = !state.playing; state.live = false;
@@ -319,7 +319,7 @@ function wire() {
   $('#advDone').onclick = () => setAdv(false); $('#advBack').onclick = () => setAdv(false);
   $('#sortSel').value = state.sort; $('#sortSel').onchange = (e) => { state.sort = e.target.value; LS.set('sf.sort', state.sort); applyFilters(); renderList(); pushDome(); };
   let qt; $('#q').oninput = (e) => { clearTimeout(qt); qt = setTimeout(() => { state.q = e.target.value; state.page = 60; applyFilters(); renderList(); pushDome(); }, 120); };
-  $('#list').addEventListener('click', (e) => { const fv = e.target.closest('[data-fav]'); if (fv) { e.stopPropagation(); toggleFav(fv.dataset.fav); return; } const r = e.target.closest('.row[data-id]'); if (r) openDetail(r.dataset.id); });
+  $('#list').addEventListener('click', (e) => { const fv = e.target.closest('[data-fav]'); if (fv) { e.stopPropagation(); toggleFav(fv.dataset.fav); return; } const r = e.target.closest('.row[data-id]'); if (r) openDetail(r.dataset.id, r); });
   $('#list').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { const r = e.target.closest('.row[data-id]'); if (r) { e.preventDefault(); openDetail(r.dataset.id); } } });
   $('#list').addEventListener('mouseover', (e) => { const r = e.target.closest('.row[data-id]'); $$('#list .row.hl').forEach((x) => x !== r && x.classList.remove('hl')); });
   $('#backdrop').onclick = () => closeDetail();

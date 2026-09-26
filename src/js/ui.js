@@ -53,6 +53,7 @@ function setView(v, fromPop) {
   const apply = () => {
     UI.view = v; $('#app').dataset.view = v;
     $$('#nav [data-view]').forEach((b) => { if (b.dataset.view === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+    navInd(true);
     $$('.views > .view').forEach((s) => { const on = s.dataset.view === v; s.hidden = !on; if (on && !vt) { s.classList.remove('enter'); void s.offsetWidth; s.classList.add('enter'); } });
     if (v === 'tonight') { Dome.refresh(); drawStrip(); }
     if (v === 'projects') renderProjects();
@@ -69,6 +70,22 @@ function setView(v, fromPop) {
   }
   if (v === 'targets') requestAnimationFrame(() => { const s = state.sel && $(`#list .row[data-id="${CSS.escape(state.sel)}"]`); if (s) s.scrollIntoView({ block: 'nearest' }); });
 }
+/* indicatore della sezione attiva: sul telefono la pillola sotto l'icona, sul computer lo sfondo del pulsante. Scivola
+   con la molla; l'icona appena scelta fa un piccolo scatto. */
+function navInd(anim) {
+  const ind = $('#navInd'), nav = $('#nav'), b = nav && nav.querySelector('[aria-current="page"]'); if (!ind || !b) return;
+  const n = nav.getBoundingClientRect(), r = b.getBoundingClientRect(), ph = PHONE.matches;
+  const w = ph ? 54 : r.width, h = ph ? 30 : r.height, x = r.left - n.left + (r.width - w) / 2, y = r.top - n.top + (ph ? 5 : 0);
+  const from = ind._at;
+  ind.style.width = w + 'px'; ind.style.height = h + 'px'; ind.style.transform = `translate(${x}px, ${y}px)`; ind._at = [x, y];
+  if (!anim || !from || (from[0] === x && from[1] === y)) return;
+  ind.getAnimations().forEach((a) => a.cancel());
+  const mx = (from[0] + x) / 2, my = (from[1] + y) / 2, stretch = ph ? 1 + Math.min(0.6, Math.abs(x - from[0]) / 300) : 1;
+  Motion.animate(ind, [{ transform: `translate(${from[0]}px, ${from[1]}px)` }, { transform: `translate(${mx}px, ${my}px) scaleX(${stretch})`, offset: 0.35 }, { transform: `translate(${x}px, ${y}px)` }], 'snap');
+  const ic = b.querySelector('.ic'); if (ic) Motion.animate(ic, [{ transform: 'scale(.78)' }, { transform: 'none' }], 'pop');
+}
+// al primo disegno e quando cambia la misura della barra (font caricati, rotazione, passaggio telefono/computer)
+if (window.ResizeObserver && $('#nav')) new ResizeObserver(() => navInd(false)).observe($('#nav'));
 function backToTonight(fromPop) { if (fromPop === true) setView('tonight', true); }
 /* numeri che salgono fino al valore (ore, conteggi): data-to e il formato dato */
 function countUp(root) {
@@ -92,8 +109,8 @@ function openSheet({ title, body, foot, onMount, onClose, cls }) {
   let open = true;
   const key = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
   const close = (fromPop) => {
-    if (!open) return; open = false; if (fromPop !== true) backDone(close);
-    document.removeEventListener('keydown', key, true); w.classList.remove('on'); setTimeout(() => w.remove(), 280);
+    if (!open) return; open = false; if (fromPop !== true) backDone(close); // 'drag': già portato fuori col dito
+    document.removeEventListener('keydown', key, true); w.classList.remove('on'); if (fromPop === 'drag') { w.classList.add('gone'); w.remove(); } else setTimeout(() => w.remove(), 280);
     if (onClose) onClose();
   };
   document.addEventListener('keydown', key, true);
@@ -105,14 +122,36 @@ function openSheet({ title, body, foot, onMount, onClose, cls }) {
   const f = w.querySelector('.bs-body button, .bs-body select'); if (f && !PHONE.matches) f.focus({ preventScroll: true });
   return close;
 }
-/* sul telefono si chiude trascinando verso il basso dalla testata (se il contenuto è già in cima) */
-function dragToClose(panel, handle, close, scrollTop) {
-  let y0 = null, dy = 0;
-  handle.addEventListener('pointerdown', (e) => { if (!PHONE.matches || e.target.closest('button, a, input, select') || scrollTop() > 2) return; y0 = e.clientY; dy = 0; panel.style.transition = 'none'; handle.setPointerCapture(e.pointerId); });
-  handle.addEventListener('pointermove', (e) => { if (y0 == null) return; dy = Math.max(0, e.clientY - y0); panel.style.transform = `translateY(${dy}px)`; });
-  const end = () => { if (y0 == null) return; y0 = null; panel.style.transition = ''; if (dy > 90) close(); else panel.style.transform = ''; };
+/* Trascinare giù per chiudere (telefono): il pannello segue il dito; al rilascio conta anche la velocità. Un lancio
+   veloce chiude anche se corto, e il pannello esce alla velocità del dito; altrimenti torna su con una molla che parte
+   dalla stessa velocità. */
+function flingDown(panel, handle, { canStart, onClose, limit = 100 }) {
+  let y0 = null, dy = 0, S = [];
+  handle.addEventListener('pointerdown', (e) => { if (!PHONE.matches || e.target.closest('button, a, input, select') || !canStart(e)) return; y0 = e.clientY; dy = 0; S = [[e.timeStamp, 0]]; panel.getAnimations().forEach((a) => a.cancel()); });
+  handle.addEventListener('pointermove', (e) => {
+    if (y0 == null) return; dy = Math.max(0, e.clientY - y0); S.push([e.timeStamp, dy]); if (S.length > 6) S.shift();
+    if (dy > 4) { panel.classList.add('drag'); panel.style.transform = `translateY(${dy}px)`; try { handle.setPointerCapture(e.pointerId); } catch { /* niente */ } }
+  });
+  const end = () => {
+    if (y0 == null) return; y0 = null;
+    const a = S[0], b = S[S.length - 1], v = b && a && b[0] > a[0] ? (b[1] - a[1]) / (b[0] - a[0]) : 0; // px/ms
+    if (dy < 4) { panel.classList.remove('drag'); panel.style.transform = ''; return; }
+    if (dy > limit || v > 0.55) {
+      const H = innerHeight, rest = Math.max(40, H - dy);
+      const an = Motion.animate(panel, [{ transform: `translateY(${dy}px)` }, { transform: `translateY(${H}px)` }], 'snap', { v0: Math.max(0, v * 1000) / rest, fill: 'forwards' });
+      panel.style.transform = '';
+      const fin = () => { onClose(); panel.classList.remove('drag'); if (an) requestAnimationFrame(() => an.cancel()); };
+      if (an && Motion.on()) an.finished.then(fin).catch(() => {}); else fin();
+    } else {
+      panel.style.transform = '';
+      const an = Motion.animate(panel, [{ transform: `translateY(${dy}px)` }, { transform: 'translateY(0)' }], 'soft', { v0: Math.max(0, -v * 1000) / Math.max(dy, 1) });
+      // le transizioni CSS restano spente finché la molla non ha finito (non devono rincorrerla)
+      if (an && Motion.on()) an.finished.then(() => panel.classList.remove('drag')).catch(() => panel.classList.remove('drag')); else panel.classList.remove('drag');
+    }
+  };
   handle.addEventListener('pointerup', end); handle.addEventListener('pointercancel', end);
 }
+function dragToClose(panel, handle, close, scrollTop) { flingDown(panel, handle, { canStart: () => scrollTop() <= 2, onClose: () => close('drag'), limit: 90 }); }
 
 /* ---------- barra in alto: luogo, notte, attrezzatura ---------- */
 function renderTopbar() {
@@ -191,7 +230,7 @@ function renderTopList() {
         <span class="n"><span class="l1"><b>${esc(r.o.id)}</b>${r.o.nick ? `<span class="nick">${esc(r.o.nick)}</span>` : ''}</span><small>${tx(TYPES_PL[r.o.type])} · ${r.first >= 0 ? `${fmtT(n.t[r.first])}–${fmtT(n.t[r.last] + DT)}` : ''} · max ${Math.round(r.maxA)}°</small></span>
         <span class="h">${isFinite(h) ? '≈ ' + fmtH(h) : '—'}<small>${b ? esc(b.label) : ''}</small></span></button>`;
     }).join('') + `<button type="button" class="btn tl-more" data-all>${tx('Tutti i {n} di stanotte', { n: state.filtered.length })}${ic('arrow-r', 'sm')}</button>`;
-  el.onclick = (e) => { if (e.target.closest('[data-all]')) { setView('targets'); return; } const r = e.target.closest('[data-id]'); if (r) openDetail(r.dataset.id); };
+  el.onclick = (e) => { if (e.target.closest('[data-all]')) { setView('targets'); return; } const r = e.target.closest('[data-id]'); if (r) openDetail(r.dataset.id, r); };
 }
 
 /* ---------- Setup ---------- */
@@ -252,12 +291,5 @@ function setRed(v) { $('#veil').hidden = !v; $('#nightBtn').setAttribute('aria-p
 /* ---------- dettaglio: sul telefono si chiude trascinando giù ---------- */
 function wireDrawerDrag() {
   const d = $('#drawer');
-  let y0 = null, dy = 0;
-  d.addEventListener('pointerdown', (e) => {
-    if (!PHONE.matches || d.scrollTop > 2 || !e.target.closest('.d-top') || e.target.closest('button, a, input, select')) return;
-    y0 = e.clientY; dy = 0;
-  });
-  d.addEventListener('pointermove', (e) => { if (y0 == null) return; dy = Math.max(0, e.clientY - y0); if (dy > 4) { d.classList.add('drag'); d.style.transform = `translateY(${dy}px)`; } });
-  const end = () => { if (y0 == null) return; y0 = null; d.classList.remove('drag'); if (dy > 110) closeDetail(); d.style.transform = ''; };
-  d.addEventListener('pointerup', end); d.addEventListener('pointercancel', end);
+  flingDown(d, d, { canStart: (e) => d.scrollTop <= 2 && !!e.target.closest('.d-top'), onClose: () => closeDetail(false, 'drag'), limit: 110 });
 }

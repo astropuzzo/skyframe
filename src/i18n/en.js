@@ -739,4 +739,7 @@ window.I18N.en = {
   "Salta": "Skip",
   "Tempi tarati su foto vere, meteo astronomico, progetti con piano di stagione, avvisi. Un giro di un minuto?": "Times calibrated on real photos, astronomical weather, projects with a season plan, alerts. A one-minute tour?",
   "Guida rifatta: nove passi brevi, un solo movimento per passo, i gesti mostrati da un dito": "New guide: nine short steps, one movement per step, gestures shown by a finger",
+  "Il dettaglio si apre dal target toccato e ci torna quando lo chiudi": "The detail opens from the target you tap and returns there when closed",
+  "Sezioni e notti: l’indicatore scivola; la cupola ruota fino all’ora scelta": "Sections and nights: the indicator glides; the dome turns to the chosen time",
+  "Fogli e dettaglio si chiudono con un lancio verso il basso": "Sheets and the detail close with a downward flick",
 };

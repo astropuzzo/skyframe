@@ -94,7 +94,7 @@ function renderTonight() {
     const lg = ev.target.closest('[data-log]'); if (lg) { logFromPlan(lg.dataset.log); return; }
     const k = ev.target.closest('[data-skip]'); if (k) { planSkip(k.dataset.skip); toast(tx('{t} tolto dal piano', { t: k.dataset.skip })); return; }
     if (ev.target.closest('[data-reset]')) { planReset(); return; }
-    const x = ev.target.closest('[data-id]'); if (x) openDetail(x.dataset.id);
+    const x = ev.target.closest('[data-id]'); if (x) openDetail(x.dataset.id, x);
   }; };
   if (!P.blocks.length) { el.innerHTML = head + `<div class="note">${P.none === 'dark' ? tx('Stanotte niente buio astronomico.') : WX.d && wn && wn.clear < 0.15 ? tx('Coperto: niente da riprendere.') : tx('Nessun target per stanotte.')}${P.edited ? ` · <button type="button" class="link" data-reset>${tx('Ripristina')}</button>` : ''}</div>`; wire(); return; }
   // la notte in orizzontale: buio, nuvole previste (in alto), i blocchi coi nomi, l'ora scelta

@@ -22,6 +22,7 @@ const TOUR_STEPS = [
 ];
 /* novità per versione (le più recenti in cima) */
 const NEWS = [
+  { v: '0.18.0', items: ['Il dettaglio si apre dal target toccato e ci torna quando lo chiudi', 'Sezioni e notti: l’indicatore scivola; la cupola ruota fino all’ora scelta', 'Fogli e dettaglio si chiudono con un lancio verso il basso'] },
   { v: '0.17.0', items: ['Guida rifatta: nove passi brevi, un solo movimento per passo, i gesti mostrati da un dito'] },
   { v: '0.16.0', items: ['Tempi ritarati su 1205 foto vere da cieli di città', 'Foto vere: per 93 target ore, filtri e sub di chi li ha ripresi da Bortle 6–8', 'In catalogo 20 camere, 30 telescopi e 13 filtri in più; qualità «profonda»'] },
   { v: '0.15.0', items: ['Tutti i testi riscritti: più corti, in italiano e in inglese'] },

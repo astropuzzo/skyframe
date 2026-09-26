@@ -53,6 +53,7 @@ const RATE_COL = ['var(--line-3)', 'var(--ink-3)', 'var(--warn)', 'var(--accent)
 function renderNightBar() {
   const el = $('#nightBar'); if (!el || !state.res) return;
   const L = nightsAhead(), sel = $('#nightDate').value || defaultNightStr(), ref = Math.max(...L.map((x) => x.samples.length / 6));
+  const keep = el.querySelector('.nb-ind'); // la cornice sopravvive al ridisegno, con la sua corsa in atto
   el.innerHTML = L.map((x, k) => {
     const q = rateNight(x.samples, 1 / 6, x.ill, ref), d = new Date(x.t0);
     const wd = k === 0 ? tx('Stanotte') : d.toLocaleDateString(LOCALE, { weekday: 'short' }).replace('.', '');
@@ -63,12 +64,29 @@ function renderNightBar() {
       <span class="q"><b style="width:${Math.max(8, Math.round(Math.min(1, q.rel) * 100))}%;background:${RATE_COL[q.r]}"></b></span>${q.clear != null && q.clear < 0.5 ? ic('cloud', 'wx') : ''}</button>`;
   }).join('') + `<button type="button" class="nb nbm" data-more title="${tx('Scegli un’altra notte')}">${ic('cal')}<span>${tx('Altre')}</span></button>`;
   nb.lastSel = sel;
+  if (keep) el.appendChild(keep);
+  nbInd(el, el.querySelector('[aria-pressed="true"]'), false);
   el.onclick = (e) => {
     if (e.target.closest('[data-more]')) { openNightSheet(); return; }
     const b = e.target.closest('[data-t0]'); if (!b) return;
-    const t0 = +b.dataset.t0; if (dateStr(new Date(t0)) === defaultNightStr()) setLive(); else goNight(t0, true);
+    // la cornice parte subito; il calcolo della notte (pesante) aspetta che il fotogramma con la corsa sia partito
+    nbInd(el, b, true);
+    const t0 = +b.dataset.t0, go = () => { if (dateStr(new Date(t0)) === defaultNightStr()) setLive(); else goNight(t0, true); };
+    if (Motion.on()) requestAnimationFrame(() => setTimeout(go, 0)); else go();
   };
   const on = el.querySelector('[aria-pressed="true"]'); if (on) { const l = on.offsetLeft - el.clientWidth / 2 + on.offsetWidth / 2; if (Math.abs(el.scrollLeft - l) > on.offsetWidth * 2) el.scrollLeft = Math.max(0, l); }
+}
+/* cornice della notte scelta: un solo elemento che scivola da una notte all'altra (la striscia si ridisegna, la cornice
+   riparte da dove era) */
+function nbInd(bar, chip, anim) {
+  let ind = bar.querySelector('.nb-ind');
+  if (!chip) { if (ind) ind.remove(); return; }
+  if (!ind) { ind = document.createElement('span'); ind.className = 'nb-ind'; ind.setAttribute('aria-hidden', 'true'); bar.appendChild(ind); }
+  const x = chip.offsetLeft, y = chip.offsetTop, from = nbInd.at;
+  Object.assign(ind.style, { width: chip.offsetWidth + 'px', height: chip.offsetHeight + 'px', transform: `translate(${x}px, ${y}px)` });
+  nbInd.at = [x, y];
+  if (from && (from[0] !== x || from[1] !== y) && (anim || nbInd.pending)) Motion.animate(ind, [{ transform: `translate(${from[0]}px, ${from[1]}px)` }, { transform: `translate(${x}px, ${y}px)` }], 'snap');
+  nbInd.pending = false;
 }
 /* la notte scelta, dai passi di 5 minuti del calcolo */
 function rateSelected(n) {

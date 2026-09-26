@@ -259,24 +259,67 @@ function renderList() {
 }
 function refreshNowCells() { $$('#list .row[data-id]').forEach((el) => { const r = state.byId.get(el.dataset.id); if (r) el.querySelector('.c-now').innerHTML = nowCell(r); }); }
 
-/* ============================ dettaglio ============================ */
-function openDetail(id) {
+/* ============================ dettaglio ============================
+   Si apre dall'elemento toccato (riga della lista, blocco del piano, scheda di un progetto): sul telefono il foglio cresce
+   dal suo rettangolo (clip-path), sul computer il pannello parte dalle sue misure e si allarga; il contenuto entra quando
+   il contenitore è quasi al suo posto. Sul telefono chiudendolo torna nella riga, se è ancora sullo schermo. */
+const DETAIL = { src: null };
+function openDetail(id, srcEl) {
   const r = state.byId.get(id); if (!r) return;
   state.sel = id; state.selCfg = r.e.cfg.key; state.rotFor = null; renderDetail.last = null;
   renderDetail(); const d = $('#drawer'), bd = $('#backdrop'); freshAnim(d);
   // anche se si stava ancora chiudendo (riaperto subito dopo): il passo per il tasto indietro ci dev'essere
   if (!Back.stack.includes(closeDetail)) backPush(closeDetail);
+  DETAIL.src = srcEl || null;
+  const from = srcEl && srcEl.isConnected && Motion.on() ? srcEl.getBoundingClientRect() : null;
   const on = () => { d.classList.add('on'); bd.classList.add('on'); };
-  if (d.hidden) { d.hidden = false; bd.hidden = false; requestAnimationFrame(on); } else on();
+  if (DETAIL.anim) { DETAIL.anim.forEach((a) => a.cancel()); DETAIL.anim = null; }
+  if (d.hidden || !d.classList.contains('on')) {
+    d.hidden = false; bd.hidden = false;
+    if (from && from.width > 20 && from.height > 10) { d.classList.add('morph'); on(); d.scrollTop = 0; morphOpen(d, from); requestAnimationFrame(() => d.classList.remove('morph')); }
+    else requestAnimationFrame(on);
+  } else on();
   d.scrollTop = 0; d.focus({ preventScroll: true });
   $$('#list .row.sel').forEach((el) => el.classList.remove('sel')); const row = $(`#list .row[data-id="${CSS.escape(id)}"]`); if (row) row.classList.add('sel');
   pushDome(); drawStrip();
 }
-function closeDetail(fromPop) {
+const insetOf = (r, to, rad) => `inset(${(r.top - to.top).toFixed(1)}px ${(to.right - r.right).toFixed(1)}px ${(to.bottom - r.bottom).toFixed(1)}px ${(r.left - to.left).toFixed(1)}px round ${rad}px)`;
+function morphOpen(d, from) {
+  const to = d.getBoundingClientRect(), A = [];
+  if (PHONE.matches) A.push(Motion.animate(d, [{ clipPath: insetOf(from, to, 14) }, { clipPath: insetOf(to, to, 0) }], 'soft'));
+  else A.push(Motion.animate(d, [{ transformOrigin: '0 0', borderRadius: '14px', transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width}, ${from.height / to.height})` }, { transformOrigin: '0 0', borderRadius: '0px', transform: 'none' }], 'soft'));
+  // il contenitore parte un tono più chiaro (come la riga sotto il dito) e scende al colore del pannello
+  A.push(Motion.animate(d, [{ backgroundColor: '#1B2638' }, { backgroundColor: getComputedStyle(d).backgroundColor }], 'snap'));
+  [...d.children].forEach((k, i) => A.push(Motion.animate(k, [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }], 'soft', { delay: 110 + Math.min(i, 5) * 28, fill: 'backwards' })));
+  DETAIL.anim = A;
+}
+/* dove rientra il dettaglio: l'elemento da cui si è aperto, o un altro dello stesso target nella sezione visibile */
+function detailHome() {
+  let el = DETAIL.src;
+  if (!el || !el.isConnected || !el.offsetParent) el = state.sel ? $(`.view:not([hidden]) [data-id="${CSS.escape(state.sel)}"]`) : null;
+  if (!el || !el.offsetParent) return null;
+  const r = el.getBoundingClientRect(); return r.bottom > 40 && r.top < innerHeight - 40 && r.width > 20 ? r : null;
+}
+/* how: 'drag' = già portato fuori col dito (niente altra animazione) */
+function closeDetail(fromPop, how) {
   const d = $('#drawer'), bd = $('#backdrop'); if (d.hidden) return;
   if (fromPop !== true) backDone(closeDetail);
-  d.classList.remove('on'); bd.classList.remove('on');
-  setTimeout(() => { if (!d.classList.contains('on')) { d.hidden = true; bd.hidden = true; } }, 300);
+  if (DETAIL.anim) { DETAIL.anim.forEach((a) => a.cancel()); DETAIL.anim = null; }
+  const home = how !== 'drag' && PHONE.matches && Motion.on() ? detailHome() : null;
+  bd.classList.remove('on');
+  const kids = [];
+  const done = () => { kids.forEach((a) => a.cancel()); if (!d.classList.contains('on')) { d.hidden = true; bd.hidden = true; d.classList.remove('morph'); d.style.transform = ''; } };
+  if (how === 'drag') { d.classList.add('morph'); d.classList.remove('on'); done(); return; }
+  if (home) {
+    const to = d.getBoundingClientRect();
+    [...d.children].forEach((k) => kids.push(Motion.animate(k, [{ opacity: 1 }, { opacity: 0 }], 'snap', { duration: 120, fill: 'forwards' })));
+    const a = Motion.animate(d, [{ clipPath: insetOf(to, to, 0) }, { clipPath: insetOf(home, to, 14) }], 'snap', { fill: 'forwards' });
+    d.classList.remove('on'); d.classList.add('morph');
+    a.finished.then(() => { a.cancel(); done(); }).catch(() => {});
+    return;
+  }
+  d.classList.remove('on');
+  setTimeout(done, 300);
 }
 function curEval(r) { return r.evals.find((e) => e.cfg.key === state.selCfg) || r.e; }
 /* Dettaglio di un target: in alto (fisso) nome, punteggio, riassunto e quattro schede; sotto solo la scheda scelta.
@@ -615,7 +658,7 @@ function goNight(t0, quiet) {
 function setTimeFromChart(i) {
   const n = state.res.night; state.live = false; state.playing = false; Dome.setAnimating(false);
   $('#liveBtn').setAttribute('aria-pressed', 'false'); setPlayIcon();
-  Dome.setTime(n.t[clamp(i, n.w0, n.w1)]); onTime();
+  Dome.tweenTo(n.t[clamp(i, n.w0, n.w1)], onTime);
 }
 function chartTip(box, html, x, y) {
   let tip = box.querySelector('.ctip'); if (!tip) { tip = document.createElement('div'); tip.className = 'ctip'; box.appendChild(tip); }

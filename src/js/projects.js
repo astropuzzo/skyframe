@@ -155,7 +155,7 @@ function renderProjects() {
     if (e.target.closest('[data-go]')) { setView('targets'); return; }
     const f = e.target.closest('[data-fav]'); if (f) { e.stopPropagation(); toggleFav(f.dataset.fav); return; }
     if (e.target.closest('#pvSeason')) return;
-    const c = e.target.closest('[data-id]'); if (c) openDetail(c.dataset.id);
+    const c = e.target.closest('[data-id]'); if (c) openDetail(c.dataset.id, c);
   };
   el.onkeydown = (e) => { if (e.key !== 'Enter' && e.key !== ' ') return; const c = e.target.closest('.pc[data-id]'); if (c) { e.preventDefault(); openDetail(c.dataset.id); } };
   countUp($('#projView .pv-stats'));
@@ -171,7 +171,7 @@ function renderProjects() {
     $('#pvSeason').onclick = (e) => {
       const pm = e.target.closest('[data-pm]'); if (pm) { PM.m = Math.max(0, PM.m + +pm.dataset.pm); $('#pvSeason .month-card').outerHTML = monthHTML(P); return; }
       const c = e.target.closest('.pm[data-k]'); if (c) { openSeasonNight(P, +c.dataset.k); return; }
-      const r = e.target.closest('[data-id]'); if (r) { e.stopPropagation(); openDetail(r.dataset.id); }
+      const r = e.target.closest('[data-id]'); if (r) { e.stopPropagation(); openDetail(r.dataset.id, r); }
     };
   });
   fillYear(seasonTargets());
