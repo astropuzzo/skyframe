@@ -1,29 +1,28 @@
 'use strict';
 /* ============================ guida ============================
-   Un giro passo passo delle funzioni: una scheda con due righe di testo e, sotto, l'elemento dell'app illuminato (il
-   resto si scurisce). Parte da sola al primo avvio; chi aveva già Skyframe riceve la proposta del giro; a ogni
-   aggiornamento con funzioni nuove, le «Novità» e un giro solo dei passi nuovi. Si riprende da Setup → Guida.
-   Ogni passo dice in quale sezione sta, cosa illuminare e, se serve, apre il dettaglio di un target d'esempio.
-   v = versione in cui il passo è comparso: il giro delle novità mostra quelli più nuovi dell'ultima versione vista. */
+   Un giro breve: una scheda ancorata (in basso sul telefono, in un angolo sul computer) e un faro che illumina un
+   elemento dell'app. Coreografia fissa, un solo movimento per passo:
+     1. il testo esce, sotto un velo la scena si prepara (sezione, dettaglio, scorrimento: tutto istantaneo);
+     2. appena l'elemento sta fermo il faro ci scivola sopra con una molla critica (senza rimbalzi né ritorni),
+        e il testo nuovo entra;
+     3. dove serve un gesto (toccare, trascinare) un dito lo mostra, due volte.
+   Parte da sola al primo avvio; chi aveva già Skyframe riceve la proposta; dopo un aggiornamento le «Novità» e i passi
+   nuovi. Si riprende da Setup → Guida. v = versione in cui il passo è comparso. */
 const TOUR_STEPS = [
-  { v: '0.13.0', hero: true, t: 'Benvenuto in Skyframe', d: 'Ti dice cosa riprendere stanotte dal tuo luogo e con la tua attrezzatura, quante ore servono e in quali notti. Un giro di due minuti: puoi saltarlo e riprenderlo da Setup.' },
-  { v: '0.13.0', view: 'tonight', sel: '#locChip', t: 'Il tuo luogo', d: 'Tutto parte da qui: cielo, orizzonte e meteo del punto da cui riprendi. Puoi salvarne più d’uno (terrazzo, sito buio) e Skyframe li confronta.', cta: ['Imposta il mio luogo', () => openLocEditor(state.locId)], when: () => activeLoc().site.example },
-  { v: '0.13.0', view: 'tonight', sel: '#profChip', t: 'La tua attrezzatura', d: 'Camera, telescopi con correttori e riduttori, e i filtri che hai davvero: le ore si calcolano su questi.', cta: ['Imposta l’attrezzatura', () => openEditor(state.activeId)], when: () => activeProfile().unsaved },
-  { v: '0.13.0', view: 'tonight', sel: '#nightBar', t: 'Le prossime notti', d: 'Per ognuna la Luna, il meteo previsto e un voto. Tocca una notte per vederla; «Altre» apre il calendario con le fasi.' },
-  { v: '0.13.0', view: 'tonight', sel: '#facts', t: 'La notte in breve', d: 'Il voto, cosa conviene fare e i dati che contano: buio, Luna, meteo, cielo. Tocca il meteo per vederlo ora per ora.' },
-  { v: '0.13.0', view: 'tonight', sel: '.skycard', t: 'Il cielo dal tuo luogo', d: 'I target migliori sulla cupola, col tuo orizzonte. Trascina la striscia sotto per cambiare ora, o scorri tutta la notte.' },
-  { v: '0.13.0', view: 'tonight', sel: '#tonight', t: 'Il piano della notte', d: 'I tuoi target in fila nelle ore buie e serene, ognuno quando è più alto. Puoi togliere un target, e a notte iniziata registrare la sessione con un tocco.' },
-  { v: '0.13.0', view: 'targets', sel: '.bar', t: 'Tutti i target', d: 'Oltre duemila oggetti: cerca, ordina e filtra per tipo, catalogo, ore, inquadratura. La stella accanto al nome li mette nei tuoi preferiti.' },
-  { v: '0.13.0', detail: 'piano', sel: '#scen', t: 'Quanto ci vuole', d: 'Le ore di posa col cielo senza Luna e, per ogni modo di riprendere e per ogni tuo luogo, quante ore, quante notti e quando finisci. Il modo che scegli vale in tutta l’app.' },
-  { v: '0.13.0', detail: 'quando', sel: '.tcal', t: 'Le notti del target', d: 'Sei settimane: quali notti usare, quanto lavoro fa ognuna e quando finisci. Tocca una notte per aprirla.' },
-  { v: '0.13.0', detail: 'piano', sel: '#proj', t: 'Il tuo progetto', d: 'Mettilo tra i preferiti e registra le notti che fai: Skyframe tiene il conto e ricalcola quanto manca.' },
-  { v: '0.13.0', view: 'sky', sel: '#skyView .sk-nights', t: 'Il meteo astronomico', d: 'Nuvole da sette modelli insieme, probabilità di sereno, seeing, trasparenza, condensa e vento. Sotto: la notte ora per ora e i modelli a confronto.' },
-  { v: '0.13.0', view: 'projects', sel: '#projView', t: 'I tuoi progetti', d: 'Il piano di stagione divide le prossime notti fra tutti i tuoi preferiti; il calendario mostra chi riprendere ogni notte; le stagioni dicono quando rende ognuno.' },
-  { v: '0.13.0', view: 'setup', sel: '#stAlerts', t: 'Avvisi', d: 'Stasera si scatta, notte ottima in arrivo, il meteo è cambiato, fine stagione: scegli quali ricevere e con quanto anticipo.' },
-  { v: '0.13.0', view: 'setup', sel: '#stGuide', hero: true, t: 'Buone notti serene', d: 'Questa guida e le novità di ogni versione le ritrovi qui, in Setup.' },
+  { id: 'benvenuto', v: '0.13.0', view: 'tonight', hero: true, t: 'Skyframe', d: 'Cosa riprendere stanotte, quante ore servono, in quali notti. Dal tuo luogo, con la tua attrezzatura.' },
+  { id: 'luogo', v: '0.13.0', view: 'tonight', sel: ['#locChip', '#nightChip', '#profChip'], t: 'Luogo, notte, attrezzatura', d: 'Ogni stima parte da qui. Puoi salvare più luoghi e più setup.',
+    cta: () => (activeLoc().site.example ? ['Imposta il luogo', () => openLocEditor(state.locId)] : activeProfile().unsaved ? ['Imposta l’attrezzatura', () => openEditor(state.activeId)] : null) },
+  { id: 'notti', v: '0.13.0', view: 'tonight', sel: '#nightBar', hint: ['#nightBar > :nth-child(2)', 'tap'], t: 'Le notti', d: 'Due settimane, con Luna e meteo. Toccane una per pianificarla.' },
+  { id: 'cielo', v: '0.13.0', view: 'tonight', sel: '.skycard', anchor: 'bottom', hint: ['.skycard .clock', 'drag'], t: 'Il tuo cielo', d: 'I target migliori sulla cupola, con il tuo orizzonte. Trascina per cambiare ora.' },
+  { id: 'piano', v: '0.13.0', view: 'tonight', sel: '#tonight', t: 'Il piano', d: 'Chi riprendere e quando, nelle ore buie e serene.' },
+  { id: 'quanto', v: '0.13.0', detail: 'piano', sel: '#scen', t: 'Quanto ci vuole', d: 'Ore, notti e data di fine, per ogni filtro e ogni luogo.' },
+  { id: 'fotovere', v: '0.16.0', detail: 'piano', sel: '.real-card', hint: ['.real-card .rbar .me', 'ping'], when: () => !!(window.REAL && REAL.o[(tourSample() || {}).id]), t: 'Foto vere', d: 'Le ore di chi l’ha ripreso da un cielo come il tuo. Il punto verde è la tua stima.' },
+  { id: 'meteo', v: '0.13.0', view: 'sky', sel: '#skyView .sk-nights', t: 'Meteo', d: 'Sette modelli, seeing, trasparenza e condensa, notte per notte.' },
+  { id: 'progetti', v: '0.13.0', view: 'projects', sel: '#projView', t: 'Progetti', d: 'Una stella su un target e le notti si dividono fra i tuoi preferiti. La guida resta in Setup.' },
 ];
 /* novità per versione (le più recenti in cima) */
 const NEWS = [
+  { v: '0.17.0', items: ['Guida rifatta: nove passi brevi, un solo movimento per passo, i gesti mostrati da un dito'] },
   { v: '0.16.0', items: ['Tempi ritarati su 1205 foto vere da cieli di città', 'Foto vere: per 93 target ore, filtri e sub di chi li ha ripresi da Bortle 6–8', 'In catalogo 20 camere, 30 telescopi e 13 filtri in più; qualità «profonda»'] },
   { v: '0.15.0', items: ['Tutti i testi riscritti: più corti, in italiano e in inglese'] },
   { v: '0.14.0', items: ['Logo nuovo all’avvio: dal campo stellare allo scatto sul target', 'Animazioni: in Setup scegli se seguire il sistema o averle sempre'] },
@@ -37,91 +36,193 @@ const NEWS = [
   { v: '0.7.0', items: ['Interfaccia nuova a sezioni, le prossime 14 notti, icona nuova'] },
 ];
 const verNum = (v) => String(v || '0').split('.').reduce((a, x) => a * 1000 + (+x || 0), 0);
-const TOUR = { steps: [], i: 0, el: null, raf: 0, resume: null, target: null };
+/* target: gli elementi da illuminare (null = nessuno, scheda al centro); ready: la scena è pronta e il faro può muoversi;
+   rec: registro dei fotogrammi per le prove (faro e scheda, uno per fotogramma) */
+const TOUR = { steps: [], i: 0, el: null, raf: 0, resume: null, target: null, ready: false, seq: 0, hole: null, card: null, rec: null, t0: 0 };
 
 function tourStart(steps, i0 = 0) {
   steps = steps.filter((s) => !s.when || s.when()); if (!steps.length) return;
   if (TOUR.el) tourClose();
-  const el = document.createElement('div'); el.className = 'tour'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
-  el.innerHTML = `<div class="tour-hole" hidden></div><div class="tour-card"></div>`;
-  document.body.appendChild(el); TOUR.el = el; TOUR.steps = steps;
+  const el = document.createElement('div'); el.className = 'tour veil'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
+  el.innerHTML = `<div class="tour-hole" hidden></div><div class="tour-veil"></div><div class="tour-finger" hidden><i></i></div>
+    <div class="tour-card"><div class="tour-top"><span class="tour-n"></span><button type="button" class="link" data-t="skip"></button></div><div class="tour-body"></div>
+    <div class="tour-bar"><i></i></div><div class="tour-acts"></div></div>`;
+  document.body.appendChild(el); TOUR.el = el; TOUR.steps = steps; TOUR.i = -1;
+  TOUR.hole = Motion.follower(4, 'glide'); TOUR.card = Motion.follower(2, 'glide'); TOUR.last = 0;
   el.addEventListener('click', (e) => {
     const b = e.target.closest('[data-t]'); if (!b) return;
     const a = b.dataset.t;
     if (a === 'next') tourGo(TOUR.i + 1); else if (a === 'prev') tourGo(TOUR.i - 1); else if (a === 'skip') tourEnd();
-    else if (a === 'cta') { const st = TOUR.steps[TOUR.i]; TOUR.resume = { steps: TOUR.steps, i: TOUR.i + 1 }; tourClose(); st.cta[1](); }
+    else if (a === 'cta') { const c = tourCta(TOUR.steps[TOUR.i]); TOUR.resume = { steps: TOUR.steps, i: TOUR.i + 1 }; tourClose(); if (c) c[1](); }
   });
+  tourSwipe(el.querySelector('.tour-card'));
   document.addEventListener('keydown', tourKey, true);
   backPush(tourBack);
+  UI.noVT = true; // durante la guida le sezioni cambiano all'istante, sotto il velo
   tourGo(i0);
-  const loop = () => { if (!TOUR.el) return; tourPlace(); TOUR.raf = requestAnimationFrame(loop); }; TOUR.raf = requestAnimationFrame(loop);
+  const loop = (t) => { if (!TOUR.el) return; tourFrame(t); TOUR.raf = requestAnimationFrame(loop); }; TOUR.raf = requestAnimationFrame(loop);
 }
+const tourCta = (st) => (st && st.cta ? (typeof st.cta === 'function' ? st.cta() : st.cta) : null);
 function tourKey(e) {
   if (!TOUR.el) return;
   if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); tourEnd(); } else if (e.key === 'ArrowRight') tourGo(TOUR.i + 1); else if (e.key === 'ArrowLeft') tourGo(TOUR.i - 1);
 }
+/* sul telefono: scorrere la scheda di lato va avanti o indietro */
+function tourSwipe(card) {
+  let x0 = null, y0 = 0;
+  card.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; x0 = e.clientX; y0 = e.clientY; });
+  card.addEventListener('pointerup', (e) => { if (x0 == null) return; const dx = e.clientX - x0, dy = e.clientY - y0; x0 = null; if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) tourGo(TOUR.i + (dx < 0 ? 1 : -1)); });
+}
 function tourBack(fromPop) { if (fromPop === true) tourEnd(true); }
 /* chiude senza segnare la guida come vista (per riprenderla dopo l'editor) */
 function tourClose(silent) {
-  if (!TOUR.el) return; cancelAnimationFrame(TOUR.raf); TOUR.el.remove(); TOUR.el = null; TOUR.target = null;
+  if (!TOUR.el) return; cancelAnimationFrame(TOUR.raf); TOUR.el.remove(); TOUR.el = null; TOUR.target = null; TOUR.seq++; UI.noVT = false;
   document.removeEventListener('keydown', tourKey, true); if (!silent) backDone(tourBack);
 }
 function tourEnd(fromPop) {
   LS.set('sf.tourV', window.SKYFRAME_VERSION || '0'); TOUR.resume = null;
-  if (fromPop === true) { if (TOUR.el) { cancelAnimationFrame(TOUR.raf); TOUR.el.remove(); TOUR.el = null; document.removeEventListener('keydown', tourKey, true); } } else tourClose();
+  if (fromPop === true) { if (TOUR.el) { cancelAnimationFrame(TOUR.raf); TOUR.el.remove(); TOUR.el = null; TOUR.seq++; UI.noVT = false; document.removeEventListener('keydown', tourKey, true); } } else tourClose();
   if (!$('#drawer').hidden) closeDetail();
   if (UI.view !== 'tonight') setView('tonight');
 }
 /* dopo l'editor aperto da un passo, la guida riparte dal successivo */
 function tourAfterEditor() { const r = TOUR.resume; if (!r) return; TOUR.resume = null; setTimeout(() => tourStart(r.steps, r.i), 400); }
-const tourSample = () => { const L = state.filtered.filter((r) => r.e.best && r.usableH >= 1); return (L.find((r) => inMyList(r.o.id)) || L[0] || state.res.results.find((r) => r.e.best) || {}).o; };
+/* il target d'esempio del dettaglio: fra quelli visibili stanotte, prima uno dei tuoi, poi uno con le foto vere */
+const tourSample = () => {
+  const L = state.filtered.filter((r) => r.e.best && r.usableH >= 1), real = (r) => !!(window.REAL && REAL.o[r.o.id]);
+  return (L.find((r) => inMyList(r.o.id) && real(r)) || L.find(real) || L.find((r) => inMyList(r.o.id)) || L[0] || state.res.results.find((r) => r.e.best) || {}).o;
+};
+const tourEls = (st) => (st.sel ? [].concat(st.sel).map((s) => $(s)).filter((t) => t && t.offsetParent) : []);
+const frame = () => new Promise((r) => requestAnimationFrame(() => r()));
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+/* rettangolo che contiene tutti gli elementi del passo */
+function unionRect(els) {
+  let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
+  for (const e of els) { const q = e.getBoundingClientRect(); l = Math.min(l, q.left); t = Math.min(t, q.top); r = Math.max(r, q.right); b = Math.max(b, q.bottom); }
+  return { left: l, top: t, right: r, bottom: b, width: r - l, height: b - t };
+}
+/* la scena è pronta quando gli elementi restano fermi per tre fotogrammi (al massimo 900 ms: il dettaglio che entra) */
+async function settle(els, seq) {
+  let prev = null, same = 0; const t0 = performance.now();
+  while (performance.now() - t0 < 900) {
+    await frame(); if (seq !== TOUR.seq) return false;
+    const r = unionRect(els), k = `${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)},${Math.round(r.height)}`;
+    same = k === prev ? same + 1 : 0; prev = k; if (same >= 3) break;
+  }
+  return true;
+}
+/* zona libera per il faro: sotto la barra in alto (e la striscia delle notti, che resta ferma in cima a Stanotte), sopra
+   la scheda ancorata e la barra delle sezioni del telefono */
+function freeZone(els) {
+  const H = innerHeight, card = TOUR.el && TOUR.el.querySelector('.tour-card'), tb = $('.topbar'), nb = $('#nightBar');
+  let top = 8;
+  if (els && els.length && !els.some((e) => e.closest('.topbar'))) {
+    if (tb && tb.offsetParent) top = Math.max(top, tb.getBoundingClientRect().bottom + 6);
+    if (nb && nb.offsetParent && !els.includes(nb) && !els[0].closest('#drawer') && els[0].closest('#v-tonight')) top = Math.max(top, nb.getBoundingClientRect().bottom + 6);
+  }
+  if (PHONE.matches) return { top, bottom: H - (card ? card.offsetHeight : 220) - navH() - 24 };
+  return { top, bottom: H - 8 };
+}
+const navH = () => (PHONE.matches ? ($('#nav') || {}).offsetHeight || 60 : 0);
+/* porta gli elementi nella zona libera scorrendo il contenitore giusto, subito (sotto il velo) */
+function bringIntoZone(els, anchor) {
+  if (!els.length) return;
+  const z = freeZone(els), r = unionRect(els), sc = scrollParent(els[0]); if (!sc) return;
+  const room = z.bottom - z.top;
+  let d = 0;
+  if (r.height > room) d = anchor === 'bottom' ? r.bottom - z.bottom : r.top - z.top; // più alto della zona: si vede la cima (o il fondo)
+  else if (r.top < z.top || r.bottom > z.bottom) d = r.top - (z.top + (room - r.height) / 2);
+  if (Math.abs(d) > 1) sc.scrollTo({ top: sc.scrollTop + d, behavior: 'instant' }); // mai lo scorrimento morbido: il faro insegue un bersaglio fermo
+}
+function scrollParent(el) {
+  for (let p = el.parentElement; p; p = p.parentElement) { const s = getComputedStyle(p); if (/(auto|scroll)/.test(s.overflowY) && p.scrollHeight > p.clientHeight + 1) return p; }
+  return document.scrollingElement;
+}
 async function tourGo(i) {
-  if (!TOUR.el) return; if (i >= TOUR.steps.length) { tourEnd(); return; } i = Math.max(0, i); TOUR.i = i;
-  const st = TOUR.steps[i], card = TOUR.el.querySelector('.tour-card');
-  // prepara la scena: sezione, dettaglio aperto o chiuso
+  if (!TOUR.el) return; if (i >= TOUR.steps.length) { tourEnd(); return; } i = Math.max(0, i);
+  const back = i < TOUR.i, seq = ++TOUR.seq; TOUR.i = i; TOUR.ready = false; // il faro resta fermo finché la scena nuova non è pronta
+  const st = TOUR.steps[i], el = TOUR.el, card = el.querySelector('.tour-card'), body = card.querySelector('.tour-body');
+  el.querySelector('.tour-finger').hidden = true;
+  // 1. esce il testo; se la scena cambia (sezione o dettaglio) scende il velo
+  const moveScene = !!(st.detail ? $('#drawer').hidden || state.dTab !== st.detail : st.view && (UI.view !== st.view || !$('#drawer').hidden));
+  if (moveScene) el.classList.add('veil');
+  if (TOUR.out) TOUR.out.cancel();
+  TOUR.out = body.firstChild && Motion.on() ? Motion.animate(body, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: `translateX(${back ? 18 : -18}px)` }], 'snap', { duration: 110, fill: 'forwards' }) : null;
+  if (TOUR.out) await TOUR.out.finished.catch(() => {});
+  if (seq !== TOUR.seq) return;
+  // 2. la scena: sezione, dettaglio del target d'esempio con la sua scheda
   if (st.detail) {
     const o = tourSample();
     if (o && (state.sel !== o.id || $('#drawer').hidden)) openDetail(o.id);
     setDTab(st.detail);
   } else if (!$('#drawer').hidden) closeDetail();
   if (st.view) setView(st.view);
-  TOUR.target = null; card.classList.remove('on');
-  await new Promise((r) => setTimeout(r, st.detail || st.view ? 380 : 60));
-  const t = st.sel ? $(st.sel) : null;
-  if (t && t.offsetParent) { t.scrollIntoView({ block: 'center', behavior: 'smooth' }); TOUR.target = t; }
-  const n = TOUR.steps.length, last = i === n - 1;
-  card.innerHTML = `<div class="tour-top"><span class="tour-n">${i + 1} / ${n}</span><button type="button" class="link" data-t="skip">${tx(last ? 'Chiudi' : 'Salta la guida')}</button></div>
-    ${st.hero ? `<div class="tour-hero"><canvas class="in-cv" aria-hidden="true"></canvas><div class="intro"><svg class="in-final" viewBox="0 0 32 32" aria-hidden="true"><use href="#i-logo"/></svg></div><svg class="th-hz" viewBox="0 0 300 30" preserveAspectRatio="none" aria-hidden="true"><path d="M0 28 C 90 6, 210 6, 300 28"/></svg></div>` : ''}
-    <h3>${tx(st.t)}</h3><p>${tx(st.d)}</p>
-    <div class="tour-dots">${TOUR.steps.map((_, k) => `<i class="${k === i ? 'on' : k < i ? 'done' : ''}"></i>`).join('')}</div>
-    <div class="tour-acts${st.cta ? ' cta' : ''}">${i > 0 ? `<button type="button" class="btn ghost" data-t="prev" aria-label="${tx('Indietro')}">${ic('chev-l')}<span>${tx('Indietro')}</span></button>` : '<span></span>'}
-      ${st.cta ? `<button type="button" class="btn" data-t="next">${tx('Dopo')}</button><button type="button" class="btn primary" data-t="cta">${tx(st.cta[0])}</button>` : `<button type="button" class="btn primary" data-t="next">${tx(last ? 'Fine' : i === 0 ? 'Iniziamo' : 'Avanti')}${last ? '' : ic('chev-r')}</button>`}</div>`;
-  card.classList.remove('in'); void card.offsetWidth; card.classList.add('in');
-  // benvenuto e saluto: l'intro del logo (campo stellare, zoom, scatto) nel riquadro della scheda
-  const hero = card.querySelector('.tour-hero'); if (hero && motionOn()) { hero.querySelector('.intro').classList.add('playing'); requestAnimationFrame(() => introPlay(hero.querySelector('.in-cv'), hero.querySelector('.intro'), 105)); }
-  requestAnimationFrame(() => { tourPlace(); card.classList.add('on'); const f = card.querySelector('.btn.primary'); if (f) f.focus({ preventScroll: true }); });
+  // il testo nuovo (serve la sua altezza per la zona libera)
+  const n = TOUR.steps.length, last = i === n - 1, cta = tourCta(st);
+  card.classList.toggle('hero', !!st.hero);
+  card.querySelector('.tour-n').textContent = `${i + 1} / ${n}`;
+  card.querySelector('[data-t=skip]').textContent = tx(last ? 'Chiudi' : 'Salta');
+  body.innerHTML = `${st.hero ? `<div class="tour-hero"><canvas class="in-cv" aria-hidden="true"></canvas><div class="intro"><svg class="in-final" viewBox="0 0 32 32" aria-hidden="true"><use href="#i-logo"/></svg></div></div>` : ''}<h3>${tx(st.t)}</h3><p>${tx(st.d)}</p>`;
+  card.querySelector('.tour-acts').innerHTML = `${i > 0 ? `<button type="button" class="btn ghost" data-t="prev" aria-label="${tx('Indietro')}">${ic('chev-l')}</button>` : '<span></span>'}
+    ${cta ? `<button type="button" class="btn" data-t="next">${tx('Dopo')}</button><button type="button" class="btn primary" data-t="cta">${tx(cta[0])}</button>` : `<button type="button" class="btn primary" data-t="next">${tx(last ? 'Fine' : i === 0 ? 'Iniziamo' : 'Avanti')}${last ? '' : ic('chev-r')}</button>`}`;
+  card.querySelector('.tour-bar i').style.transform = `scaleX(${(i + 1) / n})`;
+  // 3. si aspetta che la scena stia ferma, poi la si porta nella zona libera
+  await frame(); if (seq !== TOUR.seq) return;
+  let els = tourEls(st);
+  if (st.sel && !els.length) { const t0 = performance.now(); while (!els.length && performance.now() - t0 < 1500) { await frame(); if (seq !== TOUR.seq) return; els = tourEls(st); } }
+  if (els.length) { if (!(await settle(els, seq))) return; bringIntoZone(els, st.anchor); await frame(); if (seq !== TOUR.seq) return; }
+  // 4. il faro parte (una volta), il velo si alza, entra il testo
+  TOUR.target = els.length ? els : null; TOUR.ready = true; TOUR.t0 = performance.now();
+  el.classList.remove('veil'); el.classList.toggle('dim', !els.length);
+  card.classList.add('on');
+  if (TOUR.out) { TOUR.out.cancel(); TOUR.out = null; }
+  Motion.animate(body, [{ opacity: 0, transform: `translateX(${back ? -22 : 22}px)` }, { opacity: 1, transform: 'none' }], 'soft', { fill: 'backwards' });
+  const f = card.querySelector('.btn.primary'); if (f) f.focus({ preventScroll: true });
+  // l'intro del logo nel riquadro del benvenuto
+  const hero = body.querySelector('.tour-hero'); if (hero && motionOn()) { hero.querySelector('.intro').classList.add('playing'); requestAnimationFrame(() => introPlay(hero.querySelector('.in-cv'), hero.querySelector('.intro'), 105)); }
+  // 5. il gesto, quando il faro è arrivato
+  if (st.hint && Motion.on()) { await wait(520); if (seq === TOUR.seq) tourHint(st.hint); }
 }
-/* il riquadro illuminato segue l'elemento; la scheda gli sta accanto (sul telefono in basso, o in alto se l'elemento è giù) */
-function tourPlace() {
+/* il dito: tocca (tap), trascina (drag) o segnala (ping) un punto dentro l'elemento illuminato; due volte */
+function tourHint([sel, kind]) {
+  const t = $(sel), f = TOUR.el && TOUR.el.querySelector('.tour-finger'); if (!t || !f || !t.offsetParent) return;
+  const r = t.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+  f.hidden = false; f.className = 'tour-finger ' + kind; f.style.left = x + 'px'; f.style.top = y + 'px';
+  const i = f.querySelector('i');
+  const reps = 2, gap = 380;
+  if (kind === 'tap') Motion.animate(i, [{ opacity: 0, transform: 'scale(1.4)' }, { opacity: 1, transform: 'scale(1)', offset: 0.25 }, { opacity: 1, transform: 'scale(.82)', offset: 0.45 }, { opacity: 1, transform: 'scale(1)', offset: 0.6 }, { opacity: 0, transform: 'scale(1)' }], 'snap', { duration: 1100 }).effect.updateTiming({ iterations: reps, endDelay: gap, easing: 'ease-in-out' });
+  else if (kind === 'drag') { const w = Math.min(90, r.width * 0.3); Motion.animate(i, [{ opacity: 0, transform: `translateX(${-w}px) scale(1.3)` }, { opacity: 1, transform: `translateX(${-w}px) scale(.85)`, offset: 0.2 }, { opacity: 1, transform: `translateX(${w}px) scale(.85)`, offset: 0.75 }, { opacity: 0, transform: `translateX(${w}px) scale(1.2)` }], 'snap', { duration: 1500 }).effect.updateTiming({ iterations: reps, endDelay: gap, easing: 'ease-in-out' }); }
+  else Motion.animate(i, [{ opacity: 0.9, transform: 'scale(.4)' }, { opacity: 0, transform: 'scale(1.6)' }], 'snap', { duration: 1000 }).effect.updateTiming({ iterations: reps + 1, endDelay: 150, easing: 'ease-out' });
+}
+/* a ogni fotogramma: il faro insegue gli elementi con la molla, la scheda il suo ancoraggio */
+function tourFrame(now) {
   const el = TOUR.el; if (!el) return;
-  const hole = el.querySelector('.tour-hole'), card = el.querySelector('.tour-card'), t = TOUR.target, W = innerWidth, H = innerHeight;
-  if (!t || !t.offsetParent) { hole.hidden = true; el.classList.add('dim'); card.style.cssText = 'left:50%;top:50%;transform:translate(-50%,-50%)'; return; }
-  el.classList.remove('dim'); hole.hidden = false;
-  const r = t.getBoundingClientRect(), pad = 8, x = Math.max(4, r.left - pad), y = Math.max(4, r.top - pad), w = Math.min(W - 8, r.right + pad) - x, h = Math.min(H - 8, r.bottom + pad) - y;
-  Object.assign(hole.style, { left: x + 'px', top: y + 'px', width: Math.max(0, w) + 'px', height: Math.max(0, h) + 'px' });
-  const cw = card.offsetWidth, ch = card.offsetHeight, gap = 14;
-  if (PHONE.matches) {
-    const tabH = ($('#nav') || {}).offsetHeight || 60, bottomTop = H - tabH - ch - 12, low = y + h > bottomTop - 8 && y > ch + 80;
-    card.style.cssText = low ? `left:12px;right:12px;top:${Math.max(12, Math.min(y - ch - gap, 70))}px` : `left:12px;right:12px;top:${bottomTop}px`;
-    return;
+  const dt = TOUR.last ? (now - TOUR.last) / 1000 : 1 / 60; TOUR.last = now;
+  const hole = el.querySelector('.tour-hole'), card = el.querySelector('.tour-card'), W = innerWidth, H = innerHeight;
+  const cw = card.offsetWidth, ch = card.offsetHeight;
+  // il faro
+  let hr = null;
+  if (TOUR.ready && TOUR.target) {
+    // il faro resta nella zona libera: mai sotto la scheda o sotto le barre ferme
+    const r = unionRect(TOUR.target), z = freeZone(TOUR.target), pad = 8, x = Math.max(4, r.left - pad), y = Math.max(z.top - 4, r.top - pad);
+    hr = [x, y, Math.max(0, Math.min(W - 4, r.right + pad) - x), Math.max(0, Math.min(z.bottom + 12, r.bottom + pad) - y)];
+    if (hole.hidden) { TOUR.hole.set([x + hr[2] / 2, y + hr[3] / 2, 0, 0]); hole.hidden = false; }
+    TOUR.hole.step(hr, dt);
+    const [hx, hy, hw, hh] = TOUR.hole.x;
+    hole.style.transform = `translate(${hx.toFixed(1)}px, ${hy.toFixed(1)}px)`; hole.style.width = hw.toFixed(1) + 'px'; hole.style.height = hh.toFixed(1) + 'px';
+    hole.style.borderRadius = Math.min(14, hh / 2, hw / 2).toFixed(1) + 'px';
+  } else if (TOUR.ready) hole.hidden = true;
+  // la scheda: al centro nei passi senza elemento; ancorata altrove
+  let cx, cy;
+  if (!TOUR.target || card.classList.contains('hero')) { cx = (W - cw) / 2; cy = (H - ch) / 2; }
+  else if (PHONE.matches) { cx = 12; cy = H - navH() - ch - 12; }
+  else {
+    const r = unionRect(TOUR.target), right = r.left + r.width / 2 < W / 2 && r.width < W * 0.6;
+    cx = right ? W - cw - 24 : ($('#nav') || {}).offsetWidth + 24 || 24; cy = H - ch - 24;
   }
-  let left, top;
-  if (x + w + gap + cw < W - 12) { left = x + w + gap; top = clamp(y, 12, H - ch - 12); }
-  else if (x - gap - cw > 12) { left = x - gap - cw; top = clamp(y, 12, H - ch - 12); }
-  else if (y + h + gap + ch < H - 12) { left = clamp(x, 12, W - cw - 12); top = y + h + gap; }
-  else if (y - gap - ch > 12) { left = clamp(x, 12, W - cw - 12); top = y - gap - ch; }
-  else { left = (W - cw) / 2; top = H - ch - 24; }
-  card.style.cssText = `left:${left}px;top:${top}px`;
+  TOUR.card.step([cx, cy], dt);
+  card.style.transform = `translate(${TOUR.card.x[0].toFixed(1)}px, ${TOUR.card.x[1].toFixed(1)}px)`;
+  if (TOUR.rec) TOUR.rec.push([TOUR.ready ? now - TOUR.t0 : -1, TOUR.i, ...(TOUR.target ? Array.from(TOUR.hole.x, (v) => +v.toFixed(1)) : [0, 0, 0, 0]), +TOUR.card.x[0].toFixed(1), +TOUR.card.x[1].toFixed(1), hr ? hr.map((v) => +v.toFixed(1)) : null]);
 }
 /* al primo avvio: chi arriva nuovo fa il giro; chi aveva già Skyframe riceve la proposta; dopo un aggiornamento, le novità */
 function tourBoot() {
@@ -131,7 +232,7 @@ function tourBoot() {
   if (!seen) {
     if (!known) { setTimeout(() => tourStart(TOUR_STEPS), 700); return; }
     openSheet({
-      title: tx('Skyframe è cambiato'), body: `<p class="info-txt">${tx('Sezioni nuove, meteo astronomico, tempi per ogni modo di riprendere, progetti con piano di stagione e avvisi. Ti faccio fare un giro di due minuti?')}</p>`,
+      title: tx('Skyframe è cambiato'), body: `<p class="info-txt">${tx('Tempi tarati su foto vere, meteo astronomico, progetti con piano di stagione, avvisi. Un giro di un minuto?')}</p>`,
       foot: `<button type="button" class="btn" data-later>${tx('Più tardi')}</button><button type="button" class="btn primary" data-go>${tx('Fai il giro')}</button>`,
       onMount: (el, close) => el.addEventListener('click', (e) => {
         if (e.target.closest('[data-go]')) { close(); setTimeout(() => tourStart(TOUR_STEPS), 300); }

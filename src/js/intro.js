@@ -41,7 +41,7 @@
   });
 
   /* l'app: gli script si eseguono nell'ordine della lista */
-  const APP = ['vendor/leaflet/leaflet.js', 'data/sky.js', 'data/dso.js', 'data/filters.js', 'data/real.js', 'i18n/en.js', 'js/i18n.js', 'js/version.js', 'js/lpatlas.js', 'js/mobile.js',
+  const APP = ['vendor/leaflet/leaflet.js', 'data/sky.js', 'data/dso.js', 'data/filters.js', 'data/real.js', 'i18n/en.js', 'js/i18n.js', 'js/version.js', 'js/lpatlas.js', 'js/mobile.js', 'js/motion.js',
     'js/astro.js', 'js/model.js', 'js/dome.js', 'js/ui.js', 'js/views.js', 'js/weather.js', 'js/nights.js', 'js/skyview.js', 'js/scenarios.js', 'js/projects.js',
     'js/season.js', 'js/tonight.js', 'js/notify.js', 'js/tour.js', 'js/allsky.js', 'js/editor.js', 'js/main.js'];
   let loaded = false;

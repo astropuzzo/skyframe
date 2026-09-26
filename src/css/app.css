@@ -1011,42 +1011,44 @@ button.fact:hover { background: var(--card-2); }
 .tn-log:hover { color: var(--good); }
 .tn-log.on, .tn-log:disabled { color: var(--good); opacity: .8; cursor: default; }
 
-/* ============================ guida ============================ */
+/* ============================ guida ============================
+   Faro e scheda si muovono solo per transform, guidati da una molla in js/tour.js (niente transizioni CSS che
+   inseguono il bersaglio in ritardo). */
 .tour { position: fixed; inset: 0; z-index: 80; }
-.tour.dim { background: rgba(2, 3, 6, .74); }
-.tour-hole { position: fixed; border-radius: 14px; box-shadow: 0 0 0 9999px rgba(2, 3, 6, .74), 0 0 0 2px var(--accent), 0 0 24px 4px rgba(76, 207, 188, .35); transition: left .35s var(--ease), top .35s var(--ease), width .35s var(--ease), height .35s var(--ease); pointer-events: none; }
-.tour-card { position: fixed; width: 370px; max-width: calc(100vw - 24px); background: var(--card-2); border: 1px solid var(--line-3); border-radius: 18px; padding: 14px 16px 14px; box-shadow: 0 24px 70px rgba(0, 0, 0, .6); opacity: 0; transition: opacity .25s; }
+.tour-veil { position: fixed; inset: 0; background: rgba(2, 3, 6, .74); opacity: 0; pointer-events: none; transition: opacity .14s linear; }
+.tour.veil .tour-veil, .tour.dim .tour-veil { opacity: 1; }
+.tour.veil .tour-hole { opacity: 0; }
+.tour-hole { position: fixed; left: 0; top: 0; width: 0; height: 0; border-radius: 14px; box-shadow: 0 0 0 9999px rgba(2, 3, 6, .74), 0 0 0 2px var(--accent), 0 0 26px 4px rgba(76, 207, 188, .32); pointer-events: none; will-change: transform, width, height; transition: opacity .14s linear; }
+.tour-finger { position: fixed; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 2; }
+.tour-finger i { position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; border-radius: 50%; opacity: 0; background: radial-gradient(circle, rgba(255, 255, 255, .55) 0 30%, rgba(255, 255, 255, .18) 31% 60%, transparent 61%); box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .7); }
+.tour-finger.ping i { background: transparent; box-shadow: 0 0 0 2px var(--accent); }
+.tour-card { position: fixed; left: 0; top: 0; width: 380px; max-width: calc(100vw - 24px); background: rgba(17, 24, 35, .96); border: 1px solid var(--line-3); border-radius: 18px; padding: 14px 16px 14px; box-shadow: 0 24px 70px rgba(0, 0, 0, .6); opacity: 0; transition: opacity .2s linear; will-change: transform; touch-action: pan-y; }
 .tour-card.on { opacity: 1; }
+.tour-card.hero { width: 400px; }
 .tour-top { display: flex; justify-content: space-between; align-items: center; }
 .tour-n { font: 500 12px var(--font-m); color: var(--ink-3); }
-.tour-card h3 { font: 600 19px/1.25 var(--font-b); margin: 6px 0 6px; }
+.tour-body { min-height: 76px; }
+.tour-card h3 { font: 600 19px/1.25 var(--font-b); margin: 6px 0 5px; }
+.tour-card.hero h3 { font: 600 24px/1.2 var(--font-d); letter-spacing: .04em; text-align: center; margin-top: 2px; }
+.tour-card.hero p { text-align: center; }
 .tour-card p { margin: 0 0 12px; color: var(--ink-2); font-size: 14.5px; line-height: 1.5; }
-.tour-dots { display: flex; gap: 3px; margin-bottom: 14px; }
-.tour-dots i { flex: 1; height: 3px; border-radius: 2px; background: var(--line-3); }
-.tour-dots i.done { background: rgba(76, 207, 188, .45); }
-.tour-dots i.on { background: var(--accent); }
+.tour-bar { height: 3px; border-radius: 2px; background: var(--line-3); margin-bottom: 12px; overflow: hidden; }
+.tour-bar i { display: block; height: 100%; background: var(--accent); border-radius: 2px; transform-origin: left; transform: scaleX(0); transition: transform var(--sd-snap, .4s) var(--sp-snap, ease); }
 .tour-acts { display: flex; gap: 8px; align-items: center; }
 .tour-acts > :first-child { margin-right: auto; }
+.tour-acts .btn.ghost { padding: 7px 9px; }
+.tour-hero { position: relative; height: 120px; margin: 4px -4px 4px; border-radius: 14px; overflow: hidden; background: radial-gradient(ellipse 70% 90% at 50% 85%, rgba(76, 207, 188, .12), transparent 70%), linear-gradient(180deg, #0C1424, #070A12); display: grid; place-items: center; color: #EEF3F9; }
+.tour-hero .intro { width: 78px; height: 78px; }
+@media (max-width: 759px) { .tour-card, .tour-card.hero { width: calc(100vw - 24px); } }
 .news { margin: 0 6px 6px; }
 .news b { font: 600 13px var(--font-m); color: var(--accent); }
 .news ul { margin: 4px 0 12px; padding-left: 18px; color: var(--ink-2); line-height: 1.55; font-size: 14px; }
 .st-item > .ic:last-child { color: var(--ink-4); }
-@media (max-width: 759px) { .tour-card { width: auto; } }
 
 /* ============================ movimento ============================
    Serve a far capire (da dove arriva una sezione, cosa si è appena disegnato), mai a distrarre; tutto spento con
    «riduci animazioni» del sistema. */
-.tour-hero { position: relative; height: 128px; margin: 2px -4px 8px; border-radius: 14px; overflow: hidden; background: radial-gradient(ellipse 70% 90% at 50% 85%, rgba(76, 207, 188, .12), transparent 70%), linear-gradient(180deg, #0C1424, #070A12); display: grid; place-items: center; color: #EEF3F9; }
-.tour-hero .intro { width: 78px; height: 78px; margin-top: -10px; }
-.tour-hero .th-hz { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 30px; }
-.tour-hero .th-hz path { fill: none; stroke: var(--accent); stroke-width: 2; opacity: .9; vector-effect: non-scaling-stroke; }
 /* animazioni accese (html.motion) */
-  html.motion .tour-hero .th-hz path { stroke-dasharray: 400; stroke-dashoffset: 400; animation: hzDraw 1.4s var(--ease) .3s forwards; }
-  @keyframes hzDraw { to { stroke-dashoffset: 0; } }
-  /* guida: la scheda entra morbida a ogni passo */
-  html.motion .tour-card.in { animation: cardIn .38s cubic-bezier(.22, 1.1, .36, 1) both; }
-  @keyframes cardIn { from { opacity: 0; transform: translateY(10px) scale(.98); } }
-  html.motion .tour-card[style*="translate(-50%"] { animation: none; }
   /* sezioni: la nuova entra dal lato verso cui vai nella barra */
   html.motion .views { view-transition-name: views; }
   html.motion::view-transition-old(views) { animation: vtOut .2s var(--ease) both; }
@@ -1081,4 +1083,3 @@ button.fact:hover { background: var(--card-2); }
   /* il riquadro del meteo della notte e il voto */
   html.motion .rate { animation: cellIn .5s var(--ease) .15s both; }
 
-@media (max-width: 759px) { .tour-acts.cta .btn.ghost span { display: none; } .tour-acts.cta .btn.ghost { padding: 7px 8px; } .tour-acts .btn { padding-left: 11px; padding-right: 11px; } }

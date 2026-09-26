@@ -44,12 +44,12 @@ const viewEntry = () => Back.entries.find((x) => x.view && !x.closed);
 
 /* ---------- sezioni ---------- */
 const VIEWS = ['tonight', 'targets', 'sky', 'projects', 'setup'];
-const UI = { view: 'tonight' };
+const UI = { view: 'tonight', noVT: false }; // noVT: sezioni senza transizione (la guida le cambia sotto il velo)
 function setView(v, fromPop) {
   if (!VIEWS.includes(v)) v = 'tonight';
   const el = $('#v-' + v);
   if (v === UI.view) { if (el && !fromPop) el.scrollTo({ top: 0, behavior: 'smooth' }); return; } // di nuovo la stessa: in cima
-  const from = VIEWS.indexOf(UI.view), to = VIEWS.indexOf(v), vt = !!(document.startViewTransition && MOTION.matches);
+  const from = VIEWS.indexOf(UI.view), to = VIEWS.indexOf(v), vt = !!(document.startViewTransition && MOTION.matches && !UI.noVT);
   const apply = () => {
     UI.view = v; $('#app').dataset.view = v;
     $$('#nav [data-view]').forEach((b) => { if (b.dataset.view === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });

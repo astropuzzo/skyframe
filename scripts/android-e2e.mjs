@@ -75,7 +75,8 @@ try {
   await until('TOUR.el', 8000);
   await ev(`tourStart(TOUR_STEPS, 0); return 1`); await sleep(2200); shot('03-guida-it');
   const seen = [await ev(`return !!TOUR.el && TOUR.i === 0`)];
-  for (const [k, name] of [[1, 'luogo'], [3, 'notti'], [8, 'quanto-ci-vuole'], [11, 'cielo'], [12, 'progetti']]) {
+  for (const name of ['luogo', 'notti', 'quanto', 'fotovere', 'meteo', 'progetti']) {
+    const k = await ev(`return TOUR.steps.findIndex((s) => s.id === '${name}')`); if (k < 0) continue;
     // sull'emulatore (senza GPU) i passi che aprono il dettaglio impiegano qualche secondo: si aspetta la scheda giusta
     await ev(`tourGo(Math.min(${k}, TOUR.steps.length - 1)); return 1`);
     await until(`TOUR.el && (TOUR.el.querySelector('.tour-card.on .tour-n') || {}).textContent === (TOUR.i + 1) + ' / ' + TOUR.steps.length`, 20000);
