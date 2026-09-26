@@ -50,15 +50,30 @@
       ${svg('in-star', '<circle cx="16" cy="16" r="1" fill="#fff"/>')}`;
   };
   const el = document.getElementById('bootIntro');
-  if (el) { el.innerHTML = window.introHTML(); window.__introT0 = performance.now(); }
+  if (el) el.innerHTML = window.introHTML();
+
+  /* l'app si carica solo dopo che l'intro è partita: leggere 1,3 MB di script tiene occupato il telefono per qualche
+     secondo e, se succede prima, l'intro resta ferma e poi riparte a metà. Due fotogrammi disegnati bastano: da lì le
+     animazioni le porta avanti la scheda grafica da sola. Gli script si eseguono nell'ordine della lista. */
+  const APP = ['vendor/leaflet/leaflet.js', 'data/sky.js', 'data/dso.js', 'data/filters.js', 'i18n/en.js', 'js/i18n.js', 'js/version.js', 'js/lpatlas.js', 'js/mobile.js',
+    'js/astro.js', 'js/model.js', 'js/dome.js', 'js/ui.js', 'js/views.js', 'js/weather.js', 'js/nights.js', 'js/skyview.js', 'js/scenarios.js', 'js/projects.js',
+    'js/season.js', 'js/tonight.js', 'js/notify.js', 'js/tour.js', 'js/allsky.js', 'js/editor.js', 'js/main.js'];
+  let loaded = false;
+  const load = () => {
+    if (loaded) return; loaded = true;
+    for (const src of APP) { const s = document.createElement('script'); s.src = src; s.async = false; document.body.appendChild(s); }
+  };
+  requestAnimationFrame(() => requestAnimationFrame(load)); setTimeout(load, 250); // (pagina nascosta: niente fotogrammi)
 
   /* uscita: finita l'intro (e pronta l'app) il logo vola al suo posto nella barra in alto, la schermata sparisce */
   window.introExit = function () {
     const b = document.getElementById('bootScreen'); if (!b) return Promise.resolve();
     // prove automatiche (smoke, schermate): niente attesa né volo
     const logo = b.querySelector('.intro'), still = !window.motionOn() || !!(window.cielo && window.cielo.noTour);
-    const left = still ? 0 : Math.max(0, 1900 - (performance.now() - (window.__introT0 || 0)));
-    return new Promise((ok) => setTimeout(() => {
+    // si aspetta la fine vera dell'intro (non un tempo fisso: su un telefono lento può essere partita tardi)
+    const anims = still || !b.getAnimations ? [] : b.getAnimations({ subtree: true }).filter((a) => { const t = a.effect && a.effect.getComputedTiming(); return t && isFinite(t.endTime); });
+    const ended = Promise.race([Promise.all(anims.map((a) => a.finished.catch(() => {}))), new Promise((r) => setTimeout(r, 4000))]);
+    return new Promise((ok) => ended.then(() => {
       const to = document.querySelector('.brand .logo'), r1 = to && to.getBoundingClientRect(), r0 = logo.getBoundingClientRect();
       let fin = false; const done = () => { if (fin) return; fin = true; if (to) to.style.visibility = ''; b.remove(); ok(); };
       b.classList.add('leaving');
@@ -67,6 +82,6 @@
       const dx = r1.left + r1.width / 2 - (r0.left + r0.width / 2), dy = r1.top + r1.height / 2 - (r0.top + r0.height / 2);
       logo.animate([{ transform: 'none' }, { transform: `translate(${dx}px, ${dy}px) scale(${r1.width / r0.width})` }], { duration: 620, easing: 'cubic-bezier(.45, 0, .15, 1)', fill: 'forwards' }).finished.then(done, done);
       setTimeout(done, 1200); // pagina nascosta: le animazioni non vanno avanti
-    }, left));
+    }));
   };
 })();
