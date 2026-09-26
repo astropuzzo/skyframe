@@ -96,14 +96,228 @@ input[type=checkbox] { width: 17px; height: 17px; }
 .link { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font-size: 13.5px; display: inline-flex; align-items: center; gap: 4px; }
 .link .ic { width: 16px; height: 16px; }
 
-/* ---------- avvio ---------- */
-.boot-screen { position: fixed; inset: 0; z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: radial-gradient(ellipse at 50% 42%, #0C1322, var(--bg) 62%); transition: opacity .45s var(--ease), visibility .45s; color: #EEF3F9; }
-.boot-screen.done { opacity: 0; visibility: hidden; }
-.boot-logo { width: 96px; height: 96px; color: #EEF3F9; }
-.boot-name { font: 700 22px/1 var(--font-d); letter-spacing: .14em; text-transform: uppercase; }
+/* ---------- avvio: intro del logo (src/js/intro.js) ----------
+   Un campo stellare largo, lo zoom sul target, la cornice che si chiude con uno scatto, il logo fermo. Solo
+   trasformazioni e trasparenze: le anima la scheda grafica e restano fluide mentre l'app calcola il cielo.
+   Tempi (su 1,9 s): stelle 0–0,25 s, zoom 0,25–1,25 s, cornice 0,5–1,25 s, scatto a 1,25 s, nome 1,35 s. */
+.boot-screen { position: fixed; inset: 0; z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; color: #EEF3F9; overflow: hidden; }
+.boot-screen.leaving { pointer-events: none; }
+.boot-bg { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 42%, #0C1322, var(--bg) 62%); transition: opacity .55s var(--ease); }
+.boot-screen.leaving .boot-bg, .boot-screen.leaving .boot-name, .boot-screen.leaving .boot-msg { opacity: 0; transition: opacity .45s var(--ease); }
+.boot-name { position: relative; z-index: 2; font: 700 22px/1 var(--font-d); letter-spacing: .14em; text-transform: uppercase; }
 .boot-name b { color: var(--accent); }
-.boot-msg { font-size: 13px; color: var(--ink-3); }
-@keyframes bootPulse { 50% { transform: scale(1.06); opacity: .8; } }
+.boot-name span { display: inline-block; }
+.boot-msg { position: relative; z-index: 2; font-size: 13px; color: var(--ink-3); }
+.intro { --D: 150px; --o: 3px; position: relative; z-index: 1; width: 112px; height: 112px; color: #EEF3F9; flex: none; }
+.intro > svg, .intro .in-nebw, .intro .in-nebw > svg, .intro .in-frame, .intro .in-frame > svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.in-sky { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+.in-l { position: absolute; left: 0; top: 0; transform-origin: 50% 50%; opacity: 0; }
+.in-flash { position: absolute; left: 50%; top: 50%; width: 220%; height: 220%; margin: -110% 0 0 -110%; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, .55), rgba(190, 240, 232, .18) 38%, transparent 68%); opacity: 0; }
+.in-neb.soft, .in-cg { opacity: 0; }
+.c1 { --sx: -1; --sy: -1; } .c2 { --sx: 1; --sy: -1; } .c3 { --sx: 1; --sy: 1; } .c4 { --sx: -1; --sy: 1; }
+/* animazioni accese (html.motion) */
+  html.motion .in-l, html.motion .in-nebw { will-change: transform, opacity; }
+  html.motion .in-l1 { animation: inL1 1.9s linear both; } html.motion .in-l2 { animation: inL2 1.9s linear both; } html.motion .in-l3 { animation: inL3 1.9s linear both; }
+  html.motion .in-nebw { animation: inNeb 1.9s linear both; }
+  html.motion .in-neb.soft { animation: inSoft 1.9s linear both; } html.motion .in-neb.sharp { animation: inSharp 1.9s linear both; }
+  html.motion .in-frame { animation: inFrame 1.9s linear both; }
+  html.motion .in-c { animation: inCorner 1.9s linear both; }
+  html.motion .in-cg { animation: inGlowK 1.9s linear both; }
+  html.motion .in-flash { animation: inFlash 1.9s linear both; }
+  html.motion .in-star { animation: inStar 1.9s linear both, inTw 3.2s ease-in-out 2.4s infinite; }
+  html.motion .boot-name span { animation: inLetter .55s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(1.35s + var(--i) * 35ms); }
+  html.motion .boot-msg { animation: inFade .45s var(--ease) 1.9s both; }
+  @keyframes inL1 {
+    0% { transform: scale(1); opacity: 0; }
+    2.63% { transform: scale(1); opacity: 0.104; }
+    5.26% { transform: scale(1); opacity: 0.352; }
+    7.89% { transform: scale(1); opacity: 0.648; }
+    10.53% { transform: scale(1); opacity: 0.896; }
+    13.16% { transform: scale(1); opacity: 1; }
+    15.79% { transform: scale(1.0017); opacity: 1; }
+    18.42% { transform: scale(1.0137); opacity: 1; }
+    21.05% { transform: scale(1.047); opacity: 1; }
+    23.68% { transform: scale(1.115); opacity: 1; }
+    26.32% { transform: scale(1.2369); opacity: 1; }
+    28.95% { transform: scale(1.4439); opacity: 1; }
+    31.58% { transform: scale(1.792); opacity: 0.566; }
+    34.21% { transform: scale(2.3886); opacity: 0; }
+    36.84% { transform: scale(3.4547); opacity: 0; }
+    39.47% { transform: scale(5.4772); opacity: 0; }
+    42.11% { transform: scale(8.6838); opacity: 0; }
+    44.74% { transform: scale(12.5597); opacity: 0; }
+    47.37% { transform: scale(16.7415); opacity: 0; }
+    50% { transform: scale(20.7774); opacity: 0; }
+    52.63% { transform: scale(24.255); opacity: 0; }
+    55.26% { transform: scale(26.9063); opacity: 0; }
+    57.89% { transform: scale(28.6537); opacity: 0; }
+    60.53% { transform: scale(29.5946); opacity: 0; }
+    63.16% { transform: scale(29.949); opacity: 0; }
+    65.79% { transform: scale(30); opacity: 0; }
+    68.42% { transform: scale(30); opacity: 0; }
+    71.05% { transform: scale(30); opacity: 0; }
+    73.68% { transform: scale(30); opacity: 0; }
+    76.32% { transform: scale(30); opacity: 0; }
+    78.95% { transform: scale(30); opacity: 0; }
+    81.58% { transform: scale(30); opacity: 0; }
+    84.21% { transform: scale(30); opacity: 0; }
+    86.84% { transform: scale(30); opacity: 0; }
+    89.47% { transform: scale(30); opacity: 0; }
+    92.11% { transform: scale(30); opacity: 0; }
+    94.74% { transform: scale(30); opacity: 0; }
+    97.37% { transform: scale(30); opacity: 0; }
+    100% { transform: scale(30); opacity: 0; }
+  }
+  @keyframes inL2 {
+    0% { transform: scale(0.1667); opacity: 0; }
+    2.63% { transform: scale(0.1667); opacity: 0; }
+    5.26% { transform: scale(0.1667); opacity: 0; }
+    7.89% { transform: scale(0.1667); opacity: 0; }
+    10.53% { transform: scale(0.1667); opacity: 0; }
+    13.16% { transform: scale(0.1667); opacity: 0; }
+    15.79% { transform: scale(0.167); opacity: 0; }
+    18.42% { transform: scale(0.1689); opacity: 0; }
+    21.05% { transform: scale(0.1745); opacity: 0; }
+    23.68% { transform: scale(0.1858); opacity: 0; }
+    26.32% { transform: scale(0.2061); opacity: 0; }
+    28.95% { transform: scale(0.2406); opacity: 0; }
+    31.58% { transform: scale(0.2987); opacity: 0.19; }
+    34.21% { transform: scale(0.3981); opacity: 0.847; }
+    36.84% { transform: scale(0.5758); opacity: 1; }
+    39.47% { transform: scale(0.9129); opacity: 1; }
+    42.11% { transform: scale(1.4473); opacity: 1; }
+    44.74% { transform: scale(2.0933); opacity: 0.055; }
+    47.37% { transform: scale(2.7903); opacity: 0; }
+    50% { transform: scale(3.4629); opacity: 0; }
+    52.63% { transform: scale(4.0425); opacity: 0; }
+    55.26% { transform: scale(4.4844); opacity: 0; }
+    57.89% { transform: scale(4.7756); opacity: 0; }
+    60.53% { transform: scale(4.9324); opacity: 0; }
+    63.16% { transform: scale(4.9915); opacity: 0; }
+    65.79% { transform: scale(5); opacity: 0; }
+    68.42% { transform: scale(5); opacity: 0; }
+    71.05% { transform: scale(5); opacity: 0; }
+    73.68% { transform: scale(5); opacity: 0; }
+    76.32% { transform: scale(5); opacity: 0; }
+    78.95% { transform: scale(5); opacity: 0; }
+    81.58% { transform: scale(5); opacity: 0; }
+    84.21% { transform: scale(5); opacity: 0; }
+    86.84% { transform: scale(5); opacity: 0; }
+    89.47% { transform: scale(5); opacity: 0; }
+    92.11% { transform: scale(5); opacity: 0; }
+    94.74% { transform: scale(5); opacity: 0; }
+    97.37% { transform: scale(5); opacity: 0; }
+    100% { transform: scale(5); opacity: 0; }
+  }
+  @keyframes inL3 {
+    0% { transform: scale(0.0333); opacity: 0; }
+    2.63% { transform: scale(0.0333); opacity: 0; }
+    5.26% { transform: scale(0.0333); opacity: 0; }
+    7.89% { transform: scale(0.0333); opacity: 0; }
+    10.53% { transform: scale(0.0333); opacity: 0; }
+    13.16% { transform: scale(0.0333); opacity: 0; }
+    15.79% { transform: scale(0.0334); opacity: 0; }
+    18.42% { transform: scale(0.0338); opacity: 0; }
+    21.05% { transform: scale(0.0349); opacity: 0; }
+    23.68% { transform: scale(0.0372); opacity: 0; }
+    26.32% { transform: scale(0.0412); opacity: 0; }
+    28.95% { transform: scale(0.0481); opacity: 0; }
+    31.58% { transform: scale(0.0597); opacity: 0; }
+    34.21% { transform: scale(0.0796); opacity: 0; }
+    36.84% { transform: scale(0.1152); opacity: 0; }
+    39.47% { transform: scale(0.1826); opacity: 0; }
+    42.11% { transform: scale(0.2895); opacity: 0.278; }
+    44.74% { transform: scale(0.4187); opacity: 1; }
+    47.37% { transform: scale(0.5581); opacity: 1; }
+    50% { transform: scale(0.6926); opacity: 1; }
+    52.63% { transform: scale(0.8085); opacity: 1; }
+    55.26% { transform: scale(0.8969); opacity: 1; }
+    57.89% { transform: scale(0.9551); opacity: 1; }
+    60.53% { transform: scale(0.9865); opacity: 1; }
+    63.16% { transform: scale(0.9983); opacity: 1; }
+    65.79% { transform: scale(1); opacity: 1; }
+    68.42% { transform: scale(1); opacity: 1; }
+    71.05% { transform: scale(1); opacity: 0.989; }
+    73.68% { transform: scale(1); opacity: 0.926; }
+    76.32% { transform: scale(1); opacity: 0.82; }
+    78.95% { transform: scale(1); opacity: 0.684; }
+    81.58% { transform: scale(1); opacity: 0.531; }
+    84.21% { transform: scale(1); opacity: 0.376; }
+    86.84% { transform: scale(1); opacity: 0.232; }
+    89.47% { transform: scale(1); opacity: 0.112; }
+    92.11% { transform: scale(1); opacity: 0.03; }
+    94.74% { transform: scale(1); opacity: 0; }
+    97.37% { transform: scale(1); opacity: 0; }
+    100% { transform: scale(1); opacity: 0; }
+  }
+  @keyframes inNeb {
+    0% { transform: scale(0.0333); opacity: 0.351; }
+    2.63% { transform: scale(0.0333); opacity: 0.351; }
+    5.26% { transform: scale(0.0333); opacity: 0.351; }
+    7.89% { transform: scale(0.0333); opacity: 0.351; }
+    10.53% { transform: scale(0.0333); opacity: 0.351; }
+    13.16% { transform: scale(0.0333); opacity: 0.351; }
+    15.79% { transform: scale(0.0334); opacity: 0.351; }
+    18.42% { transform: scale(0.0338); opacity: 0.351; }
+    21.05% { transform: scale(0.0349); opacity: 0.352; }
+    23.68% { transform: scale(0.0372); opacity: 0.353; }
+    26.32% { transform: scale(0.0412); opacity: 0.358; }
+    28.95% { transform: scale(0.0481); opacity: 0.371; }
+    31.58% { transform: scale(0.0597); opacity: 0.403; }
+    34.21% { transform: scale(0.0796); opacity: 0.484; }
+    36.84% { transform: scale(0.1152); opacity: 0.676; }
+    39.47% { transform: scale(0.1826); opacity: 0.981; }
+    42.11% { transform: scale(0.2895); opacity: 1; }
+    44.74% { transform: scale(0.4187); opacity: 1; }
+    47.37% { transform: scale(0.5581); opacity: 1; }
+    50% { transform: scale(0.6926); opacity: 1; }
+    52.63% { transform: scale(0.8085); opacity: 1; }
+    55.26% { transform: scale(0.8969); opacity: 1; }
+    57.89% { transform: scale(0.9551); opacity: 1; }
+    60.53% { transform: scale(0.9865); opacity: 1; }
+    63.16% { transform: scale(0.9983); opacity: 1; }
+    65.79% { transform: scale(1); opacity: 1; }
+    68.42% { transform: scale(1); opacity: 1; }
+    71.05% { transform: scale(1); opacity: 1; }
+    73.68% { transform: scale(1); opacity: 1; }
+    76.32% { transform: scale(1); opacity: 1; }
+    78.95% { transform: scale(1); opacity: 1; }
+    81.58% { transform: scale(1); opacity: 1; }
+    84.21% { transform: scale(1); opacity: 1; }
+    86.84% { transform: scale(1); opacity: 1; }
+    89.47% { transform: scale(1); opacity: 1; }
+    92.11% { transform: scale(1); opacity: 1; }
+    94.74% { transform: scale(1); opacity: 1; }
+    97.37% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  /* nebulosa: sfocata finché la cornice non aggancia, poi a fuoco */
+  @keyframes inSoft { 0%, 62% { opacity: 1; } 68.5%, 100% { opacity: 0; } }
+  @keyframes inSharp { 0%, 62% { opacity: 0; } 68.5%, 100% { opacity: 1; } }
+  /* la cornice arriva da fuori ruotando appena, si chiude sul target (lieve rimbalzo verso l'interno) e si ferma */
+  @keyframes inFrame {
+    0%, 26.3% { transform: rotate(-10deg); animation-timing-function: cubic-bezier(.2, .7, .3, 1); }
+    52.6% { transform: rotate(.8deg); animation-timing-function: ease-in-out; } 60%, 100% { transform: rotate(0); }
+  }
+  /* come un autofocus: vola dentro, si ferma poco più larga del target, cerca un attimo, poi scatta stretta */
+  @keyframes inCorner {
+    0%, 26.3% { transform: translate(calc(var(--sx) * var(--D)), calc(var(--sy) * var(--D))); opacity: 0; animation-timing-function: cubic-bezier(.2, .7, .3, 1); }
+    36% { opacity: 1; }
+    52.6% { transform: translate(calc(var(--sx) * var(--o) * 4), calc(var(--sy) * var(--o) * 4)); animation-timing-function: ease-in-out; }
+    58% { transform: translate(calc(var(--sx) * var(--o) * 4.8), calc(var(--sy) * var(--o) * 4.8)); animation-timing-function: ease-in-out; }
+    62.1% { transform: translate(calc(var(--sx) * var(--o) * 4), calc(var(--sy) * var(--o) * 4)); animation-timing-function: cubic-bezier(.7, 0, .9, .6); }
+    65.8% { transform: translate(calc(var(--sx) * var(--o) * -1), calc(var(--sy) * var(--o) * -1)); animation-timing-function: cubic-bezier(.3, 0, .3, 1); }
+    71.5% { transform: translate(calc(var(--sx) * var(--o) * .25), calc(var(--sy) * var(--o) * .25)); animation-timing-function: ease-in-out; }
+    76.5%, 100% { transform: translate(0, 0); opacity: 1; }
+  }
+  /* lo scatto: gli angoli si accendono, un lampo breve, la stella al centro */
+  @keyframes inGlowK { 0%, 65.8% { opacity: 0; transform: scale(1.06); } 67.4% { opacity: .9; transform: scale(1); } 84%, 100% { opacity: 0; transform: scale(1); } }
+  @keyframes inFlash { 0%, 65.8% { opacity: 0; transform: scale(.45); } 67.4% { opacity: .5; } 80%, 100% { opacity: 0; transform: scale(1.35); } }
+  @keyframes inStar { 0%, 65.8% { opacity: 0; transform: scale(0); } 67% { opacity: 1; } 70.5% { transform: scale(1.8); } 79%, 100% { opacity: 1; transform: scale(1); } }
+  @keyframes inTw { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.45); opacity: .75; } }
+  @keyframes inLetter { from { opacity: 0; transform: translateY(9px); } }
+  @keyframes inFade { from { opacity: 0; } }
+
 
 /* ============================ struttura ============================ */
 .app { position: fixed; inset: 0; display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr); grid-template-rows: calc(var(--top-h) + var(--sat)) minmax(0, 1fr); grid-template-areas: "nav top" "nav views"; }
@@ -137,7 +351,7 @@ input[type=checkbox] { width: 17px; height: 17px; }
 .views { grid-area: views; position: relative; min-height: 0; min-width: 0; }
 .view { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scroll-behavior: smooth; }
 .view > .wrap { max-width: 1180px; margin: 0 auto; padding: 18px var(--gut) 40px; }
-@media (prefers-reduced-motion: no-preference) { .view.enter { animation: viewIn .28s var(--ease); } }
+/* animazioni accese (html.motion) */ html.motion .view.enter { animation: viewIn .28s var(--ease); } 
 @keyframes viewIn { from { opacity: 0; transform: translateY(6px); } }
 .view-h { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 4px 0 16px; }
 .view-h h2 { font: 600 24px/1.2 var(--font-b); letter-spacing: -.01em; }
@@ -286,7 +500,7 @@ input[type=checkbox] { width: 17px; height: 17px; }
 .row:hover, .row.hl { background: var(--card); }
 .row.sel { background: var(--card-2); box-shadow: inset 3px 0 0 var(--accent); }
 .row.dim { opacity: .5; }
-@media (prefers-reduced-motion: no-preference) { .row.enter { animation: rowIn .45s var(--ease) both; } @keyframes rowIn { from { opacity: 0; transform: translateY(6px); } } }
+/* animazioni accese (html.motion) */ html.motion .row.enter { animation: rowIn .45s var(--ease) both; } @keyframes rowIn { from { opacity: 0; transform: translateY(6px); } } 
 .c-score { grid-area: score; } .c-name { grid-area: name; min-width: 0; } .c-frame { grid-area: frame; } .c-vis { grid-area: vis; min-width: 0; } .c-plan { grid-area: plan; min-width: 0; } .c-now { grid-area: now; text-align: right; }
 .score { --v: 0; --c: var(--ink-3); width: 42px; height: 42px; border-radius: 50%; background: conic-gradient(var(--c) calc(var(--v) * 1%), var(--line-2) 0); display: grid; place-items: center; transition: --v .9s var(--ease); flex: none; }
 .score b { width: 35px; height: 35px; border-radius: 50%; background: var(--bg); display: grid; place-items: center; font: 500 13.5px var(--font-m); }
@@ -328,7 +542,7 @@ input[type=checkbox] { width: 17px; height: 17px; }
 .fav .ic { width: 19px; height: 19px; }
 .fav:hover { color: var(--sii); background: var(--card-2); }
 .fav.on { color: var(--sii); }
-@media (prefers-reduced-motion: no-preference) { .fav:active { transform: scale(1.25); } }
+/* animazioni accese (html.motion) */ html.motion .fav:active { transform: scale(1.25); } 
 .row.done { opacity: .62; }
 .row.done .id { text-decoration: line-through; text-decoration-color: rgba(90, 205, 139, .6); }
 .rprog { display: inline-block; width: 64px; height: 4px; border-radius: 2px; background: var(--line-2); overflow: hidden; vertical-align: middle; margin: 4px 6px 0 0; }
@@ -479,12 +693,12 @@ details.alts[open] > summary { margin-bottom: 4px; }
 .charts { display: grid; grid-template-columns: 1fr 230px; gap: 12px; }
 .chartbox { border: 1px solid var(--line); border-radius: var(--r2); padding: 8px; background: var(--bg); overflow-x: auto; }
 .chartbox svg { display: block; width: 100%; height: auto; }
-@media (prefers-reduced-motion: no-preference) {
-  .draw path.trace, .draw polyline.trace { stroke-dasharray: 2000; stroke-dashoffset: 2000; animation: draw 1.2s var(--ease) forwards; }
+/* animazioni accese (html.motion) */
+  html.motion .draw path.trace, html.motion .draw polyline.trace { stroke-dasharray: 2000; stroke-dashoffset: 2000; animation: draw 1.2s var(--ease) forwards; }
   @keyframes draw { to { stroke-dashoffset: 0; } }
-  .season rect.b, .calchart rect.b { transform-origin: bottom; transform-box: fill-box; animation: grow .7s var(--ease) both; }
+  html.motion .season rect.b, html.motion .calchart rect.b { transform-origin: bottom; transform-box: fill-box; animation: grow .7s var(--ease) both; }
   @keyframes grow { from { transform: scaleY(0); } }
-}
+
 .chartbox.ia, .chartbox.season, .chartbox.calchart { position: relative; touch-action: none; }
 .chartbox.ia { cursor: crosshair; } .chartbox.season, .chartbox.calchart { cursor: pointer; }
 .season rect.b.hl { fill: var(--accent); opacity: .75; }
@@ -990,66 +1204,49 @@ button.fact:hover { background: var(--card-2); }
 /* ============================ movimento ============================
    Serve a far capire (da dove arriva una sezione, cosa si è appena disegnato), mai a distrarre; tutto spento con
    «riduci animazioni» del sistema. */
-.alogo { overflow: visible; }
-.alogo .b, .alogo .ring, .alogo .core, .alogo .star { transform-box: view-box; transform-origin: 16px 16px; }
 .tour-hero { position: relative; height: 128px; margin: 2px -4px 8px; border-radius: 14px; overflow: hidden; background: radial-gradient(ellipse 70% 90% at 50% 85%, rgba(76, 207, 188, .12), transparent 70%), linear-gradient(180deg, #0C1424, #070A12); display: grid; place-items: center; color: #EEF3F9; }
-.tour-hero .alogo { width: 78px; height: 78px; margin-top: -10px; }
+.tour-hero .intro { --D: 105px; --o: 2px; width: 78px; height: 78px; margin-top: -10px; }
 .tour-hero .th-hz { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 30px; }
 .tour-hero .th-hz path { fill: none; stroke: var(--accent); stroke-width: 2; opacity: .9; vector-effect: non-scaling-stroke; }
-.tour-hero .tw { position: absolute; left: var(--x); top: var(--y); width: 3px; height: 3px; border-radius: 50%; background: #DCE4F2; opacity: .6; }
-@media (prefers-reduced-motion: no-preference) {
-  .alogo .b { animation: lgSnap .7s cubic-bezier(.34, 1.56, .64, 1) both; }
-  .alogo .b1 { --dx: -4px; --dy: -4px; } .alogo .b2 { --dx: 4px; --dy: -4px; animation-delay: .06s; } .alogo .b3 { --dx: 4px; --dy: 4px; animation-delay: .12s; } .alogo .b4 { --dx: -4px; --dy: 4px; animation-delay: .18s; }
-  .alogo .ring { animation: lgRing .9s cubic-bezier(.22, 1.2, .36, 1) .2s both; }
-  .alogo .core { animation: lgCore .8s var(--ease) .45s both; }
-  .alogo .star { animation: lgStar .5s cubic-bezier(.34, 1.56, .64, 1) .75s both, lgGlow 2.4s ease-in-out 1.3s infinite; }
-  .boot-logo .ring { animation: lgRing .9s cubic-bezier(.22, 1.2, .36, 1) .2s both, lgSpin 6s linear 1.1s infinite; }
-  @keyframes lgSnap { from { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.7); } }
-  @keyframes lgRing { from { opacity: 0; transform: rotate(-70deg) scale(.35); } }
-  @keyframes lgCore { from { opacity: 0; transform: scale(.2); } }
-  @keyframes lgStar { from { opacity: 0; transform: scale(0); } }
-  @keyframes lgGlow { 50% { opacity: .55; } }
-  @keyframes lgSpin { to { transform: rotate(360deg); } }
-  .tour-hero .th-hz path { stroke-dasharray: 400; stroke-dashoffset: 400; animation: hzDraw 1.4s var(--ease) .3s forwards; }
+/* animazioni accese (html.motion) */
+  html.motion .tour-hero .th-hz path { stroke-dasharray: 400; stroke-dashoffset: 400; animation: hzDraw 1.4s var(--ease) .3s forwards; }
   @keyframes hzDraw { to { stroke-dashoffset: 0; } }
-  .tour-hero .tw { animation: twinkle 2.6s ease-in-out var(--d) infinite; }
-  @keyframes twinkle { 0%, 100% { opacity: .15; transform: scale(.6); } 50% { opacity: .95; transform: scale(1.2); } }
   /* guida: la scheda entra morbida a ogni passo */
-  .tour-card.in { animation: cardIn .38s cubic-bezier(.22, 1.1, .36, 1) both; }
+  html.motion .tour-card.in { animation: cardIn .38s cubic-bezier(.22, 1.1, .36, 1) both; }
   @keyframes cardIn { from { opacity: 0; transform: translateY(10px) scale(.98); } }
-  .tour-card[style*="translate(-50%"] { animation: none; }
+  html.motion .tour-card[style*="translate(-50%"] { animation: none; }
   /* sezioni: la nuova entra dal lato verso cui vai nella barra */
-  .views { view-transition-name: views; }
-  ::view-transition-old(views) { animation: vtOut .2s var(--ease) both; }
-  ::view-transition-new(views) { animation: vtIn .32s var(--ease) both; }
-  html[data-dir="back"]::view-transition-old(views) { animation-name: vtOutB; }
-  html[data-dir="back"]::view-transition-new(views) { animation-name: vtInB; }
+  html.motion .views { view-transition-name: views; }
+  html.motion::view-transition-old(views) { animation: vtOut .2s var(--ease) both; }
+  html.motion::view-transition-new(views) { animation: vtIn .32s var(--ease) both; }
+  html.motion[data-dir="back"]::view-transition-old(views) { animation-name: vtOutB; }
+  html.motion[data-dir="back"]::view-transition-new(views) { animation-name: vtInB; }
   @keyframes vtOut { to { opacity: 0; transform: translateX(-28px); } }
   @keyframes vtIn { from { opacity: 0; transform: translateX(28px); } }
   @keyframes vtOutB { to { opacity: 0; transform: translateX(28px); } }
   @keyframes vtInB { from { opacity: 0; transform: translateX(-28px); } }
   /* barra delle sezioni: la pillola dell'attiva si allarga */
-  .nav button[aria-current="page"]::before { animation: pillIn .32s cubic-bezier(.34, 1.4, .64, 1); }
+  html.motion .nav button[aria-current="page"]::before { animation: pillIn .32s cubic-bezier(.34, 1.4, .64, 1); }
   @keyframes pillIn { from { transform: scaleX(.4); opacity: 0; } }
   /* notti: quella scelta fa un piccolo salto */
-  .nb.pop { animation: nbPop .38s cubic-bezier(.34, 1.56, .64, 1); }
+  html.motion .nb.pop { animation: nbPop .38s cubic-bezier(.34, 1.56, .64, 1); }
   @keyframes nbPop { 40% { transform: scale(.92); } }
   /* strisce dei giorni (tempi, piano di stagione) che si disegnano da sinistra */
-  .drawer.fresh .sc-row .sc-tl, .ss-row .sc-tl, .drawer.fresh .sc-ax .moon, .ss-ax .sc-ax .moon { animation: reveal .9s var(--ease) both; }
-  .drawer.fresh .sc-row:nth-child(2) .sc-tl { animation-delay: .08s; } .drawer.fresh .sc-row:nth-child(3) .sc-tl { animation-delay: .16s; } .drawer.fresh .sc-row.loc .sc-tl { animation-delay: .24s; }
-  .ss-row:nth-child(n+2) .sc-tl { animation-delay: .06s; } .ss-row:nth-child(n+4) .sc-tl { animation-delay: .12s; } .ss-row:nth-child(n+6) .sc-tl { animation-delay: .18s; }
+  html.motion .drawer.fresh .sc-row .sc-tl, html.motion .ss-row .sc-tl, html.motion .drawer.fresh .sc-ax .moon, html.motion .ss-ax .sc-ax .moon { animation: reveal .9s var(--ease) both; }
+  html.motion .drawer.fresh .sc-row:nth-child(2) .sc-tl { animation-delay: .08s; } html.motion .drawer.fresh .sc-row:nth-child(3) .sc-tl { animation-delay: .16s; } html.motion .drawer.fresh .sc-row.loc .sc-tl { animation-delay: .24s; }
+  html.motion .ss-row:nth-child(n+2) .sc-tl { animation-delay: .06s; } html.motion .ss-row:nth-child(n+4) .sc-tl { animation-delay: .12s; } html.motion .ss-row:nth-child(n+6) .sc-tl { animation-delay: .18s; }
   @keyframes reveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
   /* calendari: le caselle entrano in sequenza */
-  .drawer.fresh .tc, .pm { animation: cellIn .42s var(--ease) both; animation-delay: calc(var(--k, 0) * 11ms); }
+  html.motion .drawer.fresh .tc, html.motion .pm { animation: cellIn .42s var(--ease) both; animation-delay: calc(var(--k, 0) * 11ms); }
   @keyframes cellIn { from { opacity: 0; transform: translateY(6px) scale(.96); } }
-  .pm.past { animation: none; }
+  html.motion .pm.past { animation: none; }
   /* schede delle notti (Cielo) e dei progetti */
-  .sk-n, .pc, .pv-stat { animation: cellIn .45s var(--ease) both; }
-  .sk-n:nth-child(2), .pc:nth-child(2), .pv-stat:nth-child(2) { animation-delay: .05s; } .sk-n:nth-child(3), .pc:nth-child(3), .pv-stat:nth-child(3) { animation-delay: .1s; } .sk-n:nth-child(4), .pc:nth-child(4), .pv-stat:nth-child(4) { animation-delay: .15s; }
-  .sk-n:nth-child(n+5), .pc:nth-child(n+5) { animation-delay: .2s; }
+  html.motion .sk-n, html.motion .pc, html.motion .pv-stat { animation: cellIn .45s var(--ease) both; }
+  html.motion .sk-n:nth-child(2), html.motion .pc:nth-child(2), html.motion .pv-stat:nth-child(2) { animation-delay: .05s; } html.motion .sk-n:nth-child(3), html.motion .pc:nth-child(3), html.motion .pv-stat:nth-child(3) { animation-delay: .1s; } html.motion .sk-n:nth-child(4), html.motion .pc:nth-child(4), html.motion .pv-stat:nth-child(4) { animation-delay: .15s; }
+  html.motion .sk-n:nth-child(n+5), html.motion .pc:nth-child(n+5) { animation-delay: .2s; }
   /* fogli dal basso con un filo di rimbalzo */
-  .bsheet { transition: transform .38s cubic-bezier(.32, 1.25, .5, 1), opacity .2s; }
+  html.motion .bsheet { transition: transform .38s cubic-bezier(.32, 1.25, .5, 1), opacity .2s; }
   /* il riquadro del meteo della notte e il voto */
-  .rate { animation: cellIn .5s var(--ease) .15s both; }
-}
+  html.motion .rate { animation: cellIn .5s var(--ease) .15s both; }
+
 @media (max-width: 759px) { .tour-acts.cta .btn.ghost span { display: none; } .tour-acts.cta .btn.ghost { padding: 7px 8px; } .tour-acts .btn { padding-left: 11px; padding-right: 11px; } }

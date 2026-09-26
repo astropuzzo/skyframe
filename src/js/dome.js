@@ -2,7 +2,7 @@
 /* Cupola del cielo: proiezione azimutale equidistante dallo zenit (nord in alto, est a sinistra, come guardando in su). */
 const Dome = (() => {
   const SKY = window.SKY || { stars: [], lines: [], names: [], mw: [] };
-  const reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduced = () => !(window.motionOn ? motionOn() : !matchMedia('(prefers-reduced-motion: reduce)').matches);
   const ST = SKY.stars.map((s, i) => { const d = s[1] * D2R; const c = bvColor(s[3]); return { ra: s[0], sd: Math.sin(d), cd: Math.cos(d), mag: s[2], rgb: `${c[0]},${c[1]},${c[2]}`, ph: (i * 2.399) % 6.283 }; });
   const MW = SKY.mw; const LINES_ = SKY.lines; const NAMES = SKY.names.filter((n) => n.r <= 2);
   let cv, ctx, tipEl, mw, mwx, S = 600, dpr = 1, R = 280, cx = 300, cy = 300;
@@ -32,7 +32,7 @@ const Dome = (() => {
   function draw(now) {
     if (!data) return;
     const lat = data.site.lat * D2R, sL = Math.sin(lat), cL = Math.cos(lat), lst = lstNow(), J = jd(time);
-    const intro = reduced ? 1 : clamp((now - t0) / 1600, 0, 1);
+    const intro = reduced() ? 1 : clamp((now - t0) / 1600, 0, 1);
     const sun = sunPos(J), [sAlt, sAz] = altaz(sun.ra, sun.dec, lst, sL, cL);
     const mo = moonPos(J), [mAlt0, mAz] = altaz(mo.ra, mo.dec, lst, sL, cL), mAlt = mAlt0 - 0.95 * Math.cos(mAlt0 * D2R);
     const mi = moonIllum(J);
@@ -87,7 +87,7 @@ const Dome = (() => {
       const [a, z] = starAltAz(s.ra, s.sd, s.cd, lst, sL, cL); if (a < -1) continue;
       const [x, y] = proj(a, z);
       const fade = clamp((lim + 0.6 - s.mag) / 1.2, 0, 1) * clamp((a + 1) / 8, 0.25, 1);
-      const tw2 = reduced ? 1 : 0.82 + 0.18 * Math.sin(tsec * (1.3 + (i % 7) * 0.31) + s.ph);
+      const tw2 = reduced() ? 1 : 0.82 + 0.18 * Math.sin(tsec * (1.3 + (i % 7) * 0.31) + s.ph);
       const rad = Math.max(0.55, (6.4 - s.mag) * 0.52) * sc;
       if (s.mag < 1.6) { const gg = ctx.createRadialGradient(x, y, 0, x, y, rad * 4); gg.addColorStop(0, `rgba(${s.rgb},${0.35 * fade})`); gg.addColorStop(1, `rgba(${s.rgb},0)`); ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(x, y, rad * 4, 0, 7); ctx.fill(); }
       ctx.fillStyle = `rgba(${s.rgb},${Math.min(1, fade * tw2 * (0.45 + 0.55 * clamp((4.5 - s.mag) / 4, 0, 1)))})`;
@@ -126,7 +126,7 @@ const Dome = (() => {
     ctx.restore();
     // target
     markers = [];
-    const pulse = reduced ? 0 : (Math.sin(now / 380) + 1) / 2;
+    const pulse = reduced() ? 0 : (Math.sin(now / 380) + 1) / 2;
     ctx.font = `600 ${Math.round(10 * sc + 3)}px "Saira Condensed", sans-serif`; ctx.textAlign = 'left';
     const labels = []; // rettangoli delle etichette già scritte: niente sovrapposizioni
     const freeFor = (x, y, w, h) => !labels.some((b) => x < b[0] + b[2] && x + w > b[0] && y < b[1] + b[3] && y + h > b[1]);
@@ -194,7 +194,7 @@ const Dome = (() => {
   function loop(now) {
     requestAnimationFrame(loop);
     if (document.hidden || !cv.offsetParent) return; // sezione nascosta: niente disegni
-    const introOn = now - t0 < 1800, twinkle = !reduced && now - lastDraw > 66;
+    const introOn = now - t0 < 1800, twinkle = !reduced() && now - lastDraw > 66;
     if (dirty || anim || introOn || twinkle) { draw(now); lastDraw = now; dirty = false; }
   }
   return {

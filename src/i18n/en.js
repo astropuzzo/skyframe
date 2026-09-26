@@ -147,7 +147,7 @@ window.I18N.en = {
   "Nessun orizzonte: conta solo l’altezza minima. La mappa all-sky, se la prendi, lo ricava dal terreno.": "No horizon: only the minimum altitude counts. The all-sky map, if you get it, derives it from the terrain.",
   "Nuovo profilo": "New profile",
   "Stanotte": "Tonight",
-  "Luce rossa": "Red light",
+  "Luce rossa": "Red light", "Logo nuovo all’avvio: dal campo stellare allo scatto sul target": "New opening: from a wide star field to the shot on the target", "Animazioni: in Setup scegli se seguire il sistema o averle sempre": "Animations: in Setup, follow the system or keep them always on", "Animazioni": "Animations", "Come il sistema": "Like the system", "Sempre": "Always", "Ridotte": "Reduced",
   "profili salvati su file": "profiles saved to file",
   "Luci": "Lights",
   "Adesso": "Now",

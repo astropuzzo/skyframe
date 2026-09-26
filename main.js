@@ -68,7 +68,12 @@ function createWindow() {
 function evalScript(win, file) {
   win.webContents.on('console-message', (e) => { if (e.level === 'error' || e.level === 3) console.log('[renderer]', e.message); });
   win.webContents.once('did-finish-load', async () => {
-    try { await sleep(2500); const code = await fs.readFile(file, 'utf8'); console.log(JSON.stringify(await win.webContents.executeJavaScript(`(async () => { ${code} })()`, true))); }
+    try {
+      await sleep(2500); const code = await fs.readFile(file, 'utf8'), res = await win.webContents.executeJavaScript(`(async () => { ${code} })()`, true);
+      // più schermate: lo script può restituire { shots: [{ js, file }] } (js eseguito prima di ogni cattura)
+      if (res && Array.isArray(res.shots)) for (const s of res.shots) { await win.webContents.executeJavaScript(s.js, true); await sleep(120); await fs.writeFile(s.file, (await win.webContents.capturePage()).toPNG()); }
+      console.log(JSON.stringify(res && res.shots ? { ...res, shots: res.shots.length } : res));
+    }
     catch (e) { console.error('EVAL FAIL', e.message); process.exitCode = 1; }
     if (process.env.SKYFRAME_EVAL_SHOT) await fs.writeFile(process.env.SKYFRAME_EVAL_SHOT, (await win.webContents.capturePage()).toPNG());
     app.quit();

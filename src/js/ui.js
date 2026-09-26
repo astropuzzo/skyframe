@@ -7,10 +7,8 @@
 window.__errs = []; window.addEventListener('error', (e) => { if (window.__errs.length < 20) window.__errs.push(String(e.message)); }); // per le prove automatiche
 const ic = (name, cls) => `<svg class="ic${cls ? ' ' + cls : ''}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 const PHONE = window.matchMedia('(max-width: 759px)');
-const MOTION = window.matchMedia('(prefers-reduced-motion: no-preference)');
+const MOTION = { get matches() { return motionOn(); } }; // la scelta «Animazioni» di Setup (src/js/intro.js)
 /* il logo che si compone (avvio e guida): cornice che scatta in posizione, nebulosa che si accende, stella */
-const LOGO_ANIM = '<svg class="alogo" viewBox="0 0 32 32" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path class="b b1" d="M5.5 11V7.5H9.5"/><path class="b b2" d="M22.5 7.5h4V11"/><path class="b b3" d="M26.5 21v3.5h-4"/><path class="b b4" d="M9.5 24.5h-4V21"/></g><g class="neb"><ellipse class="ring" cx="16" cy="16" rx="7.2" ry="5.6" transform="rotate(-24 16 16)" fill="none" stroke="url(#lgRing)" stroke-width="2.6"/><ellipse class="core" cx="16" cy="16" rx="3.9" ry="2.9" transform="rotate(-24 16 16)" fill="#4CCFBC" fill-opacity=".85"/><circle class="star" cx="16" cy="16" r="1" fill="#fff"/></g></svg>';
-
 /* ---------- indietro ----------
    Ogni cosa aperta (foglio, dettaglio, editor, guida, una sezione diversa da Stanotte) aggiunge un passo alla cronologia
    e se lo ricorda. Il tasto indietro (Android, browser) torna di un passo e chiude ciò che quel passo aveva aperto.
@@ -207,6 +205,7 @@ function renderSetup() {
     <div class="st-sec"><h3>${tx('Luoghi')}</h3><div class="st-list">${locs}<button type="button" class="st-item" data-newl>${ic('plus')}<span class="tx"><b>${tx('Nuovo luogo')}</b><small>${tx('cielo, mappa all-sky e orizzonte arrivano da soli')}</small></span></button></div></div>
     <div class="st-sec"><h3>${tx('Preferenze')}</h3><div class="st-list">
       <div class="st-item wrap">${ic('moon')}<span class="tx"><b>${tx('Con la Luna')}</b><small>${tx(MODE_TXT[moonMode()][1])}</small></span><div class="seg" id="moonSeg">${MOON_MODES.map((m) => `<button type="button" data-mode="${m}" aria-pressed="${m === moonMode()}">${tx(MODE_TXT[m][0])}</button>`).join('')}</div></div>
+      <div class="st-item wrap">${ic('motion')}<span class="tx"><b>${tx('Animazioni')}</b></span><div class="seg" id="motionSeg">${[['auto', 'Come il sistema'], ['on', 'Sempre'], ['off', 'Ridotte']].map(([k, t]) => `<button type="button" data-v="${k}" aria-pressed="${motionPref() === k}">${tx(t)}</button>`).join('')}</div></div>
       <label class="st-item tap">${ic('eye')}<span class="tx"><b>${tx('Luce rossa')}</b><small>${tx('tinge tutto di rosso per non perdere l’adattamento al buio')}</small></span><span class="switch"><input type="checkbox" id="swRed" ${red ? 'checked' : ''}><i></i></span></label>
       <div class="st-item">${ic('globe')}<span class="tx"><b>${tx('Lingua')}</b></span><select class="sel" id="langSel" aria-label="${tx('Lingua')}">${Object.entries(LANGS).map(([k, n]) => `<option value="${k}" ${k === LANG ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
     </div></div>
@@ -243,6 +242,7 @@ function renderSetup() {
   const segv = (id, k) => { const g = $(id); if (g) g.onclick = (e) => { const b = e.target.closest('[data-v]'); if (!b) return; setNcfg(k, +b.dataset.v); renderSetup(); }; };
   segv('#nLead', 'lead'); segv('#nMin', 'min');
   $('#moonSeg').onclick = (e) => { const m = e.target.closest('[data-mode]'); if (m) setMoonMode(m.dataset.mode); };
+  $('#motionSeg').onclick = (e) => { const m = e.target.closest('[data-v]'); if (m) { setMotionPref(m.dataset.v); renderSetup(); } };
   $('#swNotify').onchange = () => toggleNotify();
   $('#swRed').onchange = (e) => setRed(e.target.checked);
   $('#langSel').onchange = (e) => setLang(e.target.value);

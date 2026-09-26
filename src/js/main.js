@@ -335,14 +335,16 @@ function wire() {
 }
 
 async function boot() {
+  // prima si disegna la schermata d'avvio (l'intro parte), poi i calcoli
+  await new Promise((r) => { requestAnimationFrame(() => setTimeout(r, 0)); setTimeout(r, 150); }); // (pagina nascosta: niente fotogrammi)
   Dome.init($('#dome'), $('#domeTip'));
   if (DESK) { try { applyStore(await window.cielo.loadProfiles()); } catch (e) { applyStore(null); } }
   // fino alla 0.5.0 qui si rileggevano solo i profili: i luoghi si ricostruivano da quello attivo e gli altri si perdevano
   else applyStore(LS.get('sf.store', null) || { profiles: LS.get('sf.profiles', []), active: LS.get('sf.active', null), locations: LS.get('sf.locs', undefined), activeLoc: LS.get('sf.loc', null) });
   wire(); refresh(true);
   window.__bootMs = Math.round(performance.now());
-  requestAnimationFrame(() => { const b = $('#bootScreen'); if (b) { b.classList.add('done'); setTimeout(() => b.remove(), 600); } });
-  setTimeout(tourBoot, 900); // guida al primo avvio, novità dopo un aggiornamento
+  // guida al primo avvio e novità dopo un aggiornamento: quando il logo è arrivato al suo posto
+  Promise.resolve(window.introExit ? introExit() : $('#bootScreen') && $('#bootScreen').remove()).then(() => setTimeout(tourBoot, 250));
 }
 boot();
 

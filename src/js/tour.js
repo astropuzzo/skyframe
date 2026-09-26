@@ -24,6 +24,7 @@ const TOUR_STEPS = [
 ];
 /* novità per versione (le più recenti in cima) */
 const NEWS = [
+  { v: '0.14.0', items: ['Logo nuovo all’avvio: dal campo stellare allo scatto sul target', 'Animazioni: in Setup scegli se seguire il sistema o averle sempre'] },
   { v: '0.13.1', items: ['Android: il tasto indietro chiude fogli, dettaglio e guida invece di uscire', 'Android: gli avvisi ad app chiusa ora ricevono le notti da controllare'] },
   { v: '0.13.0', items: ['Questa guida passo passo, e le novità a ogni aggiornamento', 'Niente più collegamenti a siti meteo esterni: tutto dentro l’app'] },
   { v: '0.12.1', items: ['Registri la sessione con un tocco dal piano della notte', 'Le ore fatte con la Luna piena valgono per quello che rendono'] },
@@ -88,7 +89,7 @@ async function tourGo(i) {
   if (t && t.offsetParent) { t.scrollIntoView({ block: 'center', behavior: 'smooth' }); TOUR.target = t; }
   const n = TOUR.steps.length, last = i === n - 1;
   card.innerHTML = `<div class="tour-top"><span class="tour-n">${i + 1} / ${n}</span><button type="button" class="link" data-t="skip">${tx(last ? 'Chiudi' : 'Salta la guida')}</button></div>
-    ${st.hero ? `<div class="tour-hero"><span class="tw" style="--x:12%;--y:22%;--d:.1s"></span><span class="tw" style="--x:84%;--y:18%;--d:.7s"></span><span class="tw" style="--x:70%;--y:52%;--d:1.2s"></span><span class="tw" style="--x:24%;--y:60%;--d:.4s"></span><span class="tw" style="--x:52%;--y:12%;--d:1.6s"></span>${LOGO_ANIM}<svg class="th-hz" viewBox="0 0 300 30" preserveAspectRatio="none" aria-hidden="true"><path d="M0 28 C 90 6, 210 6, 300 28"/></svg></div>` : ''}
+    ${st.hero ? `<div class="tour-hero"><div class="intro">${introHTML()}</div><svg class="th-hz" viewBox="0 0 300 30" preserveAspectRatio="none" aria-hidden="true"><path d="M0 28 C 90 6, 210 6, 300 28"/></svg></div>` : ''}
     <h3>${tx(st.t)}</h3><p>${tx(st.d)}</p>
     <div class="tour-dots">${TOUR.steps.map((_, k) => `<i class="${k === i ? 'on' : k < i ? 'done' : ''}"></i>`).join('')}</div>
     <div class="tour-acts${st.cta ? ' cta' : ''}">${i > 0 ? `<button type="button" class="btn ghost" data-t="prev" aria-label="${tx('Indietro')}">${ic('chev-l')}<span>${tx('Indietro')}</span></button>` : '<span></span>'}
