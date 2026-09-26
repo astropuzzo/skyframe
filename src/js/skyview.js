@@ -10,8 +10,6 @@ const skyCol = (f) => { const c = clamp(f, 0, 1), a = [14, 38, 72], b = [196, 20
 const cloudCol = (p) => `rgba(200,210,226,${(clamp(p, 0, 100) / 100 * 0.9).toFixed(2)})`;
 const LVL_BG = ['rgba(90,205,139,.2)', 'rgba(76,207,188,.2)', 'rgba(230,180,75,.2)', 'rgba(232,131,74,.22)', 'rgba(238,90,76,.22)'];
 const lvlBg = (l) => (l ? `background:${LVL_BG[l.i]};color:${LVL_COL[l.i]}` : '');
-const mbUrl = (s) => `https://www.meteoblue.com/${LANG === 'it' ? 'it/tempo' : 'en/weather'}/outdoorsports/seeing/${Math.abs(+s.lat).toFixed(3)}${+s.lat >= 0 ? 'N' : 'S'}${Math.abs(+s.lon).toFixed(3)}${+s.lon >= 0 ? 'E' : 'W'}`;
-const coUrl = (s) => `https://clearoutside.com/forecast/${(+s.lat).toFixed(2)}/${(+s.lon).toFixed(2)}`;
 
 /* ore intere della notte (dal tramonto all'alba) con il buio segnato */
 function nightHours(x) {
@@ -102,8 +100,7 @@ function renderSky() {
       <div class="sk-legend"><span>${ic('info')}${tx('Seeing: stima dalla turbolenza nei livelli in quota di GFS ed ECMWF, in secondi d’arco come meteoblue (sotto 1,2″ buono). Trasparenza: aerosol CAMS (sotto 0,15 buona). Umidità in giallo: rischio condensa.')}</span></div></div>
     ${skyModels(x)}
     <div class="card" id="skOther"${state.locs.length > 1 ? '' : ' hidden'}></div>
-    <p class="st-foot sk-src">${tx('Fonti')}: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> (${Object.keys(WX.d.models).length} ${tx('modelli')}${p.ens ? ', ECMWF ensemble' : ''}${p.aq ? ', CAMS' : ''}) · ItaliaMeteo-ARPAE, DWD, Météo-France, ECMWF, UK Met Office, NOAA · Copernicus Atmosphere Monitoring Service<br>
-      ${tx('Confronta con')} <a href="${mbUrl(s)}" target="_blank" rel="noopener">meteoblue seeing</a> · <a href="${coUrl(s)}" target="_blank" rel="noopener">Clear Outside</a></p>`;
+    <p class="st-foot sk-src">${tx('Fonti')}: Open-Meteo.com (${Object.keys(WX.d.models).length} ${tx('modelli')}${p.ens ? ', ECMWF ensemble' : ''}${p.aq ? ', CAMS' : ''}) · ItaliaMeteo-ARPAE, DWD, Météo-France, ECMWF, UK Met Office, NOAA · Copernicus Atmosphere Monitoring Service</p>`;
   el.onclick = (e) => {
     if (e.target.closest('[data-refresh]')) { refreshWeather(true); toast(tx('Aggiorno le previsioni…')); return; }
     const b = e.target.closest('.sk-n[data-k]'); if (b) { SK.k = +b.dataset.k; renderSky(); const g = $('#skyView .hg'); if (g && PHONE.matches) g.closest('.card').scrollIntoView({ behavior: 'smooth', block: 'start' }); }

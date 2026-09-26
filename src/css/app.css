@@ -99,7 +99,7 @@ input[type=checkbox] { width: 17px; height: 17px; }
 /* ---------- avvio ---------- */
 .boot-screen { position: fixed; inset: 0; z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: radial-gradient(ellipse at 50% 42%, #0C1322, var(--bg) 62%); transition: opacity .45s var(--ease), visibility .45s; color: #EEF3F9; }
 .boot-screen.done { opacity: 0; visibility: hidden; }
-.boot-logo { width: 84px; height: 84px; animation: bootPulse 1.6s var(--ease) infinite; }
+.boot-logo { width: 96px; height: 96px; color: #EEF3F9; }
 .boot-name { font: 700 22px/1 var(--font-d); letter-spacing: .14em; text-transform: uppercase; }
 .boot-name b { color: var(--accent); }
 .boot-msg { font-size: 13px; color: var(--ink-3); }
@@ -964,3 +964,92 @@ button.fact:hover { background: var(--card-2); }
 .tn-log { width: 32px; height: 32px; color: var(--ink-3); flex: none; }
 .tn-log:hover { color: var(--good); }
 .tn-log.on, .tn-log:disabled { color: var(--good); opacity: .8; cursor: default; }
+
+/* ============================ guida ============================ */
+.tour { position: fixed; inset: 0; z-index: 80; }
+.tour.dim { background: rgba(2, 3, 6, .74); }
+.tour-hole { position: fixed; border-radius: 14px; box-shadow: 0 0 0 9999px rgba(2, 3, 6, .74), 0 0 0 2px var(--accent), 0 0 24px 4px rgba(76, 207, 188, .35); transition: left .35s var(--ease), top .35s var(--ease), width .35s var(--ease), height .35s var(--ease); pointer-events: none; }
+.tour-card { position: fixed; width: 370px; max-width: calc(100vw - 24px); background: var(--card-2); border: 1px solid var(--line-3); border-radius: 18px; padding: 14px 16px 14px; box-shadow: 0 24px 70px rgba(0, 0, 0, .6); opacity: 0; transition: opacity .25s; }
+.tour-card.on { opacity: 1; }
+.tour-top { display: flex; justify-content: space-between; align-items: center; }
+.tour-n { font: 500 12px var(--font-m); color: var(--ink-3); }
+.tour-card h3 { font: 600 19px/1.25 var(--font-b); margin: 6px 0 6px; }
+.tour-card p { margin: 0 0 12px; color: var(--ink-2); font-size: 14.5px; line-height: 1.5; }
+.tour-dots { display: flex; gap: 3px; margin-bottom: 14px; }
+.tour-dots i { flex: 1; height: 3px; border-radius: 2px; background: var(--line-3); }
+.tour-dots i.done { background: rgba(76, 207, 188, .45); }
+.tour-dots i.on { background: var(--accent); }
+.tour-acts { display: flex; gap: 8px; align-items: center; }
+.tour-acts > :first-child { margin-right: auto; }
+.news { margin: 0 6px 6px; }
+.news b { font: 600 13px var(--font-m); color: var(--accent); }
+.news ul { margin: 4px 0 12px; padding-left: 18px; color: var(--ink-2); line-height: 1.55; font-size: 14px; }
+.st-item > .ic:last-child { color: var(--ink-4); }
+@media (max-width: 759px) { .tour-card { width: auto; } }
+
+/* ============================ movimento ============================
+   Serve a far capire (da dove arriva una sezione, cosa si è appena disegnato), mai a distrarre; tutto spento con
+   «riduci animazioni» del sistema. */
+.alogo { overflow: visible; }
+.alogo .b, .alogo .ring, .alogo .core, .alogo .star { transform-box: view-box; transform-origin: 16px 16px; }
+.tour-hero { position: relative; height: 128px; margin: 2px -4px 8px; border-radius: 14px; overflow: hidden; background: radial-gradient(ellipse 70% 90% at 50% 85%, rgba(76, 207, 188, .12), transparent 70%), linear-gradient(180deg, #0C1424, #070A12); display: grid; place-items: center; color: #EEF3F9; }
+.tour-hero .alogo { width: 78px; height: 78px; margin-top: -10px; }
+.tour-hero .th-hz { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 30px; }
+.tour-hero .th-hz path { fill: none; stroke: var(--accent); stroke-width: 2; opacity: .9; vector-effect: non-scaling-stroke; }
+.tour-hero .tw { position: absolute; left: var(--x); top: var(--y); width: 3px; height: 3px; border-radius: 50%; background: #DCE4F2; opacity: .6; }
+@media (prefers-reduced-motion: no-preference) {
+  .alogo .b { animation: lgSnap .7s cubic-bezier(.34, 1.56, .64, 1) both; }
+  .alogo .b1 { --dx: -4px; --dy: -4px; } .alogo .b2 { --dx: 4px; --dy: -4px; animation-delay: .06s; } .alogo .b3 { --dx: 4px; --dy: 4px; animation-delay: .12s; } .alogo .b4 { --dx: -4px; --dy: 4px; animation-delay: .18s; }
+  .alogo .ring { animation: lgRing .9s cubic-bezier(.22, 1.2, .36, 1) .2s both; }
+  .alogo .core { animation: lgCore .8s var(--ease) .45s both; }
+  .alogo .star { animation: lgStar .5s cubic-bezier(.34, 1.56, .64, 1) .75s both, lgGlow 2.4s ease-in-out 1.3s infinite; }
+  .boot-logo .ring { animation: lgRing .9s cubic-bezier(.22, 1.2, .36, 1) .2s both, lgSpin 6s linear 1.1s infinite; }
+  @keyframes lgSnap { from { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.7); } }
+  @keyframes lgRing { from { opacity: 0; transform: rotate(-70deg) scale(.35); } }
+  @keyframes lgCore { from { opacity: 0; transform: scale(.2); } }
+  @keyframes lgStar { from { opacity: 0; transform: scale(0); } }
+  @keyframes lgGlow { 50% { opacity: .55; } }
+  @keyframes lgSpin { to { transform: rotate(360deg); } }
+  .tour-hero .th-hz path { stroke-dasharray: 400; stroke-dashoffset: 400; animation: hzDraw 1.4s var(--ease) .3s forwards; }
+  @keyframes hzDraw { to { stroke-dashoffset: 0; } }
+  .tour-hero .tw { animation: twinkle 2.6s ease-in-out var(--d) infinite; }
+  @keyframes twinkle { 0%, 100% { opacity: .15; transform: scale(.6); } 50% { opacity: .95; transform: scale(1.2); } }
+  /* guida: la scheda entra morbida a ogni passo */
+  .tour-card.in { animation: cardIn .38s cubic-bezier(.22, 1.1, .36, 1) both; }
+  @keyframes cardIn { from { opacity: 0; transform: translateY(10px) scale(.98); } }
+  .tour-card[style*="translate(-50%"] { animation: none; }
+  /* sezioni: la nuova entra dal lato verso cui vai nella barra */
+  .views { view-transition-name: views; }
+  ::view-transition-old(views) { animation: vtOut .2s var(--ease) both; }
+  ::view-transition-new(views) { animation: vtIn .32s var(--ease) both; }
+  html[data-dir="back"]::view-transition-old(views) { animation-name: vtOutB; }
+  html[data-dir="back"]::view-transition-new(views) { animation-name: vtInB; }
+  @keyframes vtOut { to { opacity: 0; transform: translateX(-28px); } }
+  @keyframes vtIn { from { opacity: 0; transform: translateX(28px); } }
+  @keyframes vtOutB { to { opacity: 0; transform: translateX(28px); } }
+  @keyframes vtInB { from { opacity: 0; transform: translateX(-28px); } }
+  /* barra delle sezioni: la pillola dell'attiva si allarga */
+  .nav button[aria-current="page"]::before { animation: pillIn .32s cubic-bezier(.34, 1.4, .64, 1); }
+  @keyframes pillIn { from { transform: scaleX(.4); opacity: 0; } }
+  /* notti: quella scelta fa un piccolo salto */
+  .nb.pop { animation: nbPop .38s cubic-bezier(.34, 1.56, .64, 1); }
+  @keyframes nbPop { 40% { transform: scale(.92); } }
+  /* strisce dei giorni (tempi, piano di stagione) che si disegnano da sinistra */
+  .drawer.fresh .sc-row .sc-tl, .ss-row .sc-tl, .drawer.fresh .sc-ax .moon, .ss-ax .sc-ax .moon { animation: reveal .9s var(--ease) both; }
+  .drawer.fresh .sc-row:nth-child(2) .sc-tl { animation-delay: .08s; } .drawer.fresh .sc-row:nth-child(3) .sc-tl { animation-delay: .16s; } .drawer.fresh .sc-row.loc .sc-tl { animation-delay: .24s; }
+  .ss-row:nth-child(n+2) .sc-tl { animation-delay: .06s; } .ss-row:nth-child(n+4) .sc-tl { animation-delay: .12s; } .ss-row:nth-child(n+6) .sc-tl { animation-delay: .18s; }
+  @keyframes reveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+  /* calendari: le caselle entrano in sequenza */
+  .drawer.fresh .tc, .pm { animation: cellIn .42s var(--ease) both; animation-delay: calc(var(--k, 0) * 11ms); }
+  @keyframes cellIn { from { opacity: 0; transform: translateY(6px) scale(.96); } }
+  .pm.past { animation: none; }
+  /* schede delle notti (Cielo) e dei progetti */
+  .sk-n, .pc, .pv-stat { animation: cellIn .45s var(--ease) both; }
+  .sk-n:nth-child(2), .pc:nth-child(2), .pv-stat:nth-child(2) { animation-delay: .05s; } .sk-n:nth-child(3), .pc:nth-child(3), .pv-stat:nth-child(3) { animation-delay: .1s; } .sk-n:nth-child(4), .pc:nth-child(4), .pv-stat:nth-child(4) { animation-delay: .15s; }
+  .sk-n:nth-child(n+5), .pc:nth-child(n+5) { animation-delay: .2s; }
+  /* fogli dal basso con un filo di rimbalzo */
+  .bsheet { transition: transform .38s cubic-bezier(.32, 1.25, .5, 1), opacity .2s; }
+  /* il riquadro del meteo della notte e il voto */
+  .rate { animation: cellIn .5s var(--ease) .15s both; }
+}
+@media (max-width: 759px) { .tour-acts.cta .btn.ghost span { display: none; } .tour-acts.cta .btn.ghost { padding: 7px 8px; } .tour-acts .btn { padding-left: 11px; padding-right: 11px; } }

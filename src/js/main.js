@@ -342,6 +342,7 @@ async function boot() {
   wire(); refresh(true);
   window.__bootMs = Math.round(performance.now());
   requestAnimationFrame(() => { const b = $('#bootScreen'); if (b) { b.classList.add('done'); setTimeout(() => b.remove(), 600); } });
+  setTimeout(tourBoot, 900); // guida al primo avvio, novità dopo un aggiornamento
 }
 boot();
 

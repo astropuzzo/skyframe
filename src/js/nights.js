@@ -58,10 +58,11 @@ function renderNightBar() {
     const wd = k === 0 ? tx('Stanotte') : d.toLocaleDateString(LOCALE, { weekday: 'short' }).replace('.', '');
     const w = q.clear != null ? wxSpan(x.samples.map((s) => s.ms), 10) : null, sl = w && seeLvl(w.see), tl = w && traLvl(w.aod);
     const tip = [d.toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' }), tx(q.label), tx('buio {h}', { h: fmtDur(q.dark) }), tx('senza Luna {h}', { h: fmtDur(q.free) }), q.clear != null ? tx('{p}% sereno', { p: Math.round(q.clear * 100) }) : tx('meteo non ancora previsto'), sl ? tx('seeing {s}', { s: tx(sl.t).toLowerCase() }) : '', tl ? tx('trasparenza {s}', { s: tx(tl.t).toLowerCase() }) : ''].filter(Boolean).join(' · ');
-    return `<button type="button" class="nb${q.clear == null ? ' far' : ''}" data-t0="${x.t0}" aria-pressed="${x.ds === sel}" title="${esc(tip)}" aria-label="${esc(tip)}">
+    return `<button type="button" class="nb${q.clear == null ? ' far' : ''}${x.ds === sel && nb.lastSel && nb.lastSel !== sel ? ' pop' : ''}" data-t0="${x.t0}" aria-pressed="${x.ds === sel}" title="${esc(tip)}" aria-label="${esc(tip)}">
       <span class="wd">${esc(wd)}</span><span class="dd">${d.getDate()}</span><span class="mo">${moonSvg(x.ill, x.waxing, 6)}</span>
       <span class="q"><b style="width:${Math.max(8, Math.round(Math.min(1, q.rel) * 100))}%;background:${RATE_COL[q.r]}"></b></span>${q.clear != null && q.clear < 0.5 ? ic('cloud', 'wx') : ''}</button>`;
   }).join('') + `<button type="button" class="nb nbm" data-more title="${tx('Scegli un’altra notte')}">${ic('cal')}<span>${tx('Altre')}</span></button>`;
+  nb.lastSel = sel;
   el.onclick = (e) => {
     if (e.target.closest('[data-more]')) { openNightSheet(); return; }
     const b = e.target.closest('[data-t0]'); if (!b) return;

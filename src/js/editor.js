@@ -130,7 +130,7 @@ function openLocEditor(id, asNew) {
   if (geoMap) requestAnimationFrame(() => { const la = +F('f_lat').value, lo = +F('f_lon').value; geoMap.invalidateSize(); geoPin.setLatLng([la, lo]); geoMap.setView([la, lo], asNew ? 8 : d.site.example && la === d.site.lat ? 6 : Math.max(geoMap.getZoom(), 12)); });
   (asNew && DESK_GEO() ? F('geoQ') : F('f_site')).focus();
 }
-function closeEditor(fromPop) { if (F('editor').hidden) return; F('editor').hidden = true; F('leaveConfirm').hidden = true; draft = null; edDirty = false; if (fromPop !== true) backDone(editorBack); }
+function closeEditor(fromPop) { if (F('editor').hidden) return; F('editor').hidden = true; F('leaveConfirm').hidden = true; draft = null; edDirty = false; if (fromPop !== true) backDone(editorBack); tourAfterEditor(); }
 /* tasto indietro: con modifiche non salvate si resta e si chiede cosa fare */
 function editorBack(fromPop) { if (fromPop !== true) return; if (edDirty) { backPush(editorBack); F('leaveConfirm').hidden = false; F('leaveNo').focus(); return; } closeEditor(true); }
 /* chiusura richiesta dall'utente (Chiudi, Esc): con modifiche non salvate si chiede prima cosa fare */

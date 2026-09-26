@@ -4,8 +4,12 @@
    sinistra. Ogni sezione scorre per conto suo e ritrova il punto dove l'avevi lasciata.
    Fogli dal basso (luogo, attrezzatura, notte, filtri) e dettaglio del target si chiudono anche col tasto indietro di
    Android o del browser: ogni apertura mette un passo nella cronologia. */
+window.__errs = []; window.addEventListener('error', (e) => { if (window.__errs.length < 20) window.__errs.push(String(e.message)); }); // per le prove automatiche
 const ic = (name, cls) => `<svg class="ic${cls ? ' ' + cls : ''}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 const PHONE = window.matchMedia('(max-width: 759px)');
+const MOTION = window.matchMedia('(prefers-reduced-motion: no-preference)');
+/* il logo che si compone (avvio e guida): cornice che scatta in posizione, nebulosa che si accende, stella */
+const LOGO_ANIM = '<svg class="alogo" viewBox="0 0 32 32" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path class="b b1" d="M5.5 11V7.5H9.5"/><path class="b b2" d="M22.5 7.5h4V11"/><path class="b b3" d="M26.5 21v3.5h-4"/><path class="b b4" d="M9.5 24.5h-4V21"/></g><g class="neb"><ellipse class="ring" cx="16" cy="16" rx="7.2" ry="5.6" transform="rotate(-24 16 16)" fill="none" stroke="url(#lgRing)" stroke-width="2.6"/><ellipse class="core" cx="16" cy="16" rx="3.9" ry="2.9" transform="rotate(-24 16 16)" fill="#4CCFBC" fill-opacity=".85"/><circle class="star" cx="16" cy="16" r="1" fill="#fff"/></g></svg>';
 
 /* ---------- indietro ---------- */
 const Back = { stack: [], skip: 0, view: false };
@@ -28,19 +32,34 @@ function setView(v, fromPop) {
   if (!VIEWS.includes(v)) v = 'tonight';
   const el = $('#v-' + v);
   if (v === UI.view) { if (el && !fromPop) el.scrollTo({ top: 0, behavior: 'smooth' }); return; } // di nuovo la stessa: in cima
-  UI.view = v; $('#app').dataset.view = v;
-  $$('#nav [data-view]').forEach((b) => { if (b.dataset.view === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-  $$('.views > .view').forEach((s) => { const on = s.dataset.view === v; s.hidden = !on; if (on) { s.classList.remove('enter'); void s.offsetWidth; s.classList.add('enter'); } });
+  const from = VIEWS.indexOf(UI.view), to = VIEWS.indexOf(v), vt = !!(document.startViewTransition && MOTION.matches);
+  const apply = () => {
+    UI.view = v; $('#app').dataset.view = v;
+    $$('#nav [data-view]').forEach((b) => { if (b.dataset.view === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+    $$('.views > .view').forEach((s) => { const on = s.dataset.view === v; s.hidden = !on; if (on && !vt) { s.classList.remove('enter'); void s.offsetWidth; s.classList.add('enter'); } });
+    if (v === 'tonight') { Dome.refresh(); drawStrip(); }
+    if (v === 'projects') renderProjects();
+    if (v === 'sky') renderSky();
+    if (v === 'setup') renderSetup();
+  };
+  // passaggio fra sezioni: la nuova entra dal lato verso cui si va nella barra (View Transitions, dove c'è)
+  if (vt) { document.documentElement.dataset.dir = to < from ? 'back' : 'fwd'; document.startViewTransition(apply); } else apply();
   // indietro da una sezione qualsiasi riporta a Stanotte (e da Stanotte esce)
   if (!fromPop) {
     if (v !== 'tonight' && !Back.view) { Back.view = true; try { history.pushState({ sfv: 1 }, ''); } catch { /* niente */ } }
     else if (v === 'tonight' && Back.view && !Back.stack.length) { Back.view = false; Back.skip++; try { history.back(); } catch { Back.skip--; } }
   }
-  if (v === 'tonight') { Dome.refresh(); requestAnimationFrame(drawStrip); }
-  if (v === 'projects') renderProjects();
-  if (v === 'sky') renderSky();
-  if (v === 'setup') renderSetup();
   if (v === 'targets') requestAnimationFrame(() => { const s = state.sel && $(`#list .row[data-id="${CSS.escape(state.sel)}"]`); if (s) s.scrollIntoView({ block: 'nearest' }); });
+}
+/* numeri che salgono fino al valore (ore, conteggi): data-to e il formato dato */
+function countUp(root) {
+  if (!MOTION.matches) return;
+  $$('[data-to]', root).forEach((el) => {
+    const to = +el.dataset.to, fmt = el.dataset.fmt === 'h' ? (x) => '≈ ' + fmtH(x) : el.dataset.fmt === 'hh' ? fmtH : (x) => String(Math.round(x));
+    if (!(to > 0)) return; const t0 = performance.now(), D = 700;
+    const step = (t) => { const k = Math.min(1, (t - t0) / D), e = 1 - Math.pow(1 - k, 3); el.textContent = fmt(k < 1 ? to * e : to); if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  });
 }
 
 /* ---------- foglio dal basso (al centro sul computer) ---------- */
@@ -170,7 +189,7 @@ function renderSetup() {
       <label class="st-item tap">${ic('eye')}<span class="tx"><b>${tx('Luce rossa')}</b><small>${tx('tinge tutto di rosso per non perdere l’adattamento al buio')}</small></span><span class="switch"><input type="checkbox" id="swRed" ${red ? 'checked' : ''}><i></i></span></label>
       <div class="st-item">${ic('globe')}<span class="tx"><b>${tx('Lingua')}</b></span><select class="sel" id="langSel" aria-label="${tx('Lingua')}">${Object.entries(LANGS).map(([k, n]) => `<option value="${k}" ${k === LANG ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
     </div></div>
-    <div class="st-sec"><h3>${tx('Avvisi')}</h3><div class="st-list">
+    <div class="st-sec" id="stAlerts"><h3>${tx('Avvisi')}</h3><div class="st-list">
       <label class="st-item tap">${ic(on ? 'bell-on' : 'bell')}<span class="tx"><b>${tx('Avvisi')}</b><small>${tx(on ? 'accesi: arrivano quando serve, anche ad app chiusa sul telefono' : 'spenti')}</small></span><span class="switch"><input type="checkbox" id="swNotify" ${on ? 'checked' : ''}><i></i></span></label>
       ${on ? [['evening', 'Stasera si scatta', 'prima del buio, se la notte merita: finestra serena e target con gli orari'], ['top', 'Notte ottima in arrivo', 'il giorno prima, per una notte senza Luna e serena con buona probabilità'], ['change', 'Il meteo è cambiato', 'se stanotte si apre, o se le nuvole tornano dopo l’avviso'], ['season', 'Ultime settimane', 'quando un tuo target sta per uscire di stagione']].map(([k, t, d]) => `<label class="st-item tap sub"><span class="tx"><b>${tx(t)}</b><small>${tx(d)}</small></span><span class="switch"><input type="checkbox" data-nk="${k}" ${nc[k] ? 'checked' : ''}><i></i></span></label>`).join('') +
         `<div class="st-item wrap sub"><span class="tx"><b>${tx('Quanto prima del buio')}</b></span><div class="seg" id="nLead">${[30, 60, 90, 120].map((m) => `<button type="button" data-v="${m}" aria-pressed="${nc.lead === m}">${fmtDur(m / 60)}</button>`).join('')}</div></div>
@@ -181,6 +200,10 @@ function renderSetup() {
       <button type="button" class="st-item" data-export>${ic('upload')}<span class="tx"><b>${tx('Esporta')}</b><small>${tx(DESK ? 'profili, luoghi e progetti in un file' : 'profili, luoghi e progetti: si copiano negli appunti')}</small></span></button>
       <button type="button" class="st-item" data-import>${ic('download')}<span class="tx"><b>${tx('Importa')}</b><small>${tx('da un file esportato da Skyframe (anche dal computer al telefono)')}</small></span></button>
     </div><p class="st-foot">${tx(DESK ? 'Profili e progetti sono salvati su file in questo computer.' : 'Profili e progetti sono salvati in questo dispositivo.')}</p></div>
+    <div class="st-sec" id="stGuide"><h3>${tx('Guida')}</h3><div class="st-list">
+      <button type="button" class="st-item" data-tour>${ic('info')}<span class="tx"><b>${tx('Rivedi la guida')}</b><small>${tx('un giro passo passo di tutte le funzioni')}</small></span>${ic('chev-r')}</button>
+      <button type="button" class="st-item" data-news>${ic('star')}<span class="tx"><b>${tx('Novità')}</b><small>${tx('cosa è cambiato nelle ultime versioni')}</small></span>${ic('chev-r')}</button>
+    </div></div>
     <div class="st-sec"><h3>${tx('Informazioni')}</h3><p class="st-foot">Skyframe ${esc(v)} · <a href="https://github.com/astropuzzo/skyframe" target="_blank" rel="noopener">GitHub</a><br>${tx('Meteo')}: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · ${tx('Immagini')}: NSNS (S. Ziegenbalg), DSS2, Pan-STARRS (CDS), Wikimedia Commons · ${tx('Inquinamento luminoso')}: D. Lorenz, lightpollutionmap.info</p></div>`;
   el.onclick = (e) => {
     const b = e.target.closest('[data-prof],[data-loc],[data-editp],[data-editl],[data-newp],[data-newl],[data-export],[data-import]'); if (!b) return;
@@ -190,6 +213,8 @@ function renderSetup() {
     else if ('export' in d) exportProfiles(); else if ('import' in d) importProfiles();
   };
   el.querySelector('[data-test]') && (el.querySelector('[data-test]').onclick = testNotify);
+  el.querySelector('[data-tour]').onclick = () => tourStart(TOUR_STEPS);
+  el.querySelector('[data-news]').onclick = () => openNews(null, null);
   $$('#setupView [data-nk]').forEach((x) => (x.onchange = () => setNcfg(x.dataset.nk, x.checked)));
   const segv = (id, k) => { const g = $(id); if (g) g.onclick = (e) => { const b = e.target.closest('[data-v]'); if (!b) return; setNcfg(k, +b.dataset.v); renderSetup(); }; };
   segv('#nLead', 'lead'); segv('#nMin', 'min');

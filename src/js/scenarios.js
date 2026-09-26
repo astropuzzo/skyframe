@@ -62,7 +62,7 @@ function scenHTML(r, e) {
     return `<button type="button" class="sc-row" data-mode="${m}" aria-pressed="${m === mode}"><span class="sc-h"><span class="radio${m === mode ? ' on' : ''}"></span><span class="sc-t"><b>${tx(t)}</b><small>${tx(sub)}</small></span><span class="sc-v"><b class="num">${c && isFinite(c.hours) && c.done ? fmtH(c.hours) : c && c.complete ? '—' : '—'}</b><small>${nightsTxt2(c)}${c && !c.complete ? ' · ' + endTxt(c) : ''}</small></span></span>${dayStrip(c, D)}</button>`;
   }).join('');
   return `<div class="scen" id="scen" data-d="${D}">
-    <div class="sc-top"><div class="sc-need"><span>${tx(prog > 0 && prog < 1 ? 'Ti mancano' : 'Ti servono')}</span><b class="num">≈ ${fmtH(needNow(r, e))}</b><small>${tx('di posa col cielo senza Luna di {l}', { l: esc(activeLoc().site.name) })}</small></div>
+    <div class="sc-top"><div class="sc-need"><span>${tx(prog > 0 && prog < 1 ? 'Ti mancano' : 'Ti servono')}</span><b class="num" data-to="${needNow(r, e)}" data-fmt="h">≈ ${fmtH(needNow(r, e))}</b><small>${tx('di posa col cielo senza Luna di {l}', { l: esc(activeLoc().site.name) })}</small></div>
       <button type="button" class="icon-btn" data-scinfo title="${tx('Come leggere i tempi')}" aria-label="${tx('Come leggere i tempi')}">${ic('info')}</button></div>
     ${dayAxis(state.res.C, D)}
     <div class="sc-rows">${rows}<div id="scLocs"></div></div>
@@ -136,7 +136,7 @@ function targetCalHTML(r, e) {
     let cls = x.hGeo < CAL_MIN_H ? 'no' : x.h < CAL_MIN_H ? 'cloud' : 'ok', f = 0;
     if (u && u.use && !u.deepOnly) { cls = 'use'; f = clamp((u.frac || 0) * 2.5, 0, 1); } else if (u && !u.use && x.h >= CAL_MIN_H) cls = 'skip';
     const tip = [d.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' }), x.hGeo >= CAL_MIN_H ? tx('{d} utili', { d: fmtDur(x.h) }) : tx('non si vede col buio'), tx('Luna {p}%', { p: Math.round(x.moon * 100) }), x.clear != null ? tx('meteo: {p}% sereno', { p: Math.round(x.clear * 100) }) : '', cls === 'use' ? tx('fa il {p}% del lavoro', { p: Math.max(1, Math.round((u.frac || 0) * 100)) }) : cls === 'skip' ? tx('saltata: rende troppo poco') : ''].filter(Boolean).join(' · ');
-    cells += `<button type="button" class="tc ${cls}${k === lastK ? ' end' : ''}${ds === sel ? ' sel' : ''}${k === 0 && ds === defaultNightStr() ? ' today' : ''}" data-t0="${x.t0}" style="--f:${(0.25 + 0.75 * f).toFixed(2)}" title="${esc(tip)}" aria-label="${esc(tip)}">
+    cells += `<button type="button" style="--k:${k + lead}" class="tc ${cls}${k === lastK ? ' end' : ''}${ds === sel ? ' sel' : ''}${k === 0 && ds === defaultNightStr() ? ' today' : ''}" data-t0="${x.t0}" style="--f:${(0.25 + 0.75 * f).toFixed(2)}" title="${esc(tip)}" aria-label="${esc(tip)}">
       <span class="d">${d.getDate()}${d.getDate() === 1 || k === 0 ? `<small>${d.toLocaleDateString(LOCALE, { month: 'short' }).replace('.', '')}</small>` : ''}</span><span class="mo">${moonSvg(mi.k, mi.waxing, 5)}</span>
       <span class="hh">${x.hGeo < CAL_MIN_H ? '—' : cls === 'cloud' ? ic('cloud') : fmtH(x.h)}</span>${k === lastK ? `<span class="ok">${ic('check')}</span>` : ''}</button>`;
   }

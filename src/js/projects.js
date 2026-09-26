@@ -145,10 +145,10 @@ function renderProjects() {
   }
   const sec = (t, sub, list) => list.length ? `<div class="pv-sec"><h3>${t}</h3><small>${sub}</small></div><div class="pv-grid">${list.map(projCard).join('')}</div>` : '';
   el.innerHTML = head + `<div class="pv-stats">
-      <div class="pv-stat"><b class="num">${wip.length}</b><span>${tx('in corso')}</span></div>
-      <div class="pv-stat"><b class="num">${favs.length}</b><span>${tx('preferiti da iniziare')}</span></div>
-      <div class="pv-stat"><b class="num">${done.length}</b><span>${tx('completati')}</span></div>
-      <div class="pv-stat"><b class="num">${fmtH(hours)}</b><span>${tx('di posa in {n}', { n: nNights(nights) })}</span></div></div>
+      <div class="pv-stat"><b class="num" data-to="${wip.length}">${wip.length}</b><span>${tx('in corso')}</span></div>
+      <div class="pv-stat"><b class="num" data-to="${favs.length}">${favs.length}</b><span>${tx('preferiti da iniziare')}</span></div>
+      <div class="pv-stat"><b class="num" data-to="${done.length}">${done.length}</b><span>${tx('completati')}</span></div>
+      <div class="pv-stat"><b class="num" data-to="${hours}" data-fmt="hh">${fmtH(hours)}</b><span>${tx('di posa in {n}', { n: nNights(nights) })}</span></div></div>
     <div id="pvSeason">${wip.length + favs.length ? `<div class="card sk-wait"><div class="spin"></div><p>${tx('Preparo il piano di stagione…')}</p></div>` : ''}</div>` +
     sec(tx('In corso'), tx('ore raccolte e quanto manca'), wip) + sec(tx('Preferiti'), tx('da iniziare'), favs) + yearHTML(seasonTargets()) + sec(tx('Fatti'), '', done);
   el.onclick = (e) => {
@@ -158,6 +158,7 @@ function renderProjects() {
     const c = e.target.closest('[data-id]'); if (c) openDetail(c.dataset.id);
   };
   el.onkeydown = (e) => { if (e.key !== 'Enter' && e.key !== ' ') return; const c = e.target.closest('.pc[data-id]'); if (c) { e.preventDefault(); openDetail(c.dataset.id); } };
+  countUp($('#projView .pv-stats'));
   // piano di stagione: calendario del mese, righe dei target, e su ogni scheda la prossima notte e la fine
   const job = ++pvJob;
   seasonPlan((P) => {

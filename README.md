@@ -6,6 +6,8 @@ Pianificatore di target per astrofotografia. Gli dai il tuo setup, i tuoi filtri
 
 ## Cosa fa
 
+- **Guida passo passo** al primo avvio, con il riquadro illuminato su ogni funzione e il logo animato; si riprende da *Setup → Guida*, e a ogni aggiornamento con funzioni nuove le **Novità** propongono un giro solo di quelle.
+- **Movimento dove aiuta a capire**: le sezioni entrano dal lato verso cui vai, le strisce delle notti si disegnano, i calendari compaiono in sequenza, i numeri salgono al valore; tutto spento se il sistema chiede di ridurre le animazioni.
 - **Cinque sezioni**: *Stanotte* (la notte scelta in poche righe, la cupola, il piano e i migliori target), *Target* (tutto il catalogo con ricerca e filtri), *Cielo* (il meteo astronomico), *Progetti* (i tuoi preferiti e quello che stai riprendendo) e *Setup* (attrezzatura, luoghi, avvisi, lingua, dati). Sul telefono la barra delle sezioni sta in basso, i filtri e le scelte si aprono in fogli dal basso, il dettaglio di un target si chiude trascinandolo giù o col tasto indietro.
 - **Le prossime 14 notti** in una striscia: fase della Luna, meteo previsto e un voto per ognuna (ore buone: sereno senza Luna, più un terzo del sereno con la Luna); si tocca una notte e l'app ci va. Per le date più lontane un calendario del mese con la fase della Luna di ogni sera.
 - **Cupola del cielo animata e grande**, con i target sotto, vista dal tuo luogo: stelle reali fino a mag 6, Via Lattea che si spegne con l'inquinamento luminoso e con la Luna, il tuo orizzonte, la Luna con la fase, i target migliori. Puoi scorrere la notte o trascinare l'ora; il livello *Luci* mostra la luminosità del cielo per direzione.
@@ -26,7 +28,7 @@ Pianificatore di target per astrofotografia. Gli dai il tuo setup, i tuoi filtri
   - **probabilità di sereno** dai 51 scenari dell'ensemble ECMWF;
   - **seeing** stimato dalla turbolenza nei livelli in quota di GFS ed ECMWF (modello di Dewan, come Trinquet e Vernin 2006), in secondi d'arco alla scala di meteoblue: su 30 ore di confronto a Milano la correlazione con i loro valori è 0,85; più la corrente a getto;
   - **trasparenza** dagli aerosol e dalle polveri desertiche di CAMS (Copernicus), **rischio condensa** (punto di rugiada), raffiche e pioggia;
-  - le prossime notti in schede con voto e sereno ora per ora, la notte scelta come una tabella da osservatorio, gli altri tuoi luoghi (dove è sereno stanotte) e i collegamenti a meteoblue e Clear Outside per lo stesso punto.
+  - le prossime notti in schede con voto e sereno ora per ora, la notte scelta come una tabella da osservatorio, gli altri tuoi luoghi (dove è sereno stanotte).
   Il calendario delle notti e il piano contano solo le ore serene previste, pesate per la trasparenza (con molti aerosol un'ora rende meno); il voto delle notti tiene conto anche della trasparenza.
 - **Piano di stanotte**: i tuoi target messi in fila nelle ore buie e serene, ognuno quando è più alto rispetto al suo percorso, con blocchi di almeno 45 minuti; chi sta per tramontare passa prima e chi ha finito il suo lavoro lascia il posto. Si corregge a mano: togli un target dal piano, o aggiungine uno dal suo dettaglio; a notte iniziata ogni blocco si registra come sessione con un tocco.
 - **Avvisi** (da *Setup*, uno per uno):
@@ -68,6 +70,7 @@ npm run smoke      # avvia l'app senza finestra: dettaglio, editor, mappa all-sk
 npm run data       # ricostruisce src/data/ dai cataloghi originali (scarica ciò che manca in scripts/raw/)
 npm run dist       # crea i pacchetti per il sistema corrente in dist/
 npm run android:sync   # copia l'app nel progetto Android (android/), poi si compila con Gradle o Android Studio
+# prova su Android vero (emulatore Android 14 su GitHub Actions): workflow «Android e2e», schermate e avvisi negli artifact
 npx electron scripts/icons.cjs   # rigenera tutte le icone (desktop, Android, avvio) da build/icon.svg
 ```
 

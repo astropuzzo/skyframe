@@ -32,27 +32,29 @@ function span(h, a, b) {
 addEventListener('config', (resolve, reject, args) => { try { kvSet('sf.cfg', args || null); resolve(); } catch (e) { resolve(); } });
 addEventListener('status', (resolve) => { try { resolve({ lastRun: kvGet('sf.lastRun', 0), sent: kvGet('sf.sent', {}) }); } catch (e) { resolve({}); } });
 
-addEventListener('check', async (resolve) => {
-  try {
+/* il controllo periodico; force = anche con l'app aperta (prova dall'app: Setup o test automatico) */
+async function check(force) {
     kvSet('sf.lastRun', Date.now());
-    const st = CapacitorApp.getState(); if (st && st.isActive) { resolve(); return; } // app aperta: ci pensa lei
-    const cfg = kvGet('sf.cfg', null); if (!cfg || !cfg.on || !cfg.nights || !cfg.nights.length) { resolve(); return; }
-    const now = Date.now(), n = cfg.nights.find((x) => now < x.d1 && now > x.d0 - 20 * 3600e3); if (!n) { resolve(); return; }
+    const st = CapacitorApp.getState(); if (!force && st && st.isActive) return 'attiva'; // app aperta: ci pensa lei
+    const cfg = kvGet('sf.cfg', null); if (!cfg || !cfg.on || !cfg.nights || !cfg.nights.length) return 'spenti';
+    const now = Date.now(), n = cfg.nights.find((x) => now < x.d1 && now > x.d0 - 20 * 3600e3); if (!n) return 'nessuna notte';
     const T = cfg.txt || {}, sent = kvGet('sf.sent', {}), k = n.ds;
     const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${cfg.lat}&longitude=${cfg.lon}&hourly=cloud_cover_low,cloud_cover_mid,cloud_cover_high&past_days=1&forecast_days=2&timeformat=unixtime&timezone=GMT`);
-    const j = await r.json(), h = j && j.hourly; if (!h || !h.time) { resolve(); return; }
-    const w = span(h, Math.max(now, n.d0), n.d1); if (!w) { resolve(); return; }
+    const j = await r.json(), h = j && j.hourly; if (!h || !h.time) return 'meteo assente';
+    const w = span(h, Math.max(now, n.d0), n.d1); if (!w) return 'meteo fuori finestra';
     const good = w.h >= n.minH && w.clear >= n.minClear;
     const when = w.clear >= 0.85 ? T.all : w.win ? fill(T.win, { a: hhmm(w.win[0], cfg.tz), b: hhmm(w.win[1], cfg.tz) }) : fill(T.pct, { p: Math.round(w.clear * 100) });
+    let out = 'niente da dire';
     if (good && cfg.evening && !n.appScheduled && !sent[k + 'e'] && now >= n.alertAt - 20 * 60000 && now < n.d0 + 90 * 60000) {
-      send(n.id, fill(T.title, { w: when }), n.body || ''); sent[k + 'e'] = now;
+      send(n.id, fill(T.title, { w: when }), n.body || ''); sent[k + 'e'] = now; out = 'sera';
     } else if (good && cfg.change && !n.good && !sent[k + 'e'] && !sent[k + 'o'] && now > n.d0 - 6 * 3600e3 && now < n.d1 - 2 * 3600e3) {
-      send(n.id + 40, fill(T.open, { w: when }), n.body || ''); sent[k + 'o'] = now; sent[k + 'e'] = now;
+      send(n.id + 40, fill(T.open, { w: when }), n.body || ''); sent[k + 'o'] = now; sent[k + 'e'] = now; out = 'si apre';
     } else if (!good && cfg.change && (sent[k + 'e'] || (n.appScheduled && now > n.alertAt)) && !sent[k + 'b'] && now < n.d1 - 2 * 3600e3) {
-      send(n.id + 50, T.bad, fill(T.badBody, { p: Math.round(w.clear * 100) })); sent[k + 'b'] = now;
+      send(n.id + 50, T.bad, fill(T.badBody, { p: Math.round(w.clear * 100) })); sent[k + 'b'] = now; out = 'cambio';
     }
     for (const x of Object.keys(sent)) if (now - sent[x] > 5 * 864e5) delete sent[x];
     kvSet('sf.sent', sent);
-    resolve();
-  } catch (e) { resolve(); }
-});
+    return out;
+}
+addEventListener('check', async (resolve) => { try { await check(false); } catch (e) { /* niente */ } resolve(); });
+addEventListener('selftest', async (resolve) => { try { resolve({ ok: true, out: await check(true) }); } catch (e) { resolve({ ok: false, err: String(e) }); } });

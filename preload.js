@@ -14,4 +14,5 @@ contextBridge.exposeInMainWorld('cielo', {
   onUpdate: (cb) => ipcRenderer.on('update', (_e, m) => cb(m)),
   installUpdate: () => ipcRenderer.invoke('update:install'),
   openUpdate: () => ipcRenderer.invoke('update:open'),
+  noTour: !!(process.env.SKYFRAME_SMOKE || process.env.SKYFRAME_EVAL), // prove automatiche: niente guida al primo avvio
 });

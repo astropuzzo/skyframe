@@ -98,7 +98,7 @@ function monthHTML(P) {
     const ths = al.slice(0, 3).map((a) => tThumb(byId.get(a.id).r.o, 20)).join('') + (al.length > 3 ? `<span class="more">+${al.length - 3}</span>` : '');
     const tip = [d.toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' }), tx('Luna {p}%', { p: Math.round(mi.k * 100) }), w ? tx('{p}% sereno', { p: Math.round(w.clear * 100) }) : '', ...al.map((a) => `${a.id} ${fmtH(a.a)}${a.fin ? ' ✓' : ''}`)].filter(Boolean).join(' · ');
     const lab = d.getDate() === 1 || k === k0 || k === 0 ? `<small>${d.toLocaleDateString(LOCALE, { month: 'short' }).replace('.', '')}</small>` : '';
-    cells += `<button type="button" class="pm${k < 0 ? ' past' : ''}${al.length > 1 ? ' multi' : ''}${k === 0 ? ' today' : ''}" data-k="${k}" ${k < 0 || k >= P.D ? 'disabled' : ''} title="${esc(tip)}" aria-label="${esc(tip)}">
+    cells += `<button type="button" style="--k:${k - k0}" class="pm${k < 0 ? ' past' : ''}${al.length > 1 ? ' multi' : ''}${k === 0 ? ' today' : ''}" data-k="${k}" ${k < 0 || k >= P.D ? 'disabled' : ''} title="${esc(tip)}" aria-label="${esc(tip)}">
       <span class="d">${d.getDate()}${lab}<span class="mo">${moonSvg(mi.k, mi.waxing, 5)}</span>${w && w.clear < 0.4 ? ic('cloud', 'wx') : ''}</span><span class="th">${ths}</span></button>`;
   }
   const a = new Date(t00 + k0 * 864e5), b = new Date(t00 + (k0 + 34) * 864e5), rng = `${fmtDay(a)} – ${fmtDay(b)}`;

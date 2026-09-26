@@ -262,8 +262,8 @@ function refreshNowCells() { $$('#list .row[data-id]').forEach((el) => { const r
 /* ============================ dettaglio ============================ */
 function openDetail(id) {
   const r = state.byId.get(id); if (!r) return;
-  state.sel = id; state.selCfg = r.e.cfg.key; state.rotFor = null;
-  renderDetail(); const d = $('#drawer'), bd = $('#backdrop');
+  state.sel = id; state.selCfg = r.e.cfg.key; state.rotFor = null; renderDetail.last = null;
+  renderDetail(); const d = $('#drawer'), bd = $('#backdrop'); freshAnim(d);
   if (d.hidden) backPush(closeDetail);
   d.hidden = false; bd.hidden = false; requestAnimationFrame(() => { d.classList.add('on'); bd.classList.add('on'); });
   d.scrollTop = 0; d.focus({ preventScroll: true });
@@ -403,8 +403,11 @@ function wireGallery(r, e) {
 }
 
 const D_TABS = [['piano', 'Piano'], ['quando', 'Quando'], ['campo', 'Campo'], ['consigli', 'Consigli']];
+/* le animazioni d'ingresso del dettaglio (strisce, calendario) solo all'apertura o al cambio di scheda, non a ogni aggiornamento */
+function freshAnim(d) { d.classList.remove('fresh'); void d.offsetWidth; d.classList.add('fresh'); clearTimeout(freshAnim.t); freshAnim.t = setTimeout(() => d.classList.remove('fresh'), 1600); }
 function setDTab(t) {
   if (!D_TABS.some(([k]) => k === t)) t = 'piano';
+  if (state.dTab !== t) freshAnim($('#drawer'));
   state.dTab = t; LS.set('sf.dTab', t);
   $$('#drawer .dtab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
   $$('#drawer .tabp').forEach((p) => { p.hidden = p.dataset.tab !== t; });
@@ -416,6 +419,7 @@ function setDTab(t) {
 }
 function renderDetail() {
   const r = state.byId.get(state.sel); if (!r) { closeDetail(); return; }
+  renderDetail.same = renderDetail.last === state.sel; renderDetail.last = state.sel; // i numeri salgono solo alla prima apertura
   const o = r.o, e = curEval(r), n = state.res.night, p = active(), g = e.cfg.geom, b = e.best;
   // strategie alternative con filtri che non hai (solo per questo target)
   const U = usableSteps(r, n, state.res.sky);
@@ -527,7 +531,7 @@ function renderDetail() {
     <p>Taratura sulle foto reali: 190 immagini pubbliche su AstroBin di 23 oggetti (nebulose, planetarie, resti di supernova, galassie, polveri), ognuna con strumento, filtri, cielo e integrazione dichiarati. Per ognuna Skyframe rifà i conti con quell’attrezzatura e quel cielo e li confronta con le ore vere. “Buona” è la mediana di quelle foto; “rapida” il quartile basso, tipico da città con camera a colori; “eccellente” quello alto, tipico da cielo buio o in mono. Su un oggetto non usato nella taratura l’errore tipico è un fattore 2,7, e la stessa foto fatta da persone diverse varia già di un fattore 3. Con un 200/800 e camera a colori sotto SQM 19,3: Cocoon 93 h in quad-band, WR 134 60 h in SHO, NGC 281 8 h in HOO; il cielo e i filtri contano per pura fisica (la Cocoon da SQM 21,3 scende a 16 h). Sono stime per scegliere, non promesse: seeing, trasparenza ed elaborazione contano molto.</p>`;
   if (LANG === 'it') $('#drawer details.how').innerHTML = `<summary>${tx('Come vengono stimati i tempi')}</summary>` + HOW_IT;
   $('#dClose').onclick = closeDetail;
-  wireProj(r, e); wireScen(r); wireTargetCal(); $$('#drawer .d-title [data-fav]').forEach((x) => (x.onclick = () => toggleFav(o.id)));
+  wireProj(r, e); wireScen(r); wireTargetCal(); if (!renderDetail.same) countUp($('#scen')); $$('#drawer .d-title [data-fav]').forEach((x) => (x.onclick = () => toggleFav(o.id)));
   $$('#drawer .dtab').forEach((t) => (t.onclick = () => setDTab(t.dataset.tab)));
   $('#copyCoord').onclick = () => copyText(`${o.id} ${raStr(o.ra)} ${decStr(o.dec).replace('−', '-')}`);
   $$('#drawer .cfg').forEach((t) => (t.onclick = () => { state.selCfg = t.dataset.cfg; const sc = $('#drawer').scrollTop; renderDetail(); $('#drawer').scrollTop = sc; }));
