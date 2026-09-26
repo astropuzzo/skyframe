@@ -11,21 +11,33 @@ const MOTION = window.matchMedia('(prefers-reduced-motion: no-preference)');
 /* il logo che si compone (avvio e guida): cornice che scatta in posizione, nebulosa che si accende, stella */
 const LOGO_ANIM = '<svg class="alogo" viewBox="0 0 32 32" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path class="b b1" d="M5.5 11V7.5H9.5"/><path class="b b2" d="M22.5 7.5h4V11"/><path class="b b3" d="M26.5 21v3.5h-4"/><path class="b b4" d="M9.5 24.5h-4V21"/></g><g class="neb"><ellipse class="ring" cx="16" cy="16" rx="7.2" ry="5.6" transform="rotate(-24 16 16)" fill="none" stroke="url(#lgRing)" stroke-width="2.6"/><ellipse class="core" cx="16" cy="16" rx="3.9" ry="2.9" transform="rotate(-24 16 16)" fill="#4CCFBC" fill-opacity=".85"/><circle class="star" cx="16" cy="16" r="1" fill="#fff"/></g></svg>';
 
-/* ---------- indietro ---------- */
-const Back = { stack: [], skip: 0, view: false };
-function backPush(close) { Back.stack.push(close); try { history.pushState({ sf: Back.stack.length }, ''); } catch { /* niente */ } }
-/* chiuso dall'interfaccia: si toglie il suo passo dalla cronologia senza richiamarlo */
+/* ---------- indietro ----------
+   Ogni cosa aperta (foglio, dettaglio, editor, guida, una sezione diversa da Stanotte) aggiunge un passo alla cronologia
+   e se lo ricorda. Il tasto indietro (Android, browser) torna di un passo e chiude ciò che quel passo aveva aperto; se
+   una cosa si chiude dall'interfaccia, il suo passo resta segnato come chiuso e il tasto indietro lo salta. Niente
+   conteggi da tenere allineati: se il sistema accorpa due ritorni ravvicinati non si perde nulla. */
+const Back = { entries: [] };
+Object.defineProperty(Back, 'stack', { get: () => Back.entries.filter((x) => !x.closed && !x.view).map((x) => x.close) });
+function backPush(close, view) { Back.entries.push({ close, view: !!view, closed: false }); try { history.pushState({ sf: Back.entries.length }, ''); } catch { /* niente */ } }
+/* chiuso dall'interfaccia: il suo passo si segna come chiuso; se è l'ultimo si torna indietro davvero */
 function backDone(close) {
-  const i = Back.stack.lastIndexOf(close); if (i < 0) return;
-  Back.stack.splice(i, 1); Back.skip++; try { history.back(); } catch { Back.skip--; }
+  const e = Back.entries; let i = e.length - 1; while (i >= 0 && (e[i].close !== close || e[i].closed)) i--; if (i < 0) return;
+  e[i].closed = true; if (i === e.length - 1) try { history.back(); } catch { /* niente */ }
 }
 /* Android (plugin App): il tasto indietro passa di qui; true se c'era qualcosa da chiudere o da cui tornare */
-window.onAndroidBack = () => { if (Back.stack.length || Back.view) { history.back(); return true; } return false; };
-window.addEventListener('popstate', () => {
-  if (Back.skip) { Back.skip--; return; }
-  const c = Back.stack.pop(); if (c) { c(true); return; }
-  if (Back.view) { Back.view = false; setView('tonight', true); }
+window.onAndroidBack = () => {
+  const e = Back.entries; let k = 0; while (k < e.length && e[e.length - 1 - k].closed) k++;
+  if (e.length - k > 0) { history.go(-(k + 1)); return true; }
+  if (k) history.go(-k);
+  return false;
+};
+window.addEventListener('popstate', (ev) => {
+  const d = (ev.state && ev.state.sf) || 0;
+  while (Back.entries.length > d) { const x = Back.entries.pop(); if (!x.closed) { x.closed = true; x.close(true); } }
+  // sotto c'è un passo già chiuso dall'interfaccia: si toglie anche quello
+  const t = Back.entries[Back.entries.length - 1]; if (t && t.closed) try { history.back(); } catch { /* niente */ }
 });
+const viewEntry = () => Back.entries.find((x) => x.view && !x.closed);
 
 /* ---------- sezioni ---------- */
 const VIEWS = ['tonight', 'targets', 'sky', 'projects', 'setup'];
@@ -48,11 +60,13 @@ function setView(v, fromPop) {
   if (vt) { document.documentElement.dataset.dir = to < from ? 'back' : 'fwd'; document.startViewTransition(apply); } else apply();
   // indietro da una sezione qualsiasi riporta a Stanotte (e da Stanotte esce)
   if (!fromPop) {
-    if (v !== 'tonight' && !Back.view) { Back.view = true; try { history.pushState({ sfv: 1 }, ''); } catch { /* niente */ } }
-    else if (v === 'tonight' && Back.view && !Back.stack.length) { Back.view = false; Back.skip++; try { history.back(); } catch { Back.skip--; } }
+    const ve = viewEntry();
+    if (v !== 'tonight' && !ve) backPush(backToTonight, true);
+    else if (v === 'tonight' && ve) backDone(backToTonight);
   }
   if (v === 'targets') requestAnimationFrame(() => { const s = state.sel && $(`#list .row[data-id="${CSS.escape(state.sel)}"]`); if (s) s.scrollIntoView({ block: 'nearest' }); });
 }
+function backToTonight(fromPop) { if (fromPop === true) setView('tonight', true); }
 /* numeri che salgono fino al valore (ore, conteggi): data-to e il formato dato */
 function countUp(root) {
   if (!MOTION.matches) return;

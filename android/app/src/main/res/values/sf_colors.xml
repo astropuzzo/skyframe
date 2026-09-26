@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- fondo di Skyframe: dietro la barra di stato e quella dei gesti, niente bianco -->
+    <color name="sfBackground">#05070B</color>
+</resources>

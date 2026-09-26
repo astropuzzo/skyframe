@@ -87,8 +87,10 @@ try {
   await ev(`const d = document.getElementById('drawer'); d.scrollTop = document.getElementById('scen').offsetTop - 120; return 1`); await sleep(1500); shot('06-dettaglio-tempi');
   await ev(`setDTab('quando'); return 1`); await sleep(2000); shot('07-dettaglio-quando');
   // tasto indietro di Android: chiude il dettaglio
-  adb('shell input keyevent KEYCODE_BACK'); await sleep(1200);
+  adb('shell input keyevent KEYCODE_BACK'); await sleep(1500);
   out.checks.indietro_chiude_dettaglio = await ev(`return document.getElementById('drawer').hidden`);
+  await ev(`setView('targets'); return 1`); await sleep(800); adb('shell input keyevent KEYCODE_BACK'); await sleep(1500);
+  out.checks.indietro_torna_a_stanotte = await ev(`return UI.view === 'tonight'`);
   shot('08-dopo-indietro');
 
   log('avvisi'); // avviso programmato (LocalNotifications): la prova di Setup
@@ -101,9 +103,8 @@ try {
   const BR = `Capacitor.Plugins.CapacitorBackgroundRunner`;
   out.runner_config = await ev(`try { await ${BR}.dispatchEvent({ label: '${LABEL}', event: 'config', details: ${cfg} }); return 'ok'; } catch (e) { return 'errore: ' + e.message; }`);
   out.runner_selftest = await ev(`try { return await ${BR}.dispatchEvent({ label: '${LABEL}', event: 'selftest', details: {} }); } catch (e) { return 'errore: ' + e.message; }`);
-  await sleep(4000);
-  const n2 = notifs();
-  out.checks.avviso_da_script = /prova e2e dallo script in background/.test(n2);
+  for (let i = 0; i < 15 && !/prova e2e dallo script in background/.test(notifs()); i++) await sleep(1000);
+  out.checks.avviso_da_script = /prova e2e dallo script in background/.test(notifs());
   out.runner_status = await ev(`try { return await ${BR}.dispatchEvent({ label: '${LABEL}', event: 'status', details: {} }); } catch (e) { return 'errore: ' + e.message; }`);
   // il lavoro periodico registrato nel sistema (WorkManager)
   try { out.jobs = adb('shell dumpsys jobscheduler').split('\n').filter((l) => l.includes(PKG)).slice(0, 12); } catch { /* niente */ }
