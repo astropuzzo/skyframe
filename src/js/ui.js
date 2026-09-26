@@ -184,13 +184,13 @@ function renderTopList() {
   const el = $('#topList'); if (!el || !state.res) return;
   const L = state.filtered.filter((r) => r.usableH >= 0.25).slice(0, 6), n = state.res.night;
   if (!L.length) { el.innerHTML = ''; return; }
-  el.innerHTML = `<div class="card-h"><h3>${tx('I migliori stanotte')}</h3><small>${tx('per punteggio, con i tuoi filtri')}</small></div>` +
+  el.innerHTML = `<div class="card-h"><h3>${tx('Migliori stanotte')}</h3></div>` +
     L.map((r) => {
       const b = r.e.best, h = b ? hoursOf(b) : Infinity;
       return `<button type="button" class="tl-row" data-id="${esc(r.o.id)}"><span class="score" style="--c:${scoreColor(r.score)};--v:${r.score}"><b>${r.score}</b></span>
         <span class="n"><span class="l1"><b>${esc(r.o.id)}</b>${r.o.nick ? `<span class="nick">${esc(r.o.nick)}</span>` : ''}</span><small>${tx(TYPES_PL[r.o.type])} · ${r.first >= 0 ? `${fmtT(n.t[r.first])}–${fmtT(n.t[r.last] + DT)}` : ''} · max ${Math.round(r.maxA)}°</small></span>
         <span class="h">${isFinite(h) ? '≈ ' + fmtH(h) : '—'}<small>${b ? esc(b.label) : ''}</small></span></button>`;
-    }).join('') + `<button type="button" class="btn tl-more" data-all>${tx('Tutti i {n} target di stanotte', { n: state.filtered.length })}${ic('arrow-r', 'sm')}</button>`;
+    }).join('') + `<button type="button" class="btn tl-more" data-all>${tx('Tutti i {n} di stanotte', { n: state.filtered.length })}${ic('arrow-r', 'sm')}</button>`;
   el.onclick = (e) => { if (e.target.closest('[data-all]')) { setView('targets'); return; } const r = e.target.closest('[data-id]'); if (r) openDetail(r.dataset.id); };
 }
 
@@ -200,9 +200,9 @@ function renderSetup() {
   const prof = state.profiles.map((p) => `<div class="st-item"><button type="button" class="st-main" data-prof="${esc(p.id)}"><span class="radio${p.id === state.activeId ? ' on' : ''}"></span><span class="tx"><b>${esc(exName(p.name, p.unsaved))}</b><small>${esc(profLine(p))}</small></span></button><button type="button" class="icon-btn" data-editp="${esc(p.id)}" aria-label="${tx('Modifica')}" title="${tx('Modifica')}">${ic('edit')}</button></div>`).join('');
   const locs = state.locs.map((l) => `<div class="st-item"><button type="button" class="st-main" data-loc="${esc(l.id)}"><span class="radio${l.id === state.locId ? ' on' : ''}"></span><span class="tx"><b>${esc(exName(l.site.name, l.unsaved))}</b><small>${locLine(l)}</small></span></button><button type="button" class="icon-btn" data-editl="${esc(l.id)}" aria-label="${tx('Modifica')}" title="${tx('Modifica')}">${ic('edit')}</button></div>`).join('');
   const red = !$('#veil').hidden, on = notifyOn(), nc = ncfg(), v = window.SKYFRAME_VERSION || '';
-  el.innerHTML = `<div class="view-h"><h2>${tx('Setup')}</h2><small>${tx('attrezzatura, luoghi e preferenze')}</small></div>
-    <div class="st-sec"><h3>${tx('Attrezzatura')}</h3><div class="st-list">${prof}<button type="button" class="st-item" data-newp>${ic('plus')}<span class="tx"><b>${tx('Nuovo profilo')}</b><small>${tx('un altro telescopio, un’altra camera o altri filtri')}</small></span></button></div></div>
-    <div class="st-sec"><h3>${tx('Luoghi')}</h3><div class="st-list">${locs}<button type="button" class="st-item" data-newl>${ic('plus')}<span class="tx"><b>${tx('Nuovo luogo')}</b><small>${tx('cielo, mappa all-sky e orizzonte arrivano da soli')}</small></span></button></div></div>
+  el.innerHTML = `<div class="view-h"><h2>${tx('Setup')}</h2></div>
+    <div class="st-sec"><h3>${tx('Attrezzatura')}</h3><div class="st-list">${prof}<button type="button" class="st-item" data-newp>${ic('plus')}<span class="tx"><b>${tx('Nuovo profilo')}</b><small>${tx('altra ottica, camera o filtri')}</small></span></button></div></div>
+    <div class="st-sec"><h3>${tx('Luoghi')}</h3><div class="st-list">${locs}<button type="button" class="st-item" data-newl>${ic('plus')}<span class="tx"><b>${tx('Nuovo luogo')}</b><small>${tx('cielo e orizzonte arrivano da soli')}</small></span></button></div></div>
     <div class="st-sec"><h3>${tx('Preferenze')}</h3><div class="st-list">
       <div class="st-item wrap">${ic('moon')}<span class="tx"><b>${tx('Con la Luna')}</b><small>${tx(MODE_TXT[moonMode()][1])}</small></span><div class="seg" id="moonSeg">${MOON_MODES.map((m) => `<button type="button" data-mode="${m}" aria-pressed="${m === moonMode()}">${tx(MODE_TXT[m][0])}</button>`).join('')}</div></div>
       <div class="st-item wrap">${ic('motion')}<span class="tx"><b>${tx('Animazioni')}</b></span><div class="seg" id="motionSeg">${[['auto', 'Come il sistema'], ['on', 'Sempre'], ['off', 'Ridotte']].map(([k, t]) => `<button type="button" data-v="${k}" aria-pressed="${motionPref() === k}">${tx(t)}</button>`).join('')}</div></div>
@@ -210,20 +210,20 @@ function renderSetup() {
       <div class="st-item">${ic('globe')}<span class="tx"><b>${tx('Lingua')}</b></span><select class="sel" id="langSel" aria-label="${tx('Lingua')}">${Object.entries(LANGS).map(([k, n]) => `<option value="${k}" ${k === LANG ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
     </div></div>
     <div class="st-sec" id="stAlerts"><h3>${tx('Avvisi')}</h3><div class="st-list">
-      <label class="st-item tap">${ic(on ? 'bell-on' : 'bell')}<span class="tx"><b>${tx('Avvisi')}</b><small>${tx(on ? 'accesi: arrivano quando serve, anche ad app chiusa sul telefono' : 'spenti')}</small></span><span class="switch"><input type="checkbox" id="swNotify" ${on ? 'checked' : ''}><i></i></span></label>
-      ${on ? [['evening', 'Stasera si scatta', 'prima del buio, se la notte merita: finestra serena e target con gli orari'], ['top', 'Notte ottima in arrivo', 'il giorno prima, per una notte senza Luna e serena con buona probabilità'], ['change', 'Il meteo è cambiato', 'se stanotte si apre, o se le nuvole tornano dopo l’avviso'], ['season', 'Ultime settimane', 'quando un tuo target sta per uscire di stagione']].map(([k, t, d]) => `<label class="st-item tap sub"><span class="tx"><b>${tx(t)}</b><small>${tx(d)}</small></span><span class="switch"><input type="checkbox" data-nk="${k}" ${nc[k] ? 'checked' : ''}><i></i></span></label>`).join('') +
+      <label class="st-item tap">${ic(on ? 'bell-on' : 'bell')}<span class="tx"><b>${tx('Avvisi')}</b><small>${tx(on ? 'accesi, anche ad app chiusa' : 'spenti')}</small></span><span class="switch"><input type="checkbox" id="swNotify" ${on ? 'checked' : ''}><i></i></span></label>
+      ${on ? [['evening', 'Stasera si scatta', 'prima del buio, se la notte merita'], ['top', 'Notte ottima in arrivo', 'il giorno prima: senza Luna e probabilmente sereno'], ['change', 'Il meteo è cambiato', 'se stanotte si apre, o se tornano le nuvole'], ['season', 'Ultime settimane', 'quando un target sta per uscire di stagione']].map(([k, t, d]) => `<label class="st-item tap sub"><span class="tx"><b>${tx(t)}</b><small>${tx(d)}</small></span><span class="switch"><input type="checkbox" data-nk="${k}" ${nc[k] ? 'checked' : ''}><i></i></span></label>`).join('') +
         `<div class="st-item wrap sub"><span class="tx"><b>${tx('Quanto prima del buio')}</b></span><div class="seg" id="nLead">${[30, 60, 90, 120].map((m) => `<button type="button" data-v="${m}" aria-pressed="${nc.lead === m}">${fmtDur(m / 60)}</button>`).join('')}</div></div>
-        <div class="st-item wrap sub"><span class="tx"><b>${tx('Da quale notte')}</b><small>${tx('il voto minimo per l’avviso della sera')}</small></span><div class="seg" id="nMin">${[[2, 'Discreta'], [3, 'Buona'], [4, 'Ottima']].map(([v, t]) => `<button type="button" data-v="${v}" aria-pressed="${nc.min === v}">${tx(t)}</button>`).join('')}</div></div>
-        <button type="button" class="st-item sub" id="stExact" data-exact hidden><span class="tx"><b>${tx('Orario preciso')}</b><small>${tx('consenti a Skyframe «sveglie e promemoria»: l’avviso della sera arriva all’ora giusta')}</small></span>${ic('chev-r')}</button>
-        <button type="button" class="st-item sub" data-test><span class="tx"><b>${tx('Prova un avviso')}</b><small>${tx('arriva fra 5 secondi, con la notte di stanotte')}</small></span></button>` : ''}
+        <div class="st-item wrap sub"><span class="tx"><b>${tx('Da quale notte')}</b><small>${tx('voto minimo per l’avviso della sera')}</small></span><div class="seg" id="nMin">${[[2, 'Discreta'], [3, 'Buona'], [4, 'Ottima']].map(([v, t]) => `<button type="button" data-v="${v}" aria-pressed="${nc.min === v}">${tx(t)}</button>`).join('')}</div></div>
+        <button type="button" class="st-item sub" id="stExact" data-exact hidden><span class="tx"><b>${tx('Orario preciso')}</b><small>${tx('consenti «sveglie e promemoria» per l’avviso puntuale')}</small></span>${ic('chev-r')}</button>
+        <button type="button" class="st-item sub" data-test><span class="tx"><b>${tx('Prova un avviso')}</b><small>${tx('arriva fra 5 secondi')}</small></span></button>` : ''}
     </div></div>
     <div class="st-sec"><h3>${tx('Dati')}</h3><div class="st-list">
-      <button type="button" class="st-item" data-export>${ic('upload')}<span class="tx"><b>${tx('Esporta')}</b><small>${tx(DESK ? 'profili, luoghi e progetti in un file' : 'profili, luoghi e progetti: si copiano negli appunti')}</small></span></button>
-      <button type="button" class="st-item" data-import>${ic('download')}<span class="tx"><b>${tx('Importa')}</b><small>${tx('da un file esportato da Skyframe (anche dal computer al telefono)')}</small></span></button>
-    </div><p class="st-foot">${tx(DESK ? 'Profili e progetti sono salvati su file in questo computer.' : 'Profili e progetti sono salvati in questo dispositivo.')}</p></div>
+      <button type="button" class="st-item" data-export>${ic('upload')}<span class="tx"><b>${tx('Esporta')}</b><small>${tx(DESK ? 'profili, luoghi e progetti in un file' : 'profili, luoghi e progetti negli appunti')}</small></span></button>
+      <button type="button" class="st-item" data-import>${ic('download')}<span class="tx"><b>${tx('Importa')}</b><small>${tx('da un file di Skyframe, anche dal computer')}</small></span></button>
+    </div><p class="st-foot">${tx(DESK ? 'Tutto resta su questo computer.' : 'Tutto resta su questo dispositivo.')}</p></div>
     <div class="st-sec" id="stGuide"><h3>${tx('Guida')}</h3><div class="st-list">
-      <button type="button" class="st-item" data-tour>${ic('info')}<span class="tx"><b>${tx('Rivedi la guida')}</b><small>${tx('un giro passo passo di tutte le funzioni')}</small></span>${ic('chev-r')}</button>
-      <button type="button" class="st-item" data-news>${ic('star')}<span class="tx"><b>${tx('Novità')}</b><small>${tx('cosa è cambiato nelle ultime versioni')}</small></span>${ic('chev-r')}</button>
+      <button type="button" class="st-item" data-tour>${ic('info')}<span class="tx"><b>${tx('Rivedi la guida')}</b><small>${tx('le funzioni, una per una')}</small></span>${ic('chev-r')}</button>
+      <button type="button" class="st-item" data-news>${ic('star')}<span class="tx"><b>${tx('Novità')}</b><small>${tx('le ultime versioni')}</small></span>${ic('chev-r')}</button>
     </div></div>
     <div class="st-sec"><h3>${tx('Informazioni')}</h3><p class="st-foot">Skyframe ${esc(v)} · <a href="https://github.com/astropuzzo/skyframe" target="_blank" rel="noopener">GitHub</a><br>${tx('Meteo')}: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · ${tx('Immagini')}: NSNS (S. Ziegenbalg), DSS2, Pan-STARRS (CDS), Wikimedia Commons · ${tx('Inquinamento luminoso')}: D. Lorenz, lightpollutionmap.info</p></div>`;
   el.onclick = (e) => {

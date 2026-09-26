@@ -32,7 +32,7 @@ function skyNightCard(x, k) {
   return `<button type="button" class="sk-n" data-k="${k}" aria-pressed="${k === SK.k}">
     <span class="h"><b>${esc(title)}</b><span class="mo">${moonSvg(x.ill, x.waxing, 6)}${Math.round(x.ill * 100)}%</span><span class="rate r${q.r}"><i></i>${tx(q.label)}</span></span>
     <span class="cells">${cells || `<em>${tx('niente buio')}</em>`}</span>
-    <span class="kv">${w ? `<span><small>${tx('Sereno')}</small><b>${pct(w.clear)}</b></span><span><small>${tx('Probabilità')}</small><b>${pct(w.prob)}</b></span><span><small>${tx('Seeing')}</small><b style="color:${sl ? LVL_COL[sl.i] : 'inherit'}">${sl ? tx(sl.t) : '—'}</b></span><span><small>${tx('Trasparenza')}</small><b style="color:${tl ? LVL_COL[tl.i] : 'inherit'}">${tl ? tx(tl.t) : '—'}</b></span>` : `<span class="far">${tx('Oltre le previsioni: contano Luna e buio')}</span>`}${warn}</span></button>`;
+    <span class="kv">${w ? `<span><small>${tx('Sereno')}</small><b>${pct(w.clear)}</b></span><span><small>${tx('Probabilità')}</small><b>${pct(w.prob)}</b></span><span><small>${tx('Seeing')}</small><b style="color:${sl ? LVL_COL[sl.i] : 'inherit'}">${sl ? tx(sl.t) : '—'}</b></span><span><small>${tx('Trasparenza')}</small><b style="color:${tl ? LVL_COL[tl.i] : 'inherit'}">${tl ? tx(tl.t) : '—'}</b></span>` : `<span class="far">${tx('Oltre le previsioni: solo Luna e buio')}</span>`}${warn}</span></button>`;
 }
 function skyGrid(x) {
   const H = nightHours(x), s = active().site;
@@ -66,7 +66,7 @@ function skyModels(x) {
   if (!ids.length) return '';
   const rows = ids.map((id) => `<div class="mr"><span class="mn"><i style="background:${MODEL_COL[id]}"></i>${esc(names[id] || id)}</span>${H.map((h) => { const i = Math.round(((h.t + 1800e3) / 1000 - d.t0) / 3600), f = d.models[id][i]; return `<span class="mc" style="background:${f == null ? 'transparent' : skyCol(f)}" title="${f == null ? '' : Math.round(f * 100) + '%'}"></span>`; }).join('')}</div>`).join('');
   const ax = `<div class="mr ax"><span class="mn"></span>${H.map((h) => `<span class="mc">${new Date(h.t).getHours() % 2 ? '' : String(new Date(h.t).getHours()).padStart(2, '0')}</span>`).join('')}</div>`;
-  return `<div class="card"><div class="card-h"><h3>${tx('Modelli a confronto')}</h3><small>${tx('sereno ora per ora secondo ognuno: blu sereno, grigio coperto')}</small></div><div class="mgrid" style="--n:${H.length}">${rows}${ax}</div></div>`;
+  return `<div class="card"><div class="card-h"><h3>${tx('Modelli a confronto')}</h3><small>${tx('blu sereno, grigio coperto')}</small></div><div class="mgrid" style="--n:${H.length}">${rows}${ax}</div></div>`;
 }
 async function skyOther(box) {
   const others = state.locs.filter((l) => l.id !== state.locId); if (!others.length || !box) return;
@@ -77,7 +77,7 @@ async function skyOther(box) {
     return { l, c: n ? sum / n : null };
   }));
   const me = wxSpan(ts, 10);
-  box.innerHTML = `<div class="card-h"><h3>${tx('Gli altri tuoi luoghi stanotte')}</h3><small>${tx('quanto del buio è sereno')}</small></div>` +
+  box.innerHTML = `<div class="card-h"><h3>${tx('Gli altri luoghi')}</h3><small>${tx('buio sereno')}</small></div>` +
     `<div class="st-list">${[{ l: activeLoc(), c: me ? me.clear : null, me: true }, ...rows].map(({ l, c, me: m }) => `<button type="button" class="st-item" data-loc="${esc(l.id)}"><span class="clbar"><b style="width:${c == null ? 0 : Math.round(c * 100)}%;background:${c == null ? 'transparent' : skyCol(c)}"></b></span><span class="tx"><b>${esc(l.site.name)}</b><small>${m ? tx('luogo attivo') : Math.round(kmBetween(activeLoc().site, l.site)) + ' km'} · SQM ${it(+l.site.sqm, 2)}</small></span><b class="num">${pct(c)}</b></button>`).join('')}</div>`;
   box.onclick = (e) => { const b = e.target.closest('[data-loc]'); if (b && b.dataset.loc !== state.locId) setLoc(b.dataset.loc); };
 }
@@ -86,18 +86,18 @@ function renderSky() {
   const s = activeLoc().site;
   const head = `<div class="view-h tight"><h2>${tx('Cielo')}</h2><span class="grow"></span><button type="button" class="icon-btn" data-refresh title="${tx('Aggiorna le previsioni')}" aria-label="${tx('Aggiorna le previsioni')}">${ic('refresh')}</button></div><p class="view-sub">${esc(s.name)}${wxOk() ? ' · ' + tx('aggiornato alle {t}', { t: fmtT(WX.d.at) }) : ''}</p>`;
   if (!wxOk()) {
-    el.innerHTML = head + `<div class="card sk-wait">${WX.busy || !WX.err ? `<div class="spin"></div><p>${tx('Scarico le previsioni da sette modelli meteo…')}</p>` : `<p>${tx('Previsioni non disponibili: controlla la connessione.')}</p><button type="button" class="btn" data-refresh>${ic('refresh')}${tx('Riprova')}</button>`}</div>`;
+    el.innerHTML = head + `<div class="card sk-wait">${WX.busy || !WX.err ? `<div class="spin"></div><p>${tx('Scarico le previsioni…')}</p>` : `<p>${tx('Niente previsioni: manca la connessione.')}</p><button type="button" class="btn" data-refresh>${ic('refresh')}${tx('Riprova')}</button>`}</div>`;
     el.onclick = (e) => { if (e.target.closest('[data-refresh]')) refreshWeather(true); };
     if (!WX.busy && !WX.err) refreshWeather(false);
     return;
   }
   const L = nightsAhead().slice(0, 8); SK.k = clamp(SK.k, 0, L.length - 1);
   const x = L[SK.k], d = new Date(x.t0), p = WX.d.parts;
-  const title = SK.k === 0 ? tx('Stanotte, ora per ora') : tx('{d}, ora per ora', { d: d.toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' }) });
+  const title = SK.k === 0 ? tx('Ora per ora') : tx('{d}, ora per ora', { d: d.toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' }) });
   el.innerHTML = head + `
     <div class="sk-nights">${L.map(skyNightCard).join('')}</div>
-    <div class="card"><div class="card-h"><h3>${esc(title)}</h3><small>${tx('ore di buio evidenziate')}</small></div>${skyGrid(x)}
-      <div class="sk-legend"><span>${ic('info')}${tx('Seeing: stima dalla turbolenza nei livelli in quota di GFS ed ECMWF, in secondi d’arco come meteoblue (sotto 1,2″ buono). Trasparenza: aerosol CAMS (sotto 0,15 buona). Umidità in giallo: rischio condensa.')}</span></div></div>
+    <div class="card"><div class="card-h"><h3>${esc(title)}</h3></div>${skyGrid(x)}
+      <div class="sk-legend"><span>${ic('info')}${tx('Seeing in secondi d’arco (sotto 1,2″ buono) · trasparenza dagli aerosol (sotto 0,15 buona) · giallo: rischio condensa.')}</span></div></div>
     ${skyModels(x)}
     <div class="card" id="skOther"${state.locs.length > 1 ? '' : ' hidden'}></div>
     <p class="st-foot sk-src">${tx('Fonti')}: Open-Meteo.com (${Object.keys(WX.d.models).length} ${tx('modelli')}${p.ens ? ', ECMWF ensemble' : ''}${p.aq ? ', CAMS' : ''}) · ItaliaMeteo-ARPAE, DWD, Météo-France, ECMWF, UK Met Office, NOAA · Copernicus Atmosphere Monitoring Service</p>`;

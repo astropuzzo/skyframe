@@ -76,9 +76,9 @@ function seasonHTML(P) {
     const when = t.done != null ? (t.done === 0 ? tx('stanotte') : tx('fino al {d}', { d: fmtDay(aheadNight(C, t.done).t0) })) : t.rem < 1 ? tx('{p}% in {n} giorni', { p: Math.round((1 - t.rem) * 100), n: P.D }) : tx('non in questi {n} giorni', { n: P.D });
     return `<button type="button" class="ss-row" data-id="${esc(t.id)}"><span class="ss-h">${tThumb(t.r.o)}<span class="ss-t"><b>${esc(t.id)}</b><small>${esc(t.r.o.nick || tx(TYPES[t.r.o.type]))}</small></span><span class="ss-v"><b class="num">${fmtH(t.hours)}</b><small>${t.nights.length ? nNights(t.nights.length) + ' · ' : ''}${when}</small></span></span><span class="sc-tl" style="--d:${D}">${cells}</span></button>`;
   }).join('');
-  const endTxt2 = P.end != null ? tx('Finisci tutto entro il {d}', { d: fmtDayLong(aheadNight(C, P.end).t0) }) : tx('Non tutto si chiude nei prossimi {n} giorni', { n: P.D });
-  return `<div class="card season-card"><div class="card-h"><h3>${tx('Piano di stagione')}</h3><small>${tx('tutti i tuoi target insieme, notte per notte · {m}', { m: tx(MODE_TXT[P.mode][0]).toLowerCase() })}</small></div>
-    <p class="ss-sum"><b>${endTxt2}</b>: ${tx('{h} di posa in {n} di ripresa.', { h: fmtH(P.hours), n: nNights(P.used) })} ${tx('Ogni notte va ai target che lì rendono di più; quando più target la vogliono, la si divide.')}</p>
+  const endTxt2 = P.end != null ? tx('Tutto finito entro il {d}', { d: fmtDayLong(aheadNight(C, P.end).t0) }) : tx('Non tutto entro {n} giorni', { n: P.D });
+  return `<div class="card season-card"><div class="card-h"><h3>${tx('Piano di stagione')}</h3><small>${tx('{m}', { m: tx(MODE_TXT[P.mode][0]).toLowerCase() })}</small></div>
+    <p class="ss-sum"><b>${endTxt2}</b>: ${tx('{h} in {n}.', { h: fmtH(P.hours), n: nNights(P.used) })}</p>
     <div class="ss-ax">${dayAxis(C, D)}</div><div class="ss-rows">${rows}</div></div>`;
 }
 /* il calendario: cinque settimane da questa, in ogni notte le miniature dei target da riprendere (quando sono più d'uno,
@@ -102,14 +102,14 @@ function monthHTML(P) {
       <span class="d">${d.getDate()}${lab}<span class="mo">${moonSvg(mi.k, mi.waxing, 5)}</span>${w && w.clear < 0.4 ? ic('cloud', 'wx') : ''}</span><span class="th">${ths}</span></button>`;
   }
   const a = new Date(t00 + k0 * 864e5), b = new Date(t00 + (k0 + 34) * 864e5), rng = `${fmtDay(a)} – ${fmtDay(b)}`;
-  return `<div class="card month-card"><div class="card-h"><h3>${tx('Calendario')}</h3><small>${tx('chi riprendere ogni notte')}</small><span class="acts"><button type="button" class="icon-btn" data-pm="-1" ${PM.m <= 0 ? 'disabled' : ''} aria-label="${tx('Settimane prima')}">${ic('chev-l')}</button><b class="pm-name">${rng}</b><button type="button" class="icon-btn" data-pm="1" ${PM.m >= pages - 1 ? 'disabled' : ''} aria-label="${tx('Settimane dopo')}">${ic('chev-r')}</button></span></div>
+  return `<div class="card month-card"><div class="card-h"><h3>${tx('Calendario')}</h3><span class="acts"><button type="button" class="icon-btn" data-pm="-1" ${PM.m <= 0 ? 'disabled' : ''} aria-label="${tx('Settimane prima')}">${ic('chev-l')}</button><b class="pm-name">${rng}</b><button type="button" class="icon-btn" data-pm="1" ${PM.m >= pages - 1 ? 'disabled' : ''} aria-label="${tx('Settimane dopo')}">${ic('chev-r')}</button></span></div>
     <div class="pmcal">${head}${cells}</div>
-    <div class="sc-leg"><span>${tx('Tocca una notte per vedere chi riprendere e quanto')}</span></div></div>`;
+    </div>`;
 }
 function openSeasonNight(P, k) {
   const n = P.nights[k]; if (!n) return; const C = state.res.C, t0 = n.t0, byId = new Map(P.targets.map((t) => [t.id, t]));
   const d = new Date(t0).toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
-  const rows = n.alloc.length ? n.alloc.map((a) => { const t = byId.get(a.id); return `<button type="button" class="st-item" data-id="${esc(a.id)}">${tThumb(t.r.o, 36)}<span class="tx"><b>${esc(a.id)}</b><small>${esc(t.r.o.nick || tx(TYPES[t.r.o.type]))} · ${tx('fa il {p}% del lavoro', { p: Math.max(1, Math.round(a.f * 100)) })}${a.fin ? ' · ' + tx('ultima notte') : ''}</small></span><b class="num">${fmtH(a.a)}</b></button>`; }).join('') : `<div class="st-item"><span class="tx"><small>${tx('Nessuno dei tuoi target rende abbastanza questa notte.')}</small></span></div>`;
+  const rows = n.alloc.length ? n.alloc.map((a) => { const t = byId.get(a.id); return `<button type="button" class="st-item" data-id="${esc(a.id)}">${tThumb(t.r.o, 36)}<span class="tx"><b>${esc(a.id)}</b><small>${esc(t.r.o.nick || tx(TYPES[t.r.o.type]))} · ${tx('fa il {p}% del lavoro', { p: Math.max(1, Math.round(a.f * 100)) })}${a.fin ? ' · ' + tx('ultima notte') : ''}</small></span><b class="num">${fmtH(a.a)}</b></button>`; }).join('') : `<div class="st-item"><span class="tx"><small>${tx('Stanotte nessuno rende abbastanza.')}</small></span></div>`;
   openSheet({
     title: d.charAt(0).toUpperCase() + d.slice(1), body: `<p class="st-foot" style="margin:0 4px 10px">${tx('{h} di buio sereno', { h: fmtDur(n.cap) })} · ${tx('Luna {p}%', { p: Math.round(aheadNight(C, k).moon * 100) })}</p><div class="st-list">${rows}</div>`,
     foot: `<button type="button" class="btn primary" data-go>${ic('night')}<span>${tx('Apri questa notte')}</span></button>`,
@@ -123,7 +123,7 @@ function openSeasonNight(P, k) {
 const YR = { key: '', rows: null, job: 0 };
 function yearHTML(list) {
   if (!list.length) return '';
-  return `<div class="card year-card"><div class="card-h"><h3>${tx('Le stagioni')}</h3><small>${tx('quando ogni target rende di più nei prossimi 12 mesi (più acceso = più ore col buio)')}</small></div><div id="yearBox" class="yr"><div class="spin"></div></div></div>`;
+  return `<div class="card year-card"><div class="card-h"><h3>${tx('Le stagioni')}</h3><small>${tx('più acceso = più ore col buio')}</small></div><div id="yearBox" class="yr"><div class="spin"></div></div></div>`;
 }
 function fillYear(list) {
   const box = $('#yearBox'); if (!box) return;

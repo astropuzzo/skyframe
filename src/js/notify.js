@@ -81,7 +81,7 @@ async function planNotifications() {
   if (t && c.change && now > t.ev.d0 - 6 * 3600e3 && now < t.ev.d1 - 2 * 3600e3) {
     const prev = LS.get('sf.nstate', {})[t.ds];
     if (prev && !prev.good && t.ev.good && !sent[t.ds + 'o']) { out.push({ id: 41, at: now + 2000, title: tx('Si apre: {w}', { w: t.ev.when }), body: t.ev.body }); sentMark(t.ds + 'o'); }
-    else if (prev && prev.good && !t.ev.good && t.ev.w && (sent[t.ds + 'e'] || now > t.ev.d0 - lead) && !sent[t.ds + 'b']) { out.push({ id: 51, at: now + 2000, title: tx('Cambio di programma: nuvole stanotte'), body: tx('Ora è sereno solo il {p}% del buio: tieni le ore per un’altra notte.', { p: Math.round(t.ev.w.clear * 100) }) }); sentMark(t.ds + 'b'); }
+    else if (prev && prev.good && !t.ev.good && t.ev.w && (sent[t.ds + 'e'] || now > t.ev.d0 - lead) && !sent[t.ds + 'b']) { out.push({ id: 51, at: now + 2000, title: tx('Cambio di programma: nuvole'), body: tx('Ora il buio è sereno solo al {p}%.', { p: Math.round(t.ev.w.clear * 100) }) }); sentMark(t.ds + 'b'); }
     LS.set('sf.nstate', { [t.ds]: { good: t.ev.good } });
     if (t.ev.good && now > t.ev.d0 - lead) sentMark(t.ds + 'e');
   }
@@ -96,7 +96,7 @@ async function planNotifications() {
       const at = Math.max(noon.getTime(), now + 3000); if (at > x.t0 + 6 * 3600e3) continue;
       const who = SP.plan ? (SP.plan.nights[k] || { alloc: [] }).alloc.map((a) => a.id).slice(0, 3) : [];
       const day = d.toLocaleDateString(LOCALE, { weekday: 'long' });
-      once(key, { id: 10 + k, at, title: tx('{d}: notte ottima in arrivo', { d: day.charAt(0).toUpperCase() + day.slice(1) }), body: [tx('Senza Luna, sereno al {p}%', { p: Math.round(w.clear * 100) }) + (w.prob != null ? ' · ' + tx('probabilità {p}%', { p: Math.round(w.prob * 100) }) : ''), who.length ? tx('Per {t}', { t: who.join(', ') }) : ''].filter(Boolean).join('\n') });
+      once(key, { id: 10 + k, at, title: tx('{d}: notte ottima', { d: day.charAt(0).toUpperCase() + day.slice(1) }), body: [tx('Senza Luna, sereno al {p}%', { p: Math.round(w.clear * 100) }) + (w.prob != null ? ' · ' + tx('probabilità {p}%', { p: Math.round(w.prob * 100) }) : ''), who.length ? tx('Per {t}', { t: who.join(', ') }) : ''].filter(Boolean).join('\n') });
     }
   }
   // ultime settimane: dal piano di stagione (se è pronto)
@@ -105,7 +105,7 @@ async function planNotifications() {
       if (tg.last < 0 || tg.last > 10 || tg.rem < 0.2) continue;
       const d = new Date(), key = tg.id + '|s|' + d.getFullYear() + '-' + d.getMonth(); if (sent[key]) continue;
       const at6 = new Date(); at6.setHours(18, 0, 0, 0); const at = at6.getTime() > now ? at6.getTime() : now + 3000;
-      once(key, { id: 100 + (hash(tg.id) % 800), at, title: tx('{t}: ultime settimane buone', { t: tg.id }), body: tx('In stagione fino al {d} e ti manca il {p}%: il piano di stagione gli dà la precedenza.', { d: fmtDay(aheadNight(state.res.C, tg.last).t0), p: Math.round(tg.rem * 100) }) });
+      once(key, { id: 100 + (hash(tg.id) % 800), at, title: tx('{t}: ultime settimane', { t: tg.id }), body: tx('In stagione fino al {d}, manca il {p}%: ha la precedenza.', { d: fmtDay(aheadNight(state.res.C, tg.last).t0), p: Math.round(tg.rem * 100) }) });
     }
   }
   for (const k of Object.keys(sch)) if (now - sch[k] > 10 * 864e5) delete sch[k];
@@ -117,7 +117,7 @@ async function planNotifications() {
     window.cielo.bgConfig({
       on: true, evening: c.evening, change: c.change, lat: (+L.lat).toFixed(3), lon: (+L.lon).toFixed(3), tz: -new Date().getTimezoneOffset(),
       nights: nights.map((x) => ({ id: 1 + x.k, ds: x.ds, d0: x.ev.d0, d1: x.ev.d1, alertAt: x.ev.d0 - lead, minH: 1.5, minClear: c.min >= 4 ? 0.7 : c.min >= 3 ? 0.5 : 0.3, good: x.ev.good, appScheduled: !bgOk && x.ev.good && c.evening, body: x.ev.body })),
-      txt: { title: tx('Stasera si scatta: {w}'), all: tx('sereno tutta la notte'), win: tx('sereno {a}–{b}'), pct: tx('{p}% del buio sereno'), open: tx('Si apre: {w}'), bad: tx('Cambio di programma: nuvole stanotte'), badBody: tx('Ora è sereno solo il {p}% del buio: tieni le ore per un’altra notte.') },
+      txt: { title: tx('Stasera si scatta: {w}'), all: tx('sereno tutta la notte'), win: tx('sereno {a}–{b}'), pct: tx('{p}% del buio sereno'), open: tx('Si apre: {w}'), bad: tx('Cambio di programma: nuvole'), badBody: tx('Ora il buio è sereno solo al {p}%.') },
     });
   }
 }
@@ -125,15 +125,15 @@ async function toggleNotify() {
   const sync = () => { renderTonight(); if (UI.view === 'setup') renderSetup(); };
   if (notifyOn()) { LS.set('sf.notify', false); await notifySchedule([]); if (window.cielo && window.cielo.bgConfig) window.cielo.bgConfig({ on: false }); toast(tx('Avvisi spenti')); sync(); return; }
   const ok = await notifyPermission();
-  if (!ok) { toast(tx('Le notifiche non sono permesse: abilitale nelle impostazioni del sistema')); sync(); return; }
+  if (!ok) { toast(tx('Notifiche bloccate: attivale nelle impostazioni')); sync(); return; }
   LS.set('sf.notify', true); await planNotifications(); sync();
-  toast(tx('Avvisi accesi: scegli in Setup quali e con quanto anticipo'));
+  toast(tx('Avvisi accesi: li regoli in Setup'));
 }
 /* prova: un avviso fra 5 secondi con la notte di stanotte */
 async function testNotify() {
-  const ok = await notifyPermission(); if (!ok) { toast(tx('Le notifiche non sono permesse: abilitale nelle impostazioni del sistema')); return; }
+  const ok = await notifyPermission(); if (!ok) { toast(tx('Notifiche bloccate: attivale nelle impostazioni')); return; }
   const ev = evalNight(state.res.night, tonightPlan());
-  await notifySchedule([{ id: 99, at: Date.now() + 5000, title: ev && ev.when ? ev.title : tx('Prova degli avvisi di Skyframe'), body: (ev && ev.body) || tx('Prova degli avvisi di Skyframe') }]);
+  await notifySchedule([{ id: 99, at: Date.now() + 5000, title: ev && ev.when ? ev.title : tx('Prova degli avvisi'), body: (ev && ev.body) || tx('Prova degli avvisi') }]);
   toast(tx('Arriva fra 5 secondi'));
   setTimeout(() => planNotifications(), 8000);
 }

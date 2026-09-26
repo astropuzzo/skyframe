@@ -24,6 +24,7 @@ const TOUR_STEPS = [
 ];
 /* novità per versione (le più recenti in cima) */
 const NEWS = [
+  { v: '0.15.0', items: ['Tutti i testi riscritti: più corti, in italiano e in inglese'] },
   { v: '0.14.0', items: ['Logo nuovo all’avvio: dal campo stellare allo scatto sul target', 'Animazioni: in Setup scegli se seguire il sistema o averle sempre'] },
   { v: '0.13.1', items: ['Android: il tasto indietro chiude fogli, dettaglio e guida invece di uscire', 'Android: gli avvisi ad app chiusa ora ricevono le notti da controllare'] },
   { v: '0.13.0', items: ['Questa guida passo passo, e le novità a ogni aggiornamento', 'Niente più collegamenti a siti meteo esterni: tutto dentro l’app'] },

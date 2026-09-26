@@ -66,7 +66,7 @@ function projHTML(r, e, b) {
   const status = done ? `<span class="pst done">${ic('check')}${tx('fatto')}</span>` : hd > 0 ? `<span class="pst wip">${tx('in corso')}</span>` : fav ? `<span class="pst fav">${ic('star-f')}${tx('preferito')}</span>` : '';
   const sess = p && (p.sessions || []).length ? `<ul class="sess">${p.sessions.map((s) => `<li><span class="d">${fmtDate(s.date)}<small>${esc(s.locName || '')}</small></span><span class="s">${esc(s.stratLabel || '')}</span><b class="num">${fmtH(+s.h)}</b><em class="num">${s.frac ? '+' + Math.round(s.frac * 100) + '%' : ''}</em><button type="button" class="icon-btn" data-del="${s.ts}" aria-label="${tx('Elimina la sessione')}" title="${tx('Elimina la sessione')}">${ic('trash', 'sm')}</button></li>`).join('')}</ul>` : '';
   const bar = hd > 0 || done ? `<div class="pbar big"><b style="width:${Math.round(prog * 100)}%"></b></div>
-    <div class="pnum">${done ? tx('Segnato come fatto') : tx('{p}% del lavoro · {h} fatte', { p: Math.round(prog * 100), h: fmtH(hd) })}${!done && rem != null ? ' · ' + (prog >= 1 ? tx('tempo stimato raccolto') : tx('mancano ≈ {h} qui', { h: fmtH(rem) })) : ''}</div>` : `<div class="pnum">${tx('Registra le notti che fai: Skyframe tiene il conto e ricalcola quante ne mancano.')}</div>`;
+    <div class="pnum">${done ? tx('Segnato come fatto') : tx('{p}% · {h} fatte', { p: Math.round(prog * 100), h: fmtH(hd) })}${!done && rem != null ? ' · ' + (prog >= 1 ? tx('tempo stimato raccolto') : tx('mancano ≈ {h} qui', { h: fmtH(rem) })) : ''}</div>` : `<div class="pnum">${tx('Registra le notti: il conto si aggiorna da solo.')}</div>`;
   const today = $('#nightDate').value || defaultNightStr();
   const strats = e.strat.filter((s) => isFinite(hoursOf(s)));
   const form = `<form class="sform" id="sForm" hidden>
@@ -87,7 +87,7 @@ function projHTML(r, e, b) {
 function wireProj(r, e) {
   const id = r.o.id, box = $('#proj'); if (!box) return;
   $('#pFav').onclick = () => toggleFav(id);
-  const pp = $('#pPlan'); if (pp) pp.onclick = () => { if (pp.getAttribute('aria-pressed') === 'true') { planSkip(id); toast(tx('{t} tolto dal piano di questa notte', { t: id })); } else { planPin(id); toast(tx('{t} è nel piano di questa notte', { t: id })); } };
+  const pp = $('#pPlan'); if (pp) pp.onclick = () => { if (pp.getAttribute('aria-pressed') === 'true') { planSkip(id); toast(tx('{t} tolto dal piano', { t: id })); } else { planPin(id); toast(tx('{t} è nel piano', { t: id })); } };
   const pd = $('#pDone'); if (pd) pd.onclick = () => setDone(id, !isDone(id));
   const pa = $('#pAdd'), f = $('#sForm');
   if (pa) pa.onclick = () => { f.hidden = false; pa.hidden = true; $('#sH').focus(); };
@@ -99,8 +99,8 @@ function wireProj(r, e) {
     const s = e.strat.find((x) => x.id === stratId), l = state.locs.find((x) => x.id === locId);
     const need = needHours(id, e.cfg.key, stratId, locId, date);
     addSession(id, { date, h, loc: locId, locName: l ? l.site.name : '', cfg: e.cfg.key, cfgLabel: e.cfg.label, strat: stratId, stratLabel: s ? s.label : '', need, frac: need ? h / need : 0 });
-    toast(need ? tx('Sessione salvata: +{p}% del lavoro', { p: Math.round(h / need * 100) }) : tx('Sessione salvata'));
-    if (projProgress(id) >= 1 && !isDone(id)) toast(tx('Hai raccolto tutto il tempo stimato: segnalo come fatto quando ti piace il risultato'));
+    toast(need ? tx('Sessione salvata: +{p}%', { p: Math.round(h / need * 100) }) : tx('Sessione salvata'));
+    if (projProgress(id) >= 1 && !isDone(id)) toast(tx('Tempo raccolto: segnalo fatto quando ti piace'));
   };
   box.onclick = (ev) => { const d = ev.target.closest('[data-del]'); if (d) removeSession(id, +d.dataset.del); };
 }
@@ -137,9 +137,9 @@ function renderProjects() {
   const ids = Object.keys(state.projects).filter((id) => inMyList(id) && (state.byId.has(id) || CAT_BY_ID.has(id)));
   const wip = ids.filter((id) => !isDone(id) && hasSessions(id)), favs = ids.filter((id) => !isDone(id) && !hasSessions(id)), done = ids.filter(isDone);
   const hours = ids.reduce((a, id) => a + projHoursDone(id), 0), nights = new Set(ids.flatMap((id) => (state.projects[id].sessions || []).map((s) => s.date))).size;
-  const head = `<div class="view-h"><h2>${tx('Progetti')}</h2><small>${tx('i tuoi preferiti e quello che stai riprendendo')}</small></div>`;
+  const head = `<div class="view-h"><h2>${tx('Progetti')}</h2></div>`;
   if (!ids.length) {
-    el.innerHTML = head + `<div class="pv-empty">${ic('star')}<h3>${tx('Ancora nessun progetto')}</h3><p>${tx('Tocca la stella accanto a un target per metterlo qui. Registra le notti che fai: Skyframe tiene il conto delle ore e ti dice quando tornarci.')}</p><button type="button" class="btn primary" data-go="targets">${ic('target')}<span>${tx('Scegli dai target')}</span></button></div>`;
+    el.innerHTML = head + `<div class="pv-empty">${ic('star')}<h3>${tx('Ancora nessun progetto')}</h3><p>${tx('Tocca la stella di un target per metterlo qui.')}</p><button type="button" class="btn primary" data-go="targets">${ic('target')}<span>${tx('Scegli dai target')}</span></button></div>`;
     el.onclick = (e) => { if (e.target.closest('[data-go]')) setView('targets'); };
     return;
   }
@@ -150,7 +150,7 @@ function renderProjects() {
       <div class="pv-stat"><b class="num" data-to="${done.length}">${done.length}</b><span>${tx('completati')}</span></div>
       <div class="pv-stat"><b class="num" data-to="${hours}" data-fmt="hh">${hours > 0 ? fmtH(hours) : '0 h'}</b><span>${nights ? tx('di posa in {n}', { n: nNights(nights) }) : tx('di posa registrate')}</span></div></div>
     <div id="pvSeason">${wip.length + favs.length ? `<div class="card sk-wait"><div class="spin"></div><p>${tx('Preparo il piano di stagione…')}</p></div>` : ''}</div>` +
-    sec(tx('In corso'), tx('ore raccolte e quanto manca'), wip) + sec(tx('Preferiti'), tx('da iniziare'), favs) + yearHTML(seasonTargets()) + sec(tx('Fatti'), '', done);
+    sec(tx('In corso'), tx('fatte e mancanti'), wip) + sec(tx('Preferiti'), tx('da iniziare'), favs) + yearHTML(seasonTargets()) + sec(tx('Fatti'), '', done);
   el.onclick = (e) => {
     if (e.target.closest('[data-go]')) { setView('targets'); return; }
     const f = e.target.closest('[data-fav]'); if (f) { e.stopPropagation(); toggleFav(f.dataset.fav); return; }

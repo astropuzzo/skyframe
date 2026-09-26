@@ -14,7 +14,7 @@ function active() { const p = activeProfile(), l = activeLoc(); if (!effMemo || 
 function toast(msg) { $$('.toast').forEach((x) => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3200); }
 async function copyText(txt) {
   try { if (window.cielo && window.cielo.copy) await window.cielo.copy(txt); else await navigator.clipboard.writeText(txt); toast(tx('Copiato negli appunti')); }
-  catch (e) { toast(tx('Copia non riuscita: seleziona il testo e copialo a mano')); }
+  catch (e) { toast(tx('Copia non riuscita: copia il testo a mano')); }
 }
 
 /* ============================ archiviazione ============================ */
@@ -73,7 +73,7 @@ async function importProfiles() {
   });
   if (!data) return;
   const { list, locs } = readData(data);
-  if (!list.length && !locs.length) { toast(tx('Il file non contiene profili o luoghi validi')); return; }
+  if (!list.length && !locs.length) { toast(tx('Nel file non ci sono profili né luoghi')); return; }
   list.forEach((p) => { const i = state.profiles.findIndex((x) => x.id === p.id); if (i >= 0) state.profiles[i] = p; else state.profiles.push(p); });
   // un luogo già presente (stesso id, oppure stesso nome a meno di 500 m) si aggiorna invece di duplicarsi
   locs.forEach((l) => { let i = state.locs.findIndex((x) => x.id === l.id); if (i < 0) i = state.locs.findIndex((x) => !x.unsaved && x.site.name === l.site.name && kmBetween(x.site, l.site) < 0.5); if (i >= 0) state.locs[i] = { ...l, id: state.locs[i].id }; else state.locs.push(l); });
@@ -225,7 +225,7 @@ function refresh(force) {
 function renderHeader() {
   const a = active();
   renderTopbar();
-  $('#notice').innerHTML = a.site.example ? `<div class="notice"><span>${tx('Luogo e orizzonte sono di esempio (Milano, Bortle 7). Inserisci coordinate, SQM e orizzonte del tuo terrazzo.')}</span><button class="btn sm" id="noticeEdit">${tx('Imposta il mio luogo')}</button></div>` : '';
+  $('#notice').innerHTML = a.site.example ? `<div class="notice"><span>${tx('Luogo di esempio (Milano, Bortle 7): imposta il tuo.')}</span><button class="btn sm" id="noticeEdit">${tx('Imposta il mio luogo')}</button></div>` : '';
   const b = $('#noticeEdit'); if (b) b.onclick = () => openLocEditor(state.locId);
   const gs = $('#sortSel option[value="gain"]'); if (gs) gs.hidden = state.locs.length < 2;
   if (state.sort === 'gain' && state.locs.length < 2) { state.sort = 'score'; $('#sortSel').value = 'score'; }
