@@ -717,4 +717,5 @@ window.I18N.en = {
   "Calendario di sei settimane per ogni target": "Six-week calendar for every target", "Sezione Cielo: sette modelli meteo, probabilità, seeing, trasparenza": "Sky section: seven weather models, probability, seeing, transparency",
   "Interfaccia nuova a sezioni, le prossime 14 notti, icona nuova": "New section-based interface, the next 14 nights, new icon",
   "Orario preciso": "Exact timing", "consenti a Skyframe «sveglie e promemoria»: l’avviso della sera arriva all’ora giusta": "allow Skyframe “Alarms & reminders”: the evening alert arrives on time",
+  "Android: il tasto indietro chiude fogli, dettaglio e guida invece di uscire": "Android: the back button closes sheets, details and the tour instead of leaving the app", "Android: gli avvisi ad app chiusa ora ricevono le notti da controllare": "Android: alerts with the app closed now receive the nights to check",
 };

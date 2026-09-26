@@ -7,6 +7,7 @@ mkdir -p e2e
 adb wait-for-device
 adb shell cmd alarm set-timezone Europe/Rome || true
 adb shell settings put global package_verifier_enable 0 || true
+adb shell settings put global hide_error_dialogs 1 || true   # niente finestre «... isn't responding» dell'emulatore sopra l'app
 # al primo avvio l'emulatore aggiorna i servizi Google e chiude le app che usano la WebView: si aspetta che si calmi
 sleep 60
 adb install -r "$APK"

@@ -10,7 +10,7 @@ const out = { checks: {}, notes: [] };
 const T0 = Date.now(), log = (m) => { const l = `[${Math.round((Date.now() - T0) / 1000)} s] ${m}`; console.log(l); out.notes.push(l); try { fs.writeFileSync('e2e/risultati.json', JSON.stringify(out, null, 2)); } catch { /* niente */ } };
 // limite generale: dopo 20 minuti si scrive quello che c'è e si esce
 setTimeout(() => { log('limite di tempo raggiunto'); process.exit(3); }, 20 * 60000);
-const shot = (name) => { try { fs.writeFileSync(`e2e/${name}.png`, execSync('adb exec-out screencap -p', { maxBuffer: 64e6 })); } catch (e) { out.notes.push(`schermata ${name}: ${e.message}`); } };
+const shot = (name) => { try { execSync('adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS', { stdio: 'ignore' }); } catch { /* niente */ } try { fs.writeFileSync(`e2e/${name}.png`, execSync('adb exec-out screencap -p', { maxBuffer: 64e6 })); } catch (e) { out.notes.push(`schermata ${name}: ${e.message}`); } };
 const notifs = () => { try { return adb('shell dumpsys notification --noredact'); } catch { return ''; } };
 
 async function devtools() {
@@ -63,15 +63,15 @@ const keep = setInterval(() => {}, 1000); // il processo resta vivo mentre si as
 
 try {
   await reconnect();
-  log('attendo avvio'); out.checks.avvio = await until('window.state && state.res && document.querySelector("#list .row")', 90000);
+  log('attendo avvio'); out.checks.avvio = await until('typeof state !== "undefined" && state.res && document.querySelector("#list .row")', 90000);
   shot('01-avvio');
   // guida al primo avvio: parte da sola
-  out.checks.guida_parte = await until('window.TOUR && TOUR.el', 8000);
+  out.checks.guida_parte = await until('typeof TOUR !== "undefined" && TOUR.el', 8000);
   await sleep(1500); shot('02-guida-benvenuto');
   // italiano (l'emulatore è in inglese), poi di nuovo la guida da capo
   await ev(`localStorage.setItem('sf.lang', JSON.stringify('it')); location.reload(); return 1`).catch(() => {});
-  await sleep(4000); await until('window.state && state.res && document.querySelector("#list .row")', 90000);
-  await ev(`if (window.TOUR && TOUR.el) tourClose(); tourStart(TOUR_STEPS, 0); return 1`); await sleep(2200); shot('03-guida-it');
+  await sleep(4000); await until('typeof state !== "undefined" && state.res && document.querySelector("#list .row")', 90000);
+  await ev(`if (TOUR.el) tourClose(); tourStart(TOUR_STEPS, 0); return 1`); await sleep(2200); shot('03-guida-it');
   for (const [k, name] of [[1, 'luogo'], [3, 'notti'], [8, 'quanto-ci-vuole'], [11, 'cielo'], [12, 'progetti']]) {
     await ev(`tourGo(Math.min(${k}, TOUR.steps.length - 1)); return 1`); await sleep(2000); shot(`04-guida-${String(k).padStart(2, '0')}-${name}`);
   }
@@ -98,7 +98,7 @@ try {
   out.checks.avviso_programmato = /skyframe/i.test(n1) && /(Stasera si scatta|Prova degli avvisi)/.test(n1);
   // script in background: una notte finta che parte ora, poi il suo controllo (a app aperta con selftest)
   log('script in background'); const cfg = `{ on: true, evening: true, change: true, lat: '45.464', lon: '9.190', tz: 60, nights: [{ id: 7, ds: 'e2e', d0: Date.now() + 30 * 60000, d1: Date.now() + 5 * 3600e3, alertAt: Date.now() - 60000, minH: 0, minClear: 0, good: false, appScheduled: false, body: 'prova e2e dallo script in background' }], txt: { title: 'Stasera si scatta: {w}', all: 'sereno tutta la notte', win: 'sereno {a}–{b}', pct: '{p}% del buio sereno', open: 'Si apre: {w}', bad: 'Cambio di programma', badBody: '{p}%' } }`;
-  const BR = `(Capacitor.Plugins.BackgroundRunner || Capacitor.registerPlugin('BackgroundRunner'))`;
+  const BR = `Capacitor.Plugins.CapacitorBackgroundRunner`;
   out.runner_config = await ev(`try { await ${BR}.dispatchEvent({ label: '${LABEL}', event: 'config', details: ${cfg} }); return 'ok'; } catch (e) { return 'errore: ' + e.message; }`);
   out.runner_selftest = await ev(`try { return await ${BR}.dispatchEvent({ label: '${LABEL}', event: 'selftest', details: {} }); } catch (e) { return 'errore: ' + e.message; }`);
   await sleep(4000);

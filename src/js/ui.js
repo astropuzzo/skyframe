@@ -19,6 +19,8 @@ function backDone(close) {
   const i = Back.stack.lastIndexOf(close); if (i < 0) return;
   Back.stack.splice(i, 1); Back.skip++; try { history.back(); } catch { Back.skip--; }
 }
+/* Android (plugin App): il tasto indietro passa di qui; true se c'era qualcosa da chiudere o da cui tornare */
+window.onAndroidBack = () => { if (Back.stack.length || Back.view) { history.back(); return true; } return false; };
 window.addEventListener('popstate', () => {
   if (Back.skip) { Back.skip--; return; }
   const c = Back.stack.pop(); if (c) { c(true); return; }

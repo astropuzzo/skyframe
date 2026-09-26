@@ -58,6 +58,10 @@
     async bgStatus() { const B = bgRunner(); if (!B) return null; try { return await B.dispatchEvent({ label: BG_LABEL, event: 'status', details: {} }); } catch { return null; } },
   };
   const BG_LABEL = 'io.github.astropuzzo.skyframe.check';
-  function bgRunner() { return (C.Plugins && C.Plugins.BackgroundRunner) || (C.registerPlugin ? C.registerPlugin('BackgroundRunner') : null); }
+  // il plugin nativo si chiama CapacitorBackgroundRunner (con BackgroundRunner non si trovava: la configurazione non arrivava)
+  function bgRunner() { return (C.Plugins && (C.Plugins.CapacitorBackgroundRunner || C.Plugins.BackgroundRunner)) || null; }
+  // tasto indietro di Android: chiude foglio, dettaglio, editor o guida aperti, riporta a Stanotte; da Stanotte riduce l'app
+  const App = C.Plugins && C.Plugins.App;
+  if (App && App.addListener) App.addListener('backButton', () => { if (window.onAndroidBack && window.onAndroidBack()) return; if (App.minimizeApp) App.minimizeApp(); else if (App.exitApp) App.exitApp(); });
   function localNotif() { return (C.Plugins && C.Plugins.LocalNotifications) || (C.registerPlugin ? C.registerPlugin('LocalNotifications') : null); }
 })();

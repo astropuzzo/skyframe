@@ -24,6 +24,7 @@ const TOUR_STEPS = [
 ];
 /* novità per versione (le più recenti in cima) */
 const NEWS = [
+  { v: '0.13.1', items: ['Android: il tasto indietro chiude fogli, dettaglio e guida invece di uscire', 'Android: gli avvisi ad app chiusa ora ricevono le notti da controllare'] },
   { v: '0.13.0', items: ['Questa guida passo passo, e le novità a ogni aggiornamento', 'Niente più collegamenti a siti meteo esterni: tutto dentro l’app'] },
   { v: '0.12.1', items: ['Registri la sessione con un tocco dal piano della notte', 'Le ore fatte con la Luna piena valgono per quello che rendono'] },
   { v: '0.11.0', items: ['Quattro avvisi da scegliere in Setup, anche ad app chiusa su Android'] },

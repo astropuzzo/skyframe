@@ -1,7 +1,7 @@
 {
   "name": "skyframe",
   "productName": "Skyframe",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "description": "Pianificatore di target per astrofotografia: sceglie cosa riprendere stanotte in base a setup, orizzonte e inquinamento luminoso.",
   "main": "main.js",
   "author": {
@@ -28,6 +28,7 @@
   },
   "devDependencies": {
     "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
     "@capacitor/background-runner": "^3.0.0",
     "@capacitor/cli": "^8.5.2",
     "@capacitor/core": "^8.5.2",
