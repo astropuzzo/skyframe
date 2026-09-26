@@ -1,6 +1,7 @@
 // Confronto del modello con foto reali: per ogni foto rifà i conti con il suo strumento, i suoi filtri e il suo cielo e
 // confronta le ore del modello (qualità "buona", senza Luna, per pannello) con l'integrazione dichiarata.
-//   node scripts/calibrate.cjs [file.jsonl]      (predefinito: scripts/raw/astrobin-calib.jsonl, non nel repository)
+//   node scripts/calibrate.cjs [file.jsonl]      (predefinito: scripts/raw/astrobin-calib*.jsonl, non nel repository)
+//   CAL_OBJ="M 82" node scripts/calibrate.cjs    anche il dettaglio foto per foto di un oggetto
 // Una riga per foto: { t: id del target, ap: apertura mm, scale: ″/px, pix: µm, obs: % ostruzione, kind, h: ore,
 //   bortle | sqm, qe?, dslr?, split?: ore per filtro, note? } — kind: bb, bb-dslr, dual, dual3, dual-so, multi, sho-osc,
 //   bb+dual, bb+dual3, mono-lrgb, mono-rgb, mono-hargb, mono-hoo, mono-hoo-rgb, mono-sho, mono-ha.
@@ -23,8 +24,9 @@ const PICK = {
   bb: 'bb-uvir', 'bb-dslr': 'bb-uvir', dual: 'nb-lextreme', dual3: 'nb-lultimate', 'dual-so': 'nb-lsynergy', multi: 'bb-triband', 'sho-osc': 'sho-', 'bb+dual': 'nb-lextreme', 'bb+dual3': 'nb-lultimate',
   'mono-lrgb': 'lrgb', 'mono-rgb': 'rgb', 'mono-hargb': 'hargb', 'mono-hoo': 'hoo', 'mono-hoo-rgb': 'hoo', 'mono-sho': 'sho', 'mono-ha': 'ha',
 };
-const file = process.argv[2] || path.join(root, 'scripts', 'raw', 'astrobin-calib.jsonl');
-const recs = fs.readFileSync(file, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+// senza argomento: le foto della prima raccolta e quelle convertite da scripts/astrobin-convert.cjs
+const files = process.argv[2] ? [process.argv[2]] : ['astrobin-calib.jsonl', 'astrobin-calib2.jsonl'].map((n) => path.join(root, 'scripts', 'raw', n)).filter((p) => fs.existsSync(p));
+const recs = files.flatMap((p) => fs.readFileSync(p, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)));
 const L = Math.log10, rows = [];
 for (const r of recs) {
   const o = M.CAT_BY_ID.get(r.t); if (!o || !OWN[r.kind]) continue;
@@ -44,6 +46,8 @@ for (const r of recs) {
   rows.push({ r, o, sqm, model, lr: L(real / model), mono, sky: !!(r.sqm || r.bortle), skip: /solo|parte|prova|IFN|alone|misto|Ou4/.test(r.note || '') });
 }
 const ok = rows.filter((x) => !x.skip);
+// CAL_OBJ="M 82": il dettaglio foto per foto di un oggetto (strumento, cielo, ore vere e del modello)
+if (process.env.CAL_OBJ) rows.filter((x) => x.o.id === process.env.CAL_OBJ).forEach((x) => console.log(`${x.r.id} ${x.r.kind.padEnd(12)} ${String(x.r.ap).padStart(4)} mm ${String(x.r.scale).padStart(5)}″/px SQM ${x.sqm.toFixed(2)}  vere ${String(x.r.h).padStart(6)} h  modello ${x.model.toFixed(1).padStart(6)} h  ×${Math.pow(10, x.lr).toFixed(2)}${x.skip ? '  (esclusa: ' + x.r.note + ')' : ''}`));
 const q = (a, p) => { const v = [...a].sort((x, y) => x - y); return v[Math.floor(p * (v.length - 1))]; };
 const f = (lr) => '×' + Math.pow(10, lr).toFixed(2);
 const byO = {}; ok.forEach((x) => (byO[x.o.id] = byO[x.o.id] || []).push(x.lr));
