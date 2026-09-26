@@ -37,5 +37,19 @@
       setTimeout(check, 5000); setInterval(check, 30 * 60e3);
     },
     openUpdate: () => { window.open(updUrl, '_blank'); },
+    // avvisi della sera: notifiche locali programmate nel sistema (arrivano anche ad app chiusa)
+    async notifyPermission() {
+      const LN = localNotif(); if (!LN) return false;
+      try { let p = await LN.checkPermissions(); if (p.display !== 'granted') p = await LN.requestPermissions(); return p.display === 'granted'; } catch { return false; }
+    },
+    async notifySchedule(list) {
+      const LN = localNotif(); if (!LN) return;
+      try {
+        const pend = await LN.getPending(); if (pend && pend.notifications && pend.notifications.length) await LN.cancel({ notifications: pend.notifications.map((n) => ({ id: n.id })) });
+        const items = list.filter((n) => n.at > Date.now()).map((n) => ({ id: n.id, title: n.title, body: n.body, schedule: { at: new Date(n.at), allowWhileIdle: true } }));
+        if (items.length) await LN.schedule({ notifications: items });
+      } catch { /* niente */ }
+    },
   };
+  function localNotif() { return (C.Plugins && C.Plugins.LocalNotifications) || (C.registerPlugin ? C.registerPlugin('LocalNotifications') : null); }
 })();

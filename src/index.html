@@ -39,6 +39,7 @@
       </div>
       <div class="strip" id="strip" aria-label="Notte: trascina per cambiare ora"><canvas id="stripCv"></canvas></div>
       <div class="facts" id="facts"></div>
+      <div class="tonight" id="tonight"></div>
       <div class="setups" id="setups" hidden></div>
       <div class="setups locs" id="locs" hidden></div>
       <button class="tolist" id="toList" type="button"><span id="toListN" class="num">–</span> target per questa notte <i aria-hidden="true">↓</i></button>
@@ -59,6 +60,7 @@
             <option value="sb">Più debole (sfida)</option>
             <option value="gain" hidden>Più rapidi in un altro luogo</option>
           </select>
+          <button class="btn" id="mineBtn" aria-pressed="false" title="Solo i tuoi preferiti e progetti, anche quelli che stanotte non si riprendono">★ I miei</button>
           <button class="btn" id="advBtn" aria-expanded="false">Filtri <span class="badge" id="advCount" hidden>0</span></button>
         </div>
         <div class="chips" id="typeChips"></div>
@@ -74,6 +76,7 @@
           <div class="f"><span class="lbl">Altro</span>
             <label class="chk"><input type="checkbox" id="hideClassic"> Nascondi i classici (Messier e i soliti noti)</label>
             <label class="chk"><input type="checkbox" id="showAll"> Mostra anche i non visibili stanotte</label>
+            <label class="chk"><input type="checkbox" id="hideDone"> Nascondi i target già fatti</label>
             <button class="btn sm ghost" id="resetF" style="align-self:flex-start;margin-top:4px">Azzera filtri</button>
           </div>
         </div>
@@ -222,6 +225,10 @@
 <script src="js/model.js"></script>
 <script src="js/dome.js"></script>
 <script src="js/views.js"></script>
+<script src="js/weather.js"></script>
+<script src="js/projects.js"></script>
+<script src="js/tonight.js"></script>
+<script src="js/notify.js"></script>
 <script src="js/allsky.js"></script>
 <script src="js/editor.js"></script>
 <script src="js/main.js"></script>

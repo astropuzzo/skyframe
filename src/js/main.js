@@ -1,8 +1,8 @@
 'use strict';
 /* ============================ stato ============================ */
-const F_DEFAULT = { types: [], srcs: [], minUse: 0.25, maxNights: 11, maxSb: 26, fill: 'any', band: 'any', con: '', hideClassic: false, showAll: false };
+const F_DEFAULT = { types: [], srcs: [], minUse: 0.25, maxNights: 11, maxSb: 26, fill: 'any', band: 'any', con: '', hideClassic: false, showAll: false, mine: false, hideDone: false };
 const state = {
-  profiles: [], activeId: null, locs: [], locId: null, cfgFilter: '', res: null, cfgs: [], byId: new Map(), filtered: [], page: 60,
+  profiles: [], activeId: null, locs: [], locId: null, projects: {}, cfgFilter: '', res: null, cfgs: [], byId: new Map(), filtered: [], page: 60,
   sel: null, selCfg: null, rot: 90, mosaic: true, realSky: LS.get('sf.realSky', true), live: true, playing: false,
   f: Object.assign({}, F_DEFAULT, LS.get('sf.filters', {})), q: '', sort: LS.get('sf.sort', 'score'), computeKey: '', windows: null, nextDarkTxt: '', calKey: '',
 };
@@ -27,7 +27,7 @@ const withLegacy = (p) => {
 };
 const validProfile = (p) => p && p.camera && (p.optic || p.optics);
 const stripSite = (p) => { delete p.site; delete p.horizon; return p; };
-const storeData = () => ({ version: 3, active: state.activeId, activeLoc: state.locId, profiles: state.profiles.filter((p) => !p.unsaved).map(withLegacy), locations: state.locs.filter((l) => !l.unsaved) });
+const storeData = () => ({ version: 3, active: state.activeId, activeLoc: state.locId, profiles: state.profiles.filter((p) => !p.unsaved).map(withLegacy), locations: state.locs.filter((l) => !l.unsaved), projects: state.projects });
 /* telefono e browser: tutto in un'unica chiave (sf.store, formato 3); le chiavi separate restano per le versioni vecchie */
 function saveStore() {
   const d = storeData();
@@ -56,6 +56,7 @@ function applyStore(data) {
   if (!state.profiles.some((p) => p.id === state.activeId)) state.activeId = state.profiles[0].id;
   state.locId = (data && data.activeLoc) || byProfile.get(state.activeId) || state.locs[0].id;
   if (!state.locs.some((l) => l.id === state.locId)) state.locId = state.locs[0].id;
+  state.projects = data && data.projects && typeof data.projects === 'object' && !Array.isArray(data.projects) ? data.projects : {};
   if (old && list.length) saveStore(); // si passa subito al formato con i luoghi
 }
 async function exportProfiles() {
@@ -80,6 +81,7 @@ async function importProfiles() {
   state.locs = state.locs.filter((l) => !l.unsaved); if (!state.locs.length) state.locs = [templateLoc()];
   if (!state.profiles.some((p) => p.id === state.activeId)) state.activeId = state.profiles[0].id;
   if (!state.locs.some((l) => l.id === state.locId)) state.locId = state.locs[0].id;
+  mergeProjects(data.projects);
   saveStore(); if (typeof closeEditor === 'function') closeEditor(); refresh(true); toast(tx('{n} profili e {m} luoghi importati', { n: list.length, m: locs.length }));
 }
 
@@ -93,6 +95,7 @@ function recompute(force) {
   state.cfgs = profileConfigs(a);
   if (state.cfgFilter && !state.cfgs.some((c) => c.key === state.cfgFilter)) state.cfgFilter = '';
   state.res = computeAll(state.cfgs, a, ds, Date.now());
+  state.res.C.progOf = projProgress; applyWeather();
   state.byId = new Map(state.res.results.map((r) => [r.o.id, r]));
   const ck = siteKey(a.site) + a.session.sunThr + defaultNightStr();
   if (ck !== state.calKey) { state.calKey = ck; const cal = moonCalendar(a, defaultNightStr(), 45); state.windows = darkWindows(cal); }
@@ -162,7 +165,9 @@ function setLoc(id) {
 function applyFilters() {
   const f = state.f, q = state.q.trim().toLowerCase().replace(/\s+/g, '');
   let L = state.res.results;
-  if (!f.showAll && !q) L = L.filter((r) => r.usableH >= Math.max(0.25, f.minUse));
+  if (f.mine) L = L.filter((r) => inMyList(r.o.id)); // i miei: anche quelli che stanotte non si riprendono
+  else if (!f.showAll && !q) L = L.filter((r) => r.usableH >= Math.max(0.25, f.minUse));
+  if (f.hideDone) L = L.filter((r) => !isDone(r.o.id));
   if (f.types.length) L = L.filter((r) => f.types.includes(r.o.type));
   if (f.srcs.length) L = L.filter((r) => f.srcs.includes(r.o.src));
   if (f.hideClassic) L = L.filter((r) => !r.o.classic);
@@ -187,7 +192,8 @@ function applyFilters() {
   }[state.sort] || ((a, b) => b.score - a.score);
   state.filtered = L.slice().sort(cmp);
   LS.set('sf.filters', state.f);
-  const nAdv = (f.srcs.length ? 1 : 0) + (f.minUse > 0.25 ? 1 : 0) + (f.maxNights < 11 ? 1 : 0) + (f.maxSb < 26 ? 1 : 0) + (f.fill !== 'any') + (f.band !== 'any') + (f.con ? 1 : 0) + (f.hideClassic ? 1 : 0) + (f.showAll ? 1 : 0) + (state.cfgFilter ? 1 : 0);
+  $('#mineBtn').setAttribute('aria-pressed', String(!!f.mine));
+  const nAdv = (f.hideDone ? 1 : 0) + (f.srcs.length ? 1 : 0) + (f.minUse > 0.25 ? 1 : 0) + (f.maxNights < 11 ? 1 : 0) + (f.maxSb < 26 ? 1 : 0) + (f.fill !== 'any') + (f.band !== 'any') + (f.con ? 1 : 0) + (f.hideClassic ? 1 : 0) + (f.showAll ? 1 : 0) + (state.cfgFilter ? 1 : 0);
   $('#advCount').hidden = !nAdv; $('#advCount').textContent = nAdv;
 }
 function pushDome() {
@@ -200,7 +206,8 @@ function refresh(force) {
   if (changed) initTime();
   if (changed || cmp.keys.size !== state.locs.length) scheduleCompare();
   applyFilters();
-  renderHeader(); renderFacts(); renderSetups(); renderLocs(); renderChips(); state.page = Math.max(60, state.page); renderList(); pushDome(); drawStrip(); renderClock();
+  renderHeader(); renderFacts(); renderTonight(); renderSetups(); renderLocs(); renderChips(); state.page = Math.max(60, state.page); renderList(); pushDome(); drawStrip(); renderClock();
+  refreshWeather(false); // il meteo del luogo, se non c'è o è vecchio: arriva dopo e ridisegna
   if (state.sel && !$('#drawer').hidden) { if (state.byId.has(state.sel)) { const sc = $('#drawer').scrollTop; renderDetail(); $('#drawer').scrollTop = sc; } else closeDetail(); }
 }
 function renderHeader() {
@@ -228,7 +235,7 @@ function syncAdv() {
   $('#minUse').value = f.minUse; $('#minUseV').textContent = f.minUse > 0.25 ? fmtDur(f.minUse) : tx('qualsiasi');
   $('#maxNights').value = f.maxNights; $('#maxNightsV').textContent = f.maxNights >= 11 ? tx('qualsiasi') : f.maxNights === 1 ? tx('1 notte') : tx('{n} notti', { n: f.maxNights });
   $('#maxSb').value = f.maxSb; $('#maxSbV').textContent = f.maxSb >= 26 ? tx('qualsiasi') : it(f.maxSb, 2) + ' mag/″²';
-  $('#fillSel').value = f.fill; $('#bandSel').value = f.band; $('#conSel').value = f.con; $('#hideClassic').checked = f.hideClassic; $('#showAll').checked = f.showAll;
+  $('#fillSel').value = f.fill; $('#bandSel').value = f.band; $('#conSel').value = f.con; $('#hideClassic').checked = f.hideClassic; $('#showAll').checked = f.showAll; $('#hideDone').checked = !!f.hideDone;
 }
 
 /* ============================ tempo ============================ */
@@ -289,12 +296,15 @@ function wire() {
   $('#conSel').innerHTML = `<option value="">${tx('Tutte')}</option>` + Object.entries(CONST_NAMES).sort((a, b) => a[1].localeCompare(b[1])).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
   $('#conSel').onchange = (e) => { state.f.con = e.target.value; upd(); };
   $('#hideClassic').onchange = (e) => { state.f.hideClassic = e.target.checked; upd(); };
+  $('#hideDone').onchange = (e) => { state.f.hideDone = e.target.checked; upd(); };
+  $('#mineBtn').onclick = () => { state.f.mine = !state.f.mine; upd(); };
+  setInterval(() => refreshWeather(false), 30 * 60e3);
   $('#showAll').onchange = (e) => { state.f.showAll = e.target.checked; upd(); };
   $('#resetF').onclick = () => { state.f = Object.assign({}, F_DEFAULT); state.cfgFilter = ''; renderChips(); upd(); };
   $('#advBtn').onclick = () => { const a = $('#adv'); a.hidden = !a.hidden; $('#advBtn').setAttribute('aria-expanded', String(!a.hidden)); };
   $('#sortSel').value = state.sort; $('#sortSel').onchange = (e) => { state.sort = e.target.value; LS.set('sf.sort', state.sort); applyFilters(); renderList(); pushDome(); };
   let qt; $('#q').oninput = (e) => { clearTimeout(qt); qt = setTimeout(() => { state.q = e.target.value; state.page = 60; applyFilters(); renderList(); pushDome(); }, 120); };
-  $('#list').addEventListener('click', (e) => { const r = e.target.closest('.row[data-id]'); if (r) openDetail(r.dataset.id); });
+  $('#list').addEventListener('click', (e) => { const fv = e.target.closest('[data-fav]'); if (fv) { e.stopPropagation(); toggleFav(fv.dataset.fav); return; } const r = e.target.closest('.row[data-id]'); if (r) openDetail(r.dataset.id); });
   $('#list').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { const r = e.target.closest('.row[data-id]'); if (r) { e.preventDefault(); openDetail(r.dataset.id); } } });
   $('#list').addEventListener('mouseover', (e) => { const r = e.target.closest('.row[data-id]'); $$('#list .row.hl').forEach((x) => x !== r && x.classList.remove('hl')); });
   $('#backdrop').onclick = closeDetail;
