@@ -334,7 +334,7 @@ window.I18N.en = {
   "{n} target su {v} riprendibili la notte del {d}": "{n} targets out of {v} imageable on the night of {d}",
   "Mostra altri {n}": "Show {n} more", "Nessun target con questi filtri. Allarga i criteri o azzera i filtri.": "No targets with these filters. Widen the criteria or reset the filters.",
   "{type} in {con}": "{type} in {con}", "Copia coordinate J2000": "Copy J2000 coordinates", "Copia centro inquadratura": "Copy framing centre",
-  "su 100": "out of 100", "Visibilità": "Visibility", "{d} libero col buio": "{d} clear in darkness", "Impegno": "Effort", "si chiude stanotte": "done tonight",
+  "su 100": "out of 100", "Visibilità": "Visibility", "{d} libero col buio": "{d} clear in darkness", "Impegno": "Effort", "Interesse": "Interest", "si chiude stanotte": "done tonight",
   "≈ {n} notti così": "≈ {n} nights like this", "non stanotte": "not tonight", "Periodo giusto": "Best season", "Calcolo quando conviene…": "Working out the best time…",
   "Piano di ripresa": "Imaging plan", "qualità {q} · {cfg} a {f} · con il cielo di stanotte": "{q} quality · {cfg} at {f} · with tonight's sky",
   "Per far uscire anche l’Hα diffuso attorno ({r} R nella mappa all-sky di Finkbeiner) servono <b>{h}</b> in tutto.": "To also bring out the surrounding diffuse Hα ({r} R in Finkbeiner's all-sky map) you need <b>{h}</b> in total.",

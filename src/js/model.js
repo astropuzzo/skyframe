@@ -788,7 +788,7 @@ function computeObj(C, o) {
     const strat = scalePanels(evalStrategies(o, cfg.strategies, consts[ci], U, Q, T, field), fill.nx * fill.ny);
     const best = pickBest(strat, o);
     let effort = 0.05; if (best) { const n = isFinite(best.nights) ? best.nights : 99; effort = n <= 1 ? 1 : 1 / Math.sqrt(n); }
-    const score = vis > 0 ? Math.round(100 * Math.pow(fill.score, 0.45) * Math.pow(vis, 0.35) * Math.pow(effort, 0.3)) : 0;
+    const score = vis > 0 ? Math.round(100 * Math.pow(fill.score, 0.45) * Math.pow(vis, 0.35) * Math.pow(effort, 0.3) * interestOf(o)) : 0;
     return { cfg, ci, strat, best, fill, effort, score, K: consts[ci] };
   });
   let bestE = evals[0]; for (const e of evals) if (e.score > bestE.score) bestE = e;
@@ -797,6 +797,11 @@ function computeObj(C, o) {
   const skyMag = U.n ? -2.5 * Math.log10(U.art.slice(0, U.n).reduce((a, x) => a + x, 0) / U.n + U.nat.slice(0, U.n).reduce((a, x) => a + x, 0) / U.n) : null;
   return { o, pr, v, alt: alt.slice(), az: az.slice(), use, blk, usableH, maxA, maxI, maxAll, first, last, minSep, riseBlocked, vis, evals, e: bestE, score: bestE.score, nowAlt, nowAz, nowUse, T, field, skyMag };
 }
+/* Interesse fotografico: a parità di inquadratura, ore e fatica, una nebulosa vale più di un ammasso aperto (che esce in
+   un'ora ma raramente è il soggetto di una foto). Gli oggetti con un nome proprio o nella lista dei classici pesano un
+   po' di più; quelli senza sono le "gemme" da cercare apposta (filtro "fuori dai soliti"). */
+const TYPE_INTEREST = { EN: 1, RN: 1, SNR: 1, PN: 0.9, Gx: 0.9, DN: 0.8, GC: 0.7, OC: 0.45 };
+const interestOf = (o) => (TYPE_INTEREST[o.type] || 0.8) * (o.nick || o.classic ? 1 : 0.85);
 function computeAll(cfgs, active, ds, now) {
   const C = computePrep(cfgs, active, ds, now), out = [];
   for (const o of CAT) { const r = computeObj(C, o); if (r) out.push(r); }

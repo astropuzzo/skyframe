@@ -28,8 +28,10 @@ const withLegacy = (p) => {
 const validProfile = (p) => p && p.camera && (p.optic || p.optics);
 const stripSite = (p) => { delete p.site; delete p.horizon; return p; };
 const storeData = () => ({ version: 3, active: state.activeId, activeLoc: state.locId, profiles: state.profiles.filter((p) => !p.unsaved).map(withLegacy), locations: state.locs.filter((l) => !l.unsaved) });
+/* telefono e browser: tutto in un'unica chiave (sf.store, formato 3); le chiavi separate restano per le versioni vecchie */
 function saveStore() {
   const d = storeData();
+  LS.set('sf.store', d);
   LS.set('sf.profiles', d.profiles); LS.set('sf.active', state.activeId); LS.set('sf.locs', d.locations); LS.set('sf.loc', state.locId);
   if (DESK) window.cielo.saveProfiles(d).catch(() => toast(tx('Salvataggio su file non riuscito')));
 }
@@ -309,7 +311,8 @@ function wire() {
 async function boot() {
   Dome.init($('#dome'), $('#domeTip'));
   if (DESK) { try { applyStore(await window.cielo.loadProfiles()); } catch (e) { applyStore(null); } }
-  else applyStore({ profiles: LS.get('sf.profiles', []), active: LS.get('sf.active', null) });
+  // fino alla 0.5.0 qui si rileggevano solo i profili: i luoghi si ricostruivano da quello attivo e gli altri si perdevano
+  else applyStore(LS.get('sf.store', null) || { profiles: LS.get('sf.profiles', []), active: LS.get('sf.active', null), locations: LS.get('sf.locs', undefined), activeLoc: LS.get('sf.loc', null) });
   wire(); refresh(true);
   window.__bootMs = Math.round(performance.now());
   requestAnimationFrame(() => { const b = $('#bootScreen'); if (b) { b.classList.add('done'); setTimeout(() => b.remove(), 600); } });
