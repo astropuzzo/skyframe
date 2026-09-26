@@ -1,6 +1,6 @@
 'use strict';
 /* ============================ interfaccia: sezioni, fogli, indietro ============================
-   Quattro sezioni (Stanotte, Target, Progetti, Setup): sul telefono una barra in basso, dal tablet in su una colonna a
+   Cinque sezioni (Stanotte, Target, Cielo, Progetti, Setup): sul telefono una barra in basso, dal tablet in su una colonna a
    sinistra. Ogni sezione scorre per conto suo e ritrova il punto dove l'avevi lasciata.
    Fogli dal basso (luogo, attrezzatura, notte, filtri) e dettaglio del target si chiudono anche col tasto indietro di
    Android o del browser: ogni apertura mette un passo nella cronologia. */
@@ -22,7 +22,7 @@ window.addEventListener('popstate', () => {
 });
 
 /* ---------- sezioni ---------- */
-const VIEWS = ['tonight', 'targets', 'projects', 'setup'];
+const VIEWS = ['tonight', 'targets', 'sky', 'projects', 'setup'];
 const UI = { view: 'tonight' };
 function setView(v, fromPop) {
   if (!VIEWS.includes(v)) v = 'tonight';
@@ -38,6 +38,7 @@ function setView(v, fromPop) {
   }
   if (v === 'tonight') { Dome.refresh(); requestAnimationFrame(drawStrip); }
   if (v === 'projects') renderProjects();
+  if (v === 'sky') renderSky();
   if (v === 'setup') renderSetup();
   if (v === 'targets') requestAnimationFrame(() => { const s = state.sel && $(`#list .row[data-id="${CSS.escape(state.sel)}"]`); if (s) s.scrollIntoView({ block: 'nearest' }); });
 }

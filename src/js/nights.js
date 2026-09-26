@@ -28,13 +28,15 @@ function nightsAhead() {
   }
   return nb.list;
 }
+/* la trasparenza pesa sulle ore buone: con molti aerosol il cielo rende meno anche se è sereno */
+function transK(ms) { const x = WX.d && wxHour(ms), a = x && x.aod; return a == null ? 1 : a <= 0.08 ? 1 : a <= 0.15 ? 0.95 : a <= 0.25 ? 0.88 : a <= 0.4 ? 0.75 : 0.6; }
 /* voto di una notte da campioni {ms, mu} (passo in ore): ore di buio, senza Luna, serene, buone */
 function rateNight(samples, step, ill, ref) {
   let dark = 0, free = 0, good = 0, known = 0, clear = 0;
   for (const s of samples) {
     const f = wxAt(s.ms), w = f == null ? 1 : f, moon = s.mu && ill > 0.1;
     dark += step; if (!moon) free += step; if (f != null) { known++; clear += f; }
-    good += step * w * (moon ? 0.33 : 1);
+    good += step * w * transK(s.ms) * (moon ? 0.33 : 1);
   }
   const k = samples.length && known >= samples.length * 0.5, cf = known ? clear / known : null;
   const rel = good / Math.max(ref || dark, 1);
@@ -54,7 +56,8 @@ function renderNightBar() {
   el.innerHTML = L.map((x, k) => {
     const q = rateNight(x.samples, 1 / 6, x.ill, ref), d = new Date(x.t0);
     const wd = k === 0 ? tx('Stanotte') : d.toLocaleDateString(LOCALE, { weekday: 'short' }).replace('.', '');
-    const tip = [d.toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' }), tx(q.label), tx('buio {h}', { h: fmtDur(q.dark) }), tx('senza Luna {h}', { h: fmtDur(q.free) }), q.clear != null ? tx('{p}% sereno', { p: Math.round(q.clear * 100) }) : tx('meteo non ancora previsto')].join(' · ');
+    const w = q.clear != null ? wxSpan(x.samples.map((s) => s.ms), 10) : null, sl = w && seeLvl(w.see), tl = w && traLvl(w.aod);
+    const tip = [d.toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' }), tx(q.label), tx('buio {h}', { h: fmtDur(q.dark) }), tx('senza Luna {h}', { h: fmtDur(q.free) }), q.clear != null ? tx('{p}% sereno', { p: Math.round(q.clear * 100) }) : tx('meteo non ancora previsto'), sl ? tx('seeing {s}', { s: tx(sl.t).toLowerCase() }) : '', tl ? tx('trasparenza {s}', { s: tx(tl.t).toLowerCase() }) : ''].filter(Boolean).join(' · ');
     return `<button type="button" class="nb${q.clear == null ? ' far' : ''}" data-t0="${x.t0}" aria-pressed="${x.ds === sel}" title="${esc(tip)}" aria-label="${esc(tip)}">
       <span class="wd">${esc(wd)}</span><span class="dd">${d.getDate()}</span><span class="mo">${moonSvg(x.ill, x.waxing, 6)}</span>
       <span class="q"><b style="width:${Math.max(8, Math.round(Math.min(1, q.rel) * 100))}%;background:${RATE_COL[q.r]}"></b></span>${q.clear != null && q.clear < 0.5 ? ic('cloud', 'wx') : ''}</button>`;

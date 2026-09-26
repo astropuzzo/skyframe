@@ -23,15 +23,18 @@ function renderFacts() {
   }
   const d = new Date(n.t0), title = n.ds === defaultNightStr() ? tx('Stanotte') : d.toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
   const wxV = w ? (w.clear >= 0.85 ? tx('Sereno') : w.clear < 0.15 ? tx('Coperto') : w.win && w.winH >= 1 ? `${fmtT(w.win[0])}–${fmtT(w.win[1])}` : tx('Variabile')) : WX.busy ? '…' : '—';
-  const wxS = w ? tx('{p}% del buio sereno · Open-Meteo {t}', { p: Math.round(w.clear * 100), t: fmtT(WX.d.at) }) : WX.busy ? tx('previsioni in arrivo') : WX.err ? tx('senza rete: si assume sereno') : tx('oltre le previsioni: si assume sereno');
+  const sl = w && seeLvl(w.see), tl = w && traLvl(w.aod);
+  const wxS = w ? [tx('{p}% del buio sereno', { p: Math.round(w.clear * 100) }), w.prob != null ? tx('probabilità {p}%', { p: Math.round(w.prob * 100) }) : '', sl ? tx('seeing {s}', { s: tx(sl.t).toLowerCase() }) : '', tl ? tx('trasparenza {s}', { s: tx(tl.t).toLowerCase() }) : ''].filter(Boolean).join(' · ') : WX.busy ? tx('previsioni in arrivo') : WX.err ? tx('senza rete: si assume sereno') : tx('oltre le previsioni: si assume sereno');
+  const warn = w ? [w.dew != null && w.dew <= 2 ? ic('drop') + tx('rischio condensa: scalda l’ottica') : '', w.gust != null && w.gust >= 30 ? ic('wind') + tx('raffiche fino a {v} km/h', { v: w.gust }) : '', w.dust != null && w.dust >= 60 ? ic('cloud') + tx('polvere del deserto') : ''].filter(Boolean) : [];
   $('#facts').innerHTML = `<div class="vd-top"><div><h2>${esc(title.charAt(0).toUpperCase() + title.slice(1))}</h2><div class="sub">${esc(sub)}</div></div><span class="rate r${q.r}" title="${tx('Ore buone: sereno senza Luna, più un terzo del sereno con la Luna')}"><i></i>${tx(q.label)}</span></div>
     <div class="vd-stats">
       <div class="fact"><div class="lbl">${ic('night')}${tx('Buio')}</div><div class="v num">${dark}</div><div class="s">${fmtDur(n.darkH)} · ${tx('sole sotto {d}°', { d: n.thr })}</div></div>
       <div class="fact"><div class="lbl">${ic('moon')}${tx('Luna')}</div><div class="v">${moonSvg(n.moonIll, n.waxing)}<span class="num">${Math.round(n.moonIll * 100)}%</span></div><div class="s">${moonS}</div></div>
-      <div class="fact"><div class="lbl">${ic('cloud')}${tx('Meteo')}</div><div class="v">${wxV}</div><div class="s">${wxS}</div></div>
+      <button type="button" class="fact go" data-go="sky" title="${tx('Apri il meteo ora per ora')}"><div class="lbl">${ic('cloud')}${tx('Meteo')}${ic('chev-r', 'go-i')}</div><div class="v">${wxV}</div><div class="s">${wxS}</div>${warn.map((x) => `<div class="s warn">${x}</div>`).join('')}</button>
       <div class="fact"><div class="lbl">${ic('lights')}${tx('Cielo')}</div><div class="v num">SQM ${it(sqm, 2)}</div><div class="s">Bortle ${sqmToBortle(sqm)} · ${p.site.lpSrc ? esc(tx(p.site.lpSrc)) : tx('valore inserito a mano')}</div></div>
       <div class="fact wide"><div class="lbl">${ic('cal')}${tx('Prossime notti senza Luna')}</div><div class="v">${nextDark}</div></div>
     </div>`;
+  $('#facts').onclick = (e) => { if (e.target.closest('[data-go="sky"]')) setView('sky'); };
 }
 function renderSetups() {
   const el = $('#setups'); const cfgs = state.cfgs;

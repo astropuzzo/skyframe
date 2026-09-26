@@ -207,7 +207,7 @@ function refresh(force) {
   if (changed || cmp.keys.size !== state.locs.length) scheduleCompare();
   applyFilters();
   renderHeader(); renderNightBar(); renderFacts(); renderTonight(); renderSetups(); renderLocs(); renderChips(); state.page = Math.max(60, state.page); renderList(); renderTopList(); pushDome(); drawStrip(); renderClock();
-  if (UI.view === 'projects') renderProjects(); else if (UI.view === 'setup') renderSetup();
+  if (UI.view === 'projects') renderProjects(); else if (UI.view === 'setup') renderSetup(); else if (UI.view === 'sky') renderSky();
   refreshWeather(false); // il meteo del luogo, se non c'è o è vecchio: arriva dopo e ridisegna
   if (state.sel && !$('#drawer').hidden) { if (state.byId.has(state.sel)) { const sc = $('#drawer').scrollTop; renderDetail(); $('#drawer').scrollTop = sc; } else closeDetail(); }
 }
