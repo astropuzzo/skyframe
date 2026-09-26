@@ -34,7 +34,9 @@ jobs:
 
       - name: APK di debug
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
 
       - name: KVM per l'emulatore
         run: |

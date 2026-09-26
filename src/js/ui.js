@@ -194,6 +194,7 @@ function renderSetup() {
       ${on ? [['evening', 'Stasera si scatta', 'prima del buio, se la notte merita: finestra serena e target con gli orari'], ['top', 'Notte ottima in arrivo', 'il giorno prima, per una notte senza Luna e serena con buona probabilità'], ['change', 'Il meteo è cambiato', 'se stanotte si apre, o se le nuvole tornano dopo l’avviso'], ['season', 'Ultime settimane', 'quando un tuo target sta per uscire di stagione']].map(([k, t, d]) => `<label class="st-item tap sub"><span class="tx"><b>${tx(t)}</b><small>${tx(d)}</small></span><span class="switch"><input type="checkbox" data-nk="${k}" ${nc[k] ? 'checked' : ''}><i></i></span></label>`).join('') +
         `<div class="st-item wrap sub"><span class="tx"><b>${tx('Quanto prima del buio')}</b></span><div class="seg" id="nLead">${[30, 60, 90, 120].map((m) => `<button type="button" data-v="${m}" aria-pressed="${nc.lead === m}">${fmtDur(m / 60)}</button>`).join('')}</div></div>
         <div class="st-item wrap sub"><span class="tx"><b>${tx('Da quale notte')}</b><small>${tx('il voto minimo per l’avviso della sera')}</small></span><div class="seg" id="nMin">${[[2, 'Discreta'], [3, 'Buona'], [4, 'Ottima']].map(([v, t]) => `<button type="button" data-v="${v}" aria-pressed="${nc.min === v}">${tx(t)}</button>`).join('')}</div></div>
+        <button type="button" class="st-item sub" id="stExact" data-exact hidden><span class="tx"><b>${tx('Orario preciso')}</b><small>${tx('consenti a Skyframe «sveglie e promemoria»: l’avviso della sera arriva all’ora giusta')}</small></span>${ic('chev-r')}</button>
         <button type="button" class="st-item sub" data-test><span class="tx"><b>${tx('Prova un avviso')}</b><small>${tx('arriva fra 5 secondi, con la notte di stanotte')}</small></span></button>` : ''}
     </div></div>
     <div class="st-sec"><h3>${tx('Dati')}</h3><div class="st-list">
@@ -214,6 +215,8 @@ function renderSetup() {
   };
   el.querySelector('[data-test]') && (el.querySelector('[data-test]').onclick = testNotify);
   el.querySelector('[data-tour]').onclick = () => tourStart(TOUR_STEPS);
+  const ex = $('#stExact');
+  if (ex && window.cielo && window.cielo.exactStatus) window.cielo.exactStatus().then((st) => { if (st && st !== 'granted') { ex.hidden = false; ex.onclick = async () => { await window.cielo.exactOpen(); setTimeout(renderSetup, 800); }; } });
   el.querySelector('[data-news]').onclick = () => openNews(null, null);
   $$('#setupView [data-nk]').forEach((x) => (x.onchange = () => setNcfg(x.dataset.nk, x.checked)));
   const segv = (id, k) => { const g = $(id); if (g) g.onclick = (e) => { const b = e.target.closest('[data-v]'); if (!b) return; setNcfg(k, +b.dataset.v); renderSetup(); }; };

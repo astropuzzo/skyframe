@@ -50,6 +50,9 @@
         if (items.length) await LN.schedule({ notifications: items });
       } catch { /* niente */ }
     },
+    // sveglie esatte (Android 12+): senza, l'avviso della sera può arrivare con qualche minuto di ritardo
+    async exactStatus() { const LN = localNotif(); if (!LN || !LN.checkExactNotificationSetting) return null; try { return (await LN.checkExactNotificationSetting()).exact_alarm; } catch { return null; } },
+    async exactOpen() { const LN = localNotif(); if (LN && LN.changeExactNotificationSetting) try { await LN.changeExactNotificationSetting(); } catch { /* niente */ } },
     // avvisi ad app chiusa: lo script in background (src/runners/background.js) riceve le notti già calcolate
     async bgConfig(details) { const B = bgRunner(); if (!B) return false; try { await B.dispatchEvent({ label: BG_LABEL, event: 'config', details }); return true; } catch { return false; } },
     async bgStatus() { const B = bgRunner(); if (!B) return null; try { return await B.dispatchEvent({ label: BG_LABEL, event: 'status', details: {} }); } catch { return null; } },
