@@ -74,15 +74,18 @@ function projHTML(r, e, b) {
       <label class="field w2"><span>${tx('Dove')}</span><select id="sLoc">${state.locs.map((l) => `<option value="${esc(l.id)}" ${l.id === state.locId ? 'selected' : ''}>${esc(l.site.name)}</option>`).join('')}</select></label>
       <div class="acts"><button class="btn sm primary" type="submit">${tx('Salva la sessione')}</button><button class="btn sm ghost" type="button" id="sCancel">${tx('Annulla')}</button></div>
     </form>`;
+  const inP = !done && r.usableH >= 0.25 && tonightPlan().blocks.some((x) => x.id === id), canP = !done && planOk(r);
+  const planBtn = canP ? `<button type="button" class="btn sm${inP ? ' on-p' : ''}" id="pPlan" aria-pressed="${inP}">${ic('night')}${inP ? tx('Nel piano della notte') : tx('Mettilo nel piano')}</button>` : '';
   return `<div class="proj${done ? ' is-done' : ''}" id="proj">
     <div class="ph"><span class="lbl">${tx('Il tuo progetto')}</span>${status}
-      <div class="acts"><button type="button" class="btn sm${fav ? ' on' : ''}" id="pFav" aria-pressed="${fav}">${ic('star')}${fav ? tx('Preferito') : tx('Aggiungi ai preferiti')}</button>
+      <div class="acts">${planBtn}<button type="button" class="btn sm${fav ? ' on' : ''}" id="pFav" aria-pressed="${fav}">${ic('star')}${fav ? tx('Preferito') : tx('Aggiungi ai preferiti')}</button>
       ${done ? `<button type="button" class="btn sm ghost" id="pDone">${tx('Riapri')}</button>` : `<button type="button" class="btn sm" id="pAdd">${ic('plus')}${tx('Registra una sessione')}</button>${hd > 0 ? `<button type="button" class="btn sm ghost" id="pDone">${ic('check')}${tx('Segna come fatto')}</button>` : ''}`}</div></div>
     ${bar}${sess}${form}</div>`;
 }
 function wireProj(r, e) {
   const id = r.o.id, box = $('#proj'); if (!box) return;
   $('#pFav').onclick = () => toggleFav(id);
+  const pp = $('#pPlan'); if (pp) pp.onclick = () => { if (pp.getAttribute('aria-pressed') === 'true') { planSkip(id); toast(tx('{t} tolto dal piano di questa notte', { t: id })); } else { planPin(id); toast(tx('{t} è nel piano di questa notte', { t: id })); } };
   const pd = $('#pDone'); if (pd) pd.onclick = () => setDone(id, !isDone(id));
   const pa = $('#pAdd'), f = $('#sForm');
   if (pa) pa.onclick = () => { f.hidden = false; pa.hidden = true; $('#sH').focus(); };

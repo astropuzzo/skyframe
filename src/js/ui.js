@@ -166,6 +166,7 @@ function renderSetup() {
     <div class="st-sec"><h3>${tx('Attrezzatura')}</h3><div class="st-list">${prof}<button type="button" class="st-item" data-newp>${ic('plus')}<span class="tx"><b>${tx('Nuovo profilo')}</b><small>${tx('un altro telescopio, un’altra camera o altri filtri')}</small></span></button></div></div>
     <div class="st-sec"><h3>${tx('Luoghi')}</h3><div class="st-list">${locs}<button type="button" class="st-item" data-newl>${ic('plus')}<span class="tx"><b>${tx('Nuovo luogo')}</b><small>${tx('cielo, mappa all-sky e orizzonte arrivano da soli')}</small></span></button></div></div>
     <div class="st-sec"><h3>${tx('Preferenze')}</h3><div class="st-list">
+      <div class="st-item wrap">${ic('moon')}<span class="tx"><b>${tx('Con la Luna')}</b><small>${tx(MODE_TXT[moonMode()][1])}</small></span><div class="seg" id="moonSeg">${MOON_MODES.map((m) => `<button type="button" data-mode="${m}" aria-pressed="${m === moonMode()}">${tx(MODE_TXT[m][0])}</button>`).join('')}</div></div>
       <label class="st-item tap">${ic('bell')}<span class="tx"><b>${tx('Avvisi')}</b><small>${tx('un’ora prima del buio, quando il meteo dà sereno per i tuoi target')}</small></span><span class="switch"><input type="checkbox" id="swNotify" ${on ? 'checked' : ''}><i></i></span></label>
       <label class="st-item tap">${ic('eye')}<span class="tx"><b>${tx('Luce rossa')}</b><small>${tx('tinge tutto di rosso per non perdere l’adattamento al buio')}</small></span><span class="switch"><input type="checkbox" id="swRed" ${red ? 'checked' : ''}><i></i></span></label>
       <div class="st-item">${ic('globe')}<span class="tx"><b>${tx('Lingua')}</b></span><select class="sel" id="langSel" aria-label="${tx('Lingua')}">${Object.entries(LANGS).map(([k, n]) => `<option value="${k}" ${k === LANG ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
@@ -182,6 +183,7 @@ function renderSetup() {
     else if ('newp' in d) openEditor(state.activeId, true); else if ('newl' in d) openLocEditor(null, true);
     else if ('export' in d) exportProfiles(); else if ('import' in d) importProfiles();
   };
+  $('#moonSeg').onclick = (e) => { const m = e.target.closest('[data-mode]'); if (m) setMoonMode(m.dataset.mode); };
   $('#swNotify').onchange = () => toggleNotify();
   $('#swRed').onchange = (e) => setRed(e.target.checked);
   $('#langSel').onchange = (e) => setLang(e.target.value);

@@ -132,6 +132,12 @@ function wxHour(ms) {
   const g = (k) => (d[k] && d[k][i] != null ? d[k][i] : null);
   return { i, clear: g('clear'), lo: g('lo'), mi: g('mi'), hi: g('hi'), spread: g('spread'), nm: g('nm'), prob: g('prob'), see: g('see'), jet: g('jet'), aod: g('aod'), dust: g('dust'), t: g('t'), td: g('td'), rh: g('rh'), wind: g('wind'), gust: g('gust'), pp: g('pp') };
 }
+/* trasparenza nel conto delle ore: con gli aerosol il segnale del target cala di exp(−Δτ·X) e un'ora rende il quadrato di
+   questo (a fondo cielo uguale). Riferimento 0,12, lo spessore ottico tipico delle notti delle foto di taratura. */
+function transAt(ms, X) {
+  const d = WX.d; if (!d || !d.aod || !d.aod.length) return 1; const i = Math.round((ms / 1000 - d.t0) / 3600), a = i >= 0 && i < d.n ? d.aod[i] : null;
+  if (a == null) return 1; const s2 = Math.exp(-2 * (a - 0.12) * Math.min(X || 1, 4)); return clamp(s2, 0.5, 1.15);
+}
 const wxCloudAt = (ms) => { const x = wxHour(ms); return x ? Math.max(x.lo || 0, x.mi || 0, x.hi || 0) : null; };
 /* livelli: seeing (″, scala meteoblue), trasparenza (spessore ottico degli aerosol), condensa, vento */
 const SEE_CL = [[0.9, 'Ottimo'], [1.2, 'Buono'], [1.6, 'Medio'], [2.1, 'Scarso'], [99, 'Pessimo']];
@@ -146,7 +152,7 @@ const agreeLvl = (s) => (s == null ? null : s <= 0.25 ? { i: 0, t: 'alto' } : s 
 /* il meteo entra nel calcolo: calendari da rifare e tutto ciò che mostra le ore */
 function applyWeather() {
   if (!state.res) return;
-  const C = state.res.C; C.wx = wxOk() ? wxAt : null;
+  const C = state.res.C; C.wx = wxOk() ? wxAt : null; C.trans = wxOk() ? transAt : null;
   if (C.ahead) C.ahead.cache.clear();
 }
 function weatherChanged() { applyWeather(); renderFacts(); drawStrip(); renderNightBar(); renderTonight(); renderList(); renderTopList(); if (UI.view === 'sky') renderSky(); if (state.sel && !$('#drawer').hidden) { const sc = $('#drawer').scrollTop; renderDetail(); $('#drawer').scrollTop = sc; } }
@@ -177,11 +183,15 @@ function wxSpan(ts, stepMin) {
     prob: mean(acc.prob), spread: mean(acc.spread), see: med(acc.see), jet: max(acc.jet), aod: mean(acc.aod), dust: max(acc.dust), dew: min(acc.dew), gust: max(acc.gust), rh: max(acc.rh), pp: max(acc.pp),
   };
 }
-/* altri luoghi salvati: solo le nuvole (miglior modello), per dire dove è sereno stanotte */
+/* altri luoghi salvati: solo le nuvole (miglior modello), per dire dove è sereno stanotte e per i loro calendari */
+function wxAtFor(site) {
+  const d = WX.other.get(wxKey(site)); if (!d) return null;
+  return (ms) => { const x = (ms / 1000 - d.t0) / 3600; if (!(x >= 0) || x > d.clear.length - 1) return null; const i = Math.floor(x), u = x - i, a = d.clear[i], b = i + 1 < d.clear.length ? d.clear[i + 1] : a; return a * (1 - u) + b * u; };
+}
 async function loadWeatherLite(site) {
   const key = wxKey(site), c = WX.other.get(key); if (c && Date.now() - c.at < WX_TTL) return c;
   try {
-    const j = await wxGet(`https://api.open-meteo.com/v1/forecast?${wxQ(site, 3)}&hourly=cloud_cover_low,cloud_cover_mid,cloud_cover_high`), h = j.hourly;
+    const j = await wxGet(`https://api.open-meteo.com/v1/forecast?${wxQ(site, 8)}&hourly=cloud_cover_low,cloud_cover_mid,cloud_cover_high`), h = j.hourly;
     const d = { key, at: Date.now(), t0: h.time[0], clear: h.time.map((_, i) => clearFrac(h.cloud_cover_low[i], h.cloud_cover_mid[i], h.cloud_cover_high[i])) };
     WX.other.set(key, d); return d;
   } catch { return null; }

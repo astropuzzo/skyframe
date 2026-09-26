@@ -842,60 +842,72 @@ function aheadNight(C, k) {
   }
   return (A.list[k] = { t0, lst, dark, mAlt, mIll, mV, moon, moonUp: nd ? up / nd : 0 });
 }
-const calKey = (r, e, deep) => r.o.id + '|' + e.cfg.key + '|' + (e.best ? e.best.id : '') + (deep ? '|d' : '');
-/* Calendario di ripresa di un target in una configurazione. Dalla notte scelta in avanti si sommano le ore utili di ogni
-   notte, ognuna col suo rendimento (Luna, altezza, cielo nella direzione del target): una notte fa h/T del lavoro, dove
-   T sono le ore che servirebbero con notti tutte come quella. Le notti in cui il target rende più di 2,5 volte meno
-   che nella notte migliore del mese (di solito per la Luna) si saltano: conviene fare altro.
-   Si parte dal lavoro già fatto (C.progOf: sessioni registrate nel progetto del target). Nelle notti coperte dalle
-   previsioni (C.wx: frazione di cielo sgombro a un certo istante, null fuori dalle previsioni) contano solo le ore
-   serene; oltre, si assume sereno. */
-function shootCalendar(C, r, e, deep) {
-  const b = e.best; if (!b) return null;
-  const A = aheadCtx(C), key = calKey(r, e, deep); if (A.cache.has(key)) return A.cache.get(key);
-  const p0 = C.progOf ? clamp(C.progOf(r.o.id) || 0, 0, 1) : 0, wx = C.wx || null;
-  if (p0 >= 1) { const out = { nights: [], sessions: 0, done: null, prog: 1, skipped: 0, cloudy: 0, complete: true, deep: null }; A.cache.set(key, out); return out; }
-  // "solo senza Luna": contano le ore con la Luna sotto l'orizzonte o sottile (fino al 10% illuminata)
-  const darkOnly = C.active.session.moon === 'dark';
-  const s0 = e.cfg.strategies.find((x) => x.id === b.id), bb = e.cfg.strategies.find((x) => x.suits === 'all');
-  const S = s0 ? (bb && bb !== s0 ? [s0, bb] : [s0]) : null, panels = b.panels || 1;
-  const U = { X: new Float32Array(CAL_N), art: new Float32Array(CAL_N), nat: new Float32Array(CAL_N), mf: new Float32Array(CAL_N), n: 0, h: 0 };
-  const rec = (k) => {
-    const nk = aheadNight(C, k);
-    if (k === 0 && !darkOnly) { // stanotte: i valori esatti della lista (ore serene, se c'è la previsione)
-      let hs = 0, hw = 0, known = false;
-      for (let i = 0; i <= N; i++) if (r.use[i]) { const f = wx ? wx(C.night.t[i]) : null; if (f != null) known = true; hs++; hw += f == null ? 1 : f; }
-      const h = known ? hw * STEP / 60 : r.usableH;
-      return { k, t0: nk.t0, h, hGeo: r.usableH, clear: known ? (hs ? hw / hs : 1) : null, T: b.tonight, TD: b.tonightDeep, moon: C.night.moonIll };
-    }
+/* Tre modi di riprendere (scelta dell'utente, C.mode):
+   - smart (consigliato): tutte le notti utili, salvo quelle in cui il target rende più di 2,5 volte meno che nella notte
+     migliore del mese (di solito per la Luna): conviene dedicarle ad altro;
+   - all (tutte le sere): ogni notte in cui il target si vede, anche con la Luna piena;
+   - dark (solo senza Luna): contano solo le ore con la Luna sotto l'orizzonte o sottile (fino al 10% illuminata). */
+const MOON_MODES = ['smart', 'all', 'dark'];
+const calMode = (C, mode) => mode || C.mode || (C.active.session.moon === 'dark' ? 'dark' : 'smart');
+const calKey = (r, e, deep, mode) => r.o.id + '|' + e.cfg.key + '|' + (e.best ? e.best.id : '') + (deep ? '|d' : '') + '|' + (mode || 'smart');
+/* La notte k per un target nella configurazione e: ore utili (solo serene dove c'è la previsione, pesate per la trasparenza
+   prevista: C.trans), ore geometriche e T,
+   le ore di posa che servirebbero con notti tutte come questa (Luna, altezza, cielo nella direzione del target). */
+function nightRec(C, r, e, k, darkOnly) {
+  const b = e.best, A = aheadCtx(C), key = 'n|' + calKey(r, e, false, darkOnly ? 'dark' : 'x') + '|' + k;
+  const got = A.cache.get(key); if (got) return got;
+  const nk = aheadNight(C, k), wx = C.wx || null, tr = C.trans || null;
+  let x;
+  if (k === 0 && !darkOnly) { // stanotte: i valori esatti della lista (ore serene, se c'è la previsione)
+    let hs = 0, hw = 0, known = false;
+    for (let i = 0; i <= N; i++) if (r.use[i]) { const t = C.night.t[i], f = wx ? wx(t) : null; if (f != null) known = true; hs++; hw += (f == null ? 1 : f) * (tr ? tr(t, airmass(r.alt[i])) : 1); }
+    x = { k, t0: nk.t0, h: known ? hw * STEP / 60 : r.usableH, hGeo: r.usableH, clear: known ? (hs ? hw / hs : 1) : null, T: b.tonight, TD: b.tonightDeep, moon: C.night.moonIll };
+  } else {
+    const s0 = e.cfg.strategies.find((q) => q.id === b.id), bb = e.cfg.strategies.find((q) => q.suits === 'all');
+    const S = s0 ? (bb && bb !== s0 ? [s0, bb] : [s0]) : null, panels = b.panels || 1;
+    const U = A.U || (A.U = { X: new Float32Array(CAL_N), art: new Float32Array(CAL_N), nat: new Float32Array(CAL_N), mf: new Float32Array(CAL_N), n: 0, h: 0 });
     U.n = 0; let hw = 0, known = false;
     for (let i = 0; i < CAL_N; i++) {
       if (!nk.dark[i] || (darkOnly && nk.mAlt[i] > 0 && nk.mIll[i] > 0.1)) continue; const aa = altaz(r.pr.ra, r.pr.dec, nk.lst[i], A.sL, A.cL), a = aa[0], z = aa[1];
       if (a < Math.max(C.minAlt, C.lut[Math.round(z) % 360])) continue;
       U.X[U.n] = airmass(a); U.art[U.n] = C.sky.art(a, z); U.nat[U.n] = C.sky.nat(a); U.mf[U.n] = moonFlux(nk, i, r.v)[0]; U.n++;
-      const f = wx ? wx(nk.t0 + (i + 0.5) * CAL_STEP * 60000) : null; if (f != null) known = true; hw += f == null ? 1 : f;
+      const t = nk.t0 + (i + 0.5) * CAL_STEP * 60000, f = wx ? wx(t) : null; if (f != null) known = true; hw += (f == null ? 1 : f) * (tr ? tr(t, U.X[U.n - 1]) : 1);
     }
-    const hGeo = U.h = U.n * CAL_STEP / 60, h = known ? hw * CAL_STEP / 60 : hGeo; let T = Infinity, TD = Infinity;
-    if (hGeo >= CAL_MIN_H && S) { const ev = evalStrategies(r.o, S, e.K, U, C.Q, r.T, r.field).find((x) => x.id === b.id); if (ev) { T = ev.tonight * panels; TD = ev.tonightDeep * panels; } }
-    return { k, t0: nk.t0, h, hGeo, clear: known ? (U.n ? hw / U.n : 1) : null, T, TD, moon: nk.moon };
-  };
+    const hGeo = U.h = U.n * CAL_STEP / 60; let T = Infinity, TD = Infinity;
+    if (hGeo >= CAL_MIN_H && S) { const ev = evalStrategies(r.o, S, e.K, U, C.Q, r.T, r.field).find((q) => q.id === b.id); if (ev) { T = ev.tonight * panels; TD = ev.tonightDeep * panels; } }
+    x = { k, t0: nk.t0, h: known ? hw * CAL_STEP / 60 : hGeo, hGeo, clear: known ? (U.n ? hw / U.n : 1) : null, T, TD, moon: nk.moon };
+  }
+  A.cache.set(key, x); return x;
+}
+/* Calendario di ripresa di un target: dalla notte scelta in avanti si sommano le notti del modo scelto, ognuna col suo
+   rendimento: una notte fa h/T del lavoro. Si parte dal lavoro già fatto (C.progOf: sessioni registrate nel progetto).
+   Nelle notti coperte dalle previsioni (C.wx) contano solo le ore serene; oltre, si assume sereno.
+   hours = ore di posa da raccogliere in tutto in quel modo (con la Luna ne servono di più: ogni ora rende meno). */
+function shootCalendar(C, r, e, deep, mode) {
+  const b = e.best; if (!b) return null;
+  mode = calMode(C, mode);
+  const A = aheadCtx(C), key = calKey(r, e, deep, mode); if (A.cache.has(key)) return A.cache.get(key);
+  const p0 = C.progOf ? clamp(C.progOf(r.o.id) || 0, 0, 1) : 0, darkOnly = mode === 'dark', skipK = mode === 'all' ? Infinity : CAL_SKIP;
+  if (p0 >= 1) { const out = { nights: [], sessions: 0, done: null, prog: 1, hours: 0, skipped: 0, cloudy: 0, complete: true, mode, deep: null }; A.cache.set(key, out); return out; }
+  const rec = (k) => ({ ...nightRec(C, r, e, k, darkOnly) });
   const dp0 = b.deep && isFinite(hoursOf(b)) && isFinite(deepHoursOf(b)) ? p0 * hoursOf(b) / deepHoursOf(b) : p0;
-  const out = { nights: [], sessions: 0, done: null, prog: p0, start: p0, skipped: 0, cloudy: 0, darkOnly, deep: deep && b.deep ? { sessions: 0, done: null, prog: dp0 } : null };
+  const out = { nights: [], sessions: 0, done: null, prog: p0, start: p0, hours: 0, skipped: 0, cloudy: 0, mode, darkOnly, deep: deep && b.deep ? { sessions: 0, done: null, prog: dp0, hours: 0 } : null };
   const finished = () => out.done && (!out.deep || out.deep.done);
   const first = rec(0), tonightOk = first.h >= CAL_MIN_H && first.T * (1 - p0) <= first.h;
-  if (tonightOk && (!out.deep || first.TD <= first.h)) { // basta stanotte
+  if (tonightOk && (!out.deep || first.TD * (1 - dp0) <= first.h)) { // basta stanotte
     Object.assign(first, { use: true, frac: 1 - p0 });
-    Object.assign(out, { nights: [first], sessions: 1, done: first.t0, prog: 1 }); if (out.deep) Object.assign(out.deep, { sessions: 1, done: first.t0, prog: 1 });
+    Object.assign(out, { nights: [first], sessions: 1, done: first.t0, prog: 1, hours: first.T * (1 - p0) });
+    if (out.deep) Object.assign(out.deep, { sessions: 1, done: first.t0, prog: 1, hours: first.TD * (1 - dp0) });
   } else {
     for (let k0 = 0; k0 < CAL_MAX && !finished(); k0 += CAL_BLOCK) {
       const blk = []; for (let k = k0; k < Math.min(CAL_MAX, k0 + CAL_BLOCK); k++) blk.push(k === 0 ? first : rec(k));
       const ref = Math.min(...blk.map((x) => x.T));
       for (const x of blk) {
-        x.slow = x.T / ref; x.use = (x === first && tonightOk) || (x.h >= CAL_MIN_H && isFinite(x.T) && x.slow <= CAL_SKIP);
+        x.slow = x.T / ref; x.use = (x === first && tonightOk) || (x.h >= CAL_MIN_H && isFinite(x.T) && x.slow <= skipK);
         if (x.use) {
-          if (!out.done) { x.frac = Math.min(x.h / x.T, 1 - out.prog); out.prog += x.h / x.T; out.sessions++; if (out.prog >= 1 - 1e-9) { out.prog = 1; out.done = x.t0; } }
+          if (!out.done) { x.frac = Math.min(x.h / x.T, 1 - out.prog); out.hours += x.frac * x.T; out.prog += x.h / x.T; out.sessions++; if (out.prog >= 1 - 1e-9) { out.prog = 1; out.done = x.t0; } }
           else x.deepOnly = true;
-          if (out.deep && !out.deep.done) { out.deep.prog += x.h / x.TD; out.deep.sessions++; if (out.deep.prog >= 1 - 1e-9) { out.deep.prog = 1; out.deep.done = x.t0; } }
+          if (out.deep && !out.deep.done) { const f = Math.min(x.h / x.TD, 1 - out.deep.prog); out.deep.hours += f * x.TD; out.deep.prog += x.h / x.TD; out.deep.sessions++; if (out.deep.prog >= 1 - 1e-9) { out.deep.prog = 1; out.deep.done = x.t0; } }
         } else if (!out.done && x.hGeo >= CAL_MIN_H) { if (x.h < CAL_MIN_H) out.cloudy++; else out.skipped++; }
         out.nights.push(x);
         if (finished()) break;

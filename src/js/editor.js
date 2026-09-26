@@ -102,7 +102,7 @@ function openEditor(id, asNew) {
   const d = draft;
   F('f_name').value = d.name; F('f_cam').value = CAMERAS.some((c) => c.id === d.camera.preset) ? d.camera.preset : 'custom'; F('f_ctype').value = d.camera.type; F('f_bin').value = String(d.bin || 1);
   F('f_cw').value = d.camera.w; F('f_ch').value = d.camera.h; F('f_pix').value = d.camera.pix; F('f_qe').value = d.camera.qe; F('f_rn').value = d.camera.rn;
-  F('f_thr').value = String(d.session.sunThr); F('f_from').value = d.session.from || ''; F('f_to').value = d.session.to || ''; F('f_quality').value = d.session.quality || 'good'; F('f_moon').value = d.session.moon === 'dark' ? 'dark' : 'any';
+  F('f_thr').value = String(d.session.sunThr); F('f_from').value = d.session.from || ''; F('f_to').value = d.session.to || ''; F('f_quality').value = d.session.quality || 'good';
   F('edDelete').hidden = !!asNew || !!(src && src.unsaved);
   renderOptics(); renderFilterPick();
   showEditor(asNew); F('f_name').focus();
@@ -150,7 +150,7 @@ function readProfForm() {
   const owned = $$('#filterPick input[data-fid]').filter((x) => x.checked).map((x) => x.dataset.fid);
   const type = d.camera.type; d.filters = { owned: owned.filter((id) => { const f = FDB_BY_ID.get(id); return f && (type === 'mono' ? f.for !== 'osc' : f.for !== 'mono'); }) };
   // l'altezza minima ora sta nel luogo; nel profilo resta quella di prima per le versioni vecchie
-  d.session = { minAlt: d.session && isFinite(+d.session.minAlt) ? +d.session.minAlt : 25, sunThr: +F('f_thr').value, from: F('f_from').value, to: F('f_to').value, quality: F('f_quality').value, moon: F('f_moon').value };
+  d.session = { minAlt: d.session && isFinite(+d.session.minAlt) ? +d.session.minAlt : 25, sunThr: +F('f_thr').value, from: F('f_from').value, to: F('f_to').value, quality: F('f_quality').value, moon: d.session && d.session.moon === 'dark' ? 'dark' : 'any' };
   return d;
 }
 function readLocForm() {

@@ -95,13 +95,23 @@ function recompute(force) {
   state.cfgs = profileConfigs(a);
   if (state.cfgFilter && !state.cfgs.some((c) => c.key === state.cfgFilter)) state.cfgFilter = '';
   state.res = computeAll(state.cfgs, a, ds, Date.now());
-  state.res.C.progOf = projProgress; applyWeather();
+  state.res.C.progOf = projProgress; state.res.C.mode = moonMode(); applyWeather();
   state.byId = new Map(state.res.results.map((r) => [r.o.id, r]));
   const ck = siteKey(a.site) + a.session.sunThr + defaultNightStr();
   if (ck !== state.calKey) { state.calKey = ck; const cal = moonCalendar(a, defaultNightStr(), 45); state.windows = darkWindows(cal); }
   const w = state.windows && state.windows[0]; state.nextDarkTxt = w ? `${fmtDay(w.from)}–${fmtDay(w.to)}` : '';
   return true;
 }
+/* Come riprendi con la Luna: consigliato (salta le notti peggiori), tutte le sere, solo senza Luna. Preferenza dell'app;
+   finché non la scegli vale quella scritta nel profilo dalle versioni precedenti. */
+const moonMode = () => { const m = LS.get('sf.moonMode', null); return MOON_MODES.includes(m) ? m : activeProfile().session.moon === 'dark' ? 'dark' : 'smart'; };
+function setMoonMode(m) {
+  if (!MOON_MODES.includes(m) || m === moonMode()) return; LS.set('sf.moonMode', m);
+  for (const C of [state.res.C, ...[...cmp.cache.values()].map((c) => c.C).filter(Boolean)]) { C.mode = m; }
+  applyFilters(); renderList(); renderTonight(); renderTopList(); if (UI.view === 'projects') renderProjects(); if (UI.view === 'setup') renderSetup();
+  if (state.sel && !$('#drawer').hidden) { const sc = $('#drawer').scrollTop; renderDetail(); $('#drawer').scrollTop = sc; }
+}
+
 /* ============================ confronto fra luoghi ============================ */
 /* Stesso profilo e stessa notte negli altri luoghi salvati. Dopo il luogo attivo si calcolano gli altri a pezzi da ~10 ms,
    così l'interfaccia resta libera; i risultati restano in memoria finché non cambiano profilo, notte o luogo. */
@@ -136,6 +146,7 @@ function cmpCtx(l) {
   if (l.id === activeLoc().id) return state.res.C;
   const k = cmp.keys.get(l.id); let c = cmp.cache.get(k); if (!c) { c = {}; cmp.cache.set(k, c); }
   if (!c.C) { const e = effectiveProfile(activeProfile(), l); c.C = computePrep(profileConfigs(e), e, state.res.night.ds, Date.now()); }
+  c.C.mode = moonMode(); c.C.progOf = projProgress; if (!c.C.wx) c.C.wx = wxAtFor(l.site);
   return c.C;
 }
 function cmpFull(l, o) { return l.id === activeLoc().id ? state.byId.get(o.id) || null : computeObj(cmpCtx(l), o); }
@@ -156,7 +167,7 @@ function onCompare() {
   $$('#list .row[data-id]').forEach((el) => { const r = state.byId.get(el.dataset.id), x = el.querySelector('.lh'); if (r && x) x.innerHTML = locHint(r); });
   renderLocs();
   if (state.sort === 'gain') { applyFilters(); renderList(); pushDome(); }
-  if (state.sel && !$('#drawer').hidden) renderLocCmp();
+  if (state.sel && !$('#drawer').hidden) { const r = state.byId.get(state.sel); if (r) renderScenLocs(r); }
 }
 function setLoc(id) {
   if (!state.locs.some((l) => l.id === id) || id === state.locId) return;
@@ -176,7 +187,7 @@ function applyFilters() {
   if (f.band === 'nb') L = L.filter((r) => LINES[r.o.type]); else if (f.band === 'bb') L = L.filter((r) => !LINES[r.o.type]);
   if (f.fill === 'fits') L = L.filter((r) => r.e.fill.r >= 0.35 && r.e.fill.nx * r.e.fill.ny === 1); else if (f.fill === 'small') L = L.filter((r) => r.e.fill.r < 0.35); else if (f.fill === 'mosaic') L = L.filter((r) => r.e.fill.nx * r.e.fill.ny > 1);
   // notti: dal calendario notte per notte se è già calcolato (righe viste), altrimenti la stima con notti tutte come questa
-  const A = state.res.C.ahead, nightsOf = (r) => { const c = A && A.cache.get(calKey(r, r.e, false)); return c ? (c.done ? c.sessions : Infinity) : r.e.best.nights; };
+  const A = state.res.C.ahead, nightsOf = (r) => { const c = A && A.cache.get(calKey(r, r.e, false, calMode(state.res.C))); return c ? (c.done ? c.sessions : Infinity) : r.e.best.nights; };
   if (f.maxNights < 11) L = L.filter((r) => r.e.best && nightsOf(r) <= f.maxNights);
   if (state.cfgFilter) L = L.filter((r) => r.e.cfg.key === state.cfgFilter);
   if (q) L = L.filter((r) => r.o.search.includes(q));
