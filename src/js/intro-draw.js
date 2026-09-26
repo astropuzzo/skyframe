@@ -1,7 +1,7 @@
 /* Skyframe, l'intro del logo disegnata fotogramma per fotogramma su un canvas: un campo stellare largo, lo zoom sul
    target, la cornice che si chiude con uno scatto, il logo fermo. Tutto è una funzione del tempo t (ms): lo stesso
    fotogramma esce sempre uguale, e l'ultimo è il logo (#i-logo) con gli stessi tracciati.
-   Lo usano il worker dell'avvio (js/intro-worker.js, fluido anche mentre l'app carica) e la guida (thread principale).
+   Lo usano la schermata d'avvio (js/intro.js) e la guida.
    Lo zoom è un ingrandimento vero: le stelle restano puntini, si allontanano dal centro e ne compaiono di più deboli. */
 self.IntroDraw = (function () {
   const T = 1900, Z0 = 250, Z1 = 1250, ZMAX = 30, LOCK = 1250;

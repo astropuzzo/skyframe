@@ -1,8 +1,7 @@
 /* Skyframe, l'avvio: le animazioni (preferenza), l'intro del logo e il caricamento dell'app.
-   L'intro (campo stellare, zoom sul target, scatto della cornice) la disegna js/intro-draw.js su un canvas: sul telefono
-   in un worker, così resta fluida mentre la pagina legge gli script e calcola il cielo; dove i worker non si possono
-   usare (desktop, file://) sul thread principale, e l'app si carica dopo lo scatto. Alla fine il canvas lascia il posto
-   al logo vero (#i-logo), identico all'ultimo fotogramma, che poi vola al suo posto nella barra in alto. */
+   L'intro (campo stellare, zoom sul target, scatto della cornice) la disegna js/intro-draw.js su un canvas; l'app si
+   carica quando è finita. Alla fine il canvas lascia il posto al logo vero (#i-logo), identico all'ultimo fotogramma,
+   che vola al suo posto nella barra in alto quando l'app è pronta. */
 (function () {
   /* animazioni: «auto» segue il sistema (riduci animazioni), «on» sempre, «off» ridotte. La classe .motion su <html>
      accende tutti i movimenti dell'app (app.css); si decide qui, prima che la pagina si disegni. */
@@ -44,24 +43,19 @@
     for (const src of APP) { const s = document.createElement('script'); s.src = src; s.async = false; document.body.appendChild(s); }
   };
 
+  /* sul telefono lo schermo della WebView lo disegna il thread principale dell'app: mentre la pagina legge 1,3 MB di
+     script e calcola il cielo non si aggiorna niente (filmato sull'emulatore: 4,5 s di fotogrammi saltati), nemmeno un
+     canvas disegnato da un worker. Quindi prima l'intro, a thread libero, poi l'app, col logo fermo e il messaggio. */
   const cv = document.getElementById('bootCv'), box = document.getElementById('bootIntro');
   let doneRes; window.__introDone = new Promise((r) => (doneRes = r));
   const finish = () => { if (box) box.classList.remove('playing'); if (cv) cv.classList.add('gone'); doneRes(); };
   const still = !window.motionOn() || !cv || !box || !!(window.cielo && window.cielo.noTour);
   if (still) { finish(); load(); }
-  else if (cv.transferControlToOffscreen && window.Worker && location.protocol !== 'file:') {
-    try {
-      const P = params(cv, box, 150); fit(cv, P); box.classList.add('playing');
-      const off = cv.transferControlToOffscreen(), w = new Worker('js/intro-worker.js');
-      w.onmessage = () => { finish(); w.terminate(); }; w.onerror = finish;
-      w.postMessage({ canvas: off, ...P }, [off]);
-      // due fotogrammi disegnati, poi l'app: da qui il worker va avanti da solo
-      requestAnimationFrame(() => requestAnimationFrame(load)); setTimeout(load, 250);
-    } catch (e) { finish(); load(); }
-  } else {
-    // sul thread principale leggere gli script fermerebbe l'intro: si carica l'app dopo lo scatto
-    window.introPlay(cv, box, 150, (t) => { if (t > 1480) load(); }).then(finish);
-    setTimeout(load, 2600); // (pagina nascosta: niente fotogrammi)
+  else {
+    box.classList.add('playing');
+    // il carico parte a scambio finito (canvas → logo vero): durante il carico lo schermo resta fermo
+    window.introPlay(cv, box, 150).then(() => { finish(); setTimeout(load, 300); });
+    setTimeout(load, 2900); // (pagina nascosta: niente fotogrammi)
   }
 
   /* uscita: finita l'intro (e pronta l'app) il logo vola al suo posto nella barra in alto, la schermata sparisce */
