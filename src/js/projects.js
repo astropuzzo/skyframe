@@ -148,7 +148,7 @@ function renderProjects() {
       <div class="pv-stat"><b class="num" data-to="${wip.length}">${wip.length}</b><span>${tx('in corso')}</span></div>
       <div class="pv-stat"><b class="num" data-to="${favs.length}">${favs.length}</b><span>${tx('preferiti da iniziare')}</span></div>
       <div class="pv-stat"><b class="num" data-to="${done.length}">${done.length}</b><span>${tx('completati')}</span></div>
-      <div class="pv-stat"><b class="num" data-to="${hours}" data-fmt="hh">${fmtH(hours)}</b><span>${tx('di posa in {n}', { n: nNights(nights) })}</span></div></div>
+      <div class="pv-stat"><b class="num" data-to="${hours}" data-fmt="hh">${hours > 0 ? fmtH(hours) : '0 h'}</b><span>${nights ? tx('di posa in {n}', { n: nNights(nights) }) : tx('di posa registrate')}</span></div></div>
     <div id="pvSeason">${wip.length + favs.length ? `<div class="card sk-wait"><div class="spin"></div><p>${tx('Preparo il piano di stagione…')}</p></div>` : ''}</div>` +
     sec(tx('In corso'), tx('ore raccolte e quanto manca'), wip) + sec(tx('Preferiti'), tx('da iniziare'), favs) + yearHTML(seasonTargets()) + sec(tx('Fatti'), '', done);
   el.onclick = (e) => {

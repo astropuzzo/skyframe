@@ -13,16 +13,21 @@ const LOGO_ANIM = '<svg class="alogo" viewBox="0 0 32 32" aria-hidden="true"><g 
 
 /* ---------- indietro ----------
    Ogni cosa aperta (foglio, dettaglio, editor, guida, una sezione diversa da Stanotte) aggiunge un passo alla cronologia
-   e se lo ricorda. Il tasto indietro (Android, browser) torna di un passo e chiude ciò che quel passo aveva aperto; se
-   una cosa si chiude dall'interfaccia, il suo passo resta segnato come chiuso e il tasto indietro lo salta. Niente
-   conteggi da tenere allineati: se il sistema accorpa due ritorni ravvicinati non si perde nulla. */
+   e se lo ricorda. Il tasto indietro (Android, browser) torna di un passo e chiude ciò che quel passo aveva aperto.
+   Se una cosa si chiude dall'interfaccia non si torna indietro nella cronologia (un ritorno parte sempre un attimo dopo,
+   e chiuderebbe quello che nel frattempo si è aperto): il suo passo resta lì, segnato come chiuso; la prossima cosa che
+   si apre ne prende il posto, e il tasto indietro lo salta. */
 const Back = { entries: [] };
 Object.defineProperty(Back, 'stack', { get: () => Back.entries.filter((x) => !x.closed && !x.view).map((x) => x.close) });
-function backPush(close, view) { Back.entries.push({ close, view: !!view, closed: false }); try { history.pushState({ sf: Back.entries.length }, ''); } catch { /* niente */ } }
-/* chiuso dall'interfaccia: il suo passo si segna come chiuso; se è l'ultimo si torna indietro davvero */
+function backPush(close, view) {
+  const e = Back.entries, top = e[e.length - 1], x = { close, view: !!view, closed: false };
+  if (top && top.closed) { e[e.length - 1] = x; try { history.replaceState({ sf: e.length }, ''); } catch { /* niente */ } return; }
+  e.push(x); try { history.pushState({ sf: e.length }, ''); } catch { /* niente */ }
+}
+/* chiuso dall'interfaccia: il suo passo si segna come chiuso */
 function backDone(close) {
-  const e = Back.entries; let i = e.length - 1; while (i >= 0 && (e[i].close !== close || e[i].closed)) i--; if (i < 0) return;
-  e[i].closed = true; if (i === e.length - 1) try { history.back(); } catch { /* niente */ }
+  const e = Back.entries; let i = e.length - 1; while (i >= 0 && (e[i].close !== close || e[i].closed)) i--;
+  if (i >= 0) e[i].closed = true;
 }
 /* Android (plugin App): il tasto indietro passa di qui; true se c'era qualcosa da chiudere o da cui tornare */
 window.onAndroidBack = () => {
@@ -32,10 +37,10 @@ window.onAndroidBack = () => {
   return false;
 };
 window.addEventListener('popstate', (ev) => {
-  const d = (ev.state && ev.state.sf) || 0;
-  while (Back.entries.length > d) { const x = Back.entries.pop(); if (!x.closed) { x.closed = true; x.close(true); } }
-  // sotto c'è un passo già chiuso dall'interfaccia: si toglie anche quello
-  const t = Back.entries[Back.entries.length - 1]; if (t && t.closed) try { history.back(); } catch { /* niente */ }
+  const d = (ev.state && ev.state.sf) || 0; let shut = false;
+  while (Back.entries.length > d) { const x = Back.entries.pop(); if (!x.closed) { x.closed = true; x.close(true); shut = true; } }
+  // si è tornati solo su passi già chiusi (browser): non è cambiato niente, si torna ancora di uno
+  if (!shut && Back.entries.length) try { history.back(); } catch { /* niente */ }
 });
 const viewEntry = () => Back.entries.find((x) => x.view && !x.closed);
 

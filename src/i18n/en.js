@@ -587,7 +587,7 @@ window.I18N.en = {
   "i tuoi preferiti e quello che stai riprendendo": "your favourites and what you are shooting",
   "Ancora nessun progetto": "No projects yet",
   "Tocca la stella accanto a un target per metterlo qui. Registra le notti che fai: Skyframe tiene il conto delle ore e ti dice quando tornarci.": "Tap the star next to a target to put it here. Log the nights you shoot: Skyframe keeps count of the hours and tells you when to go back.",
-  "Scegli dai target": "Pick from targets", "preferiti da iniziare": "favourites to start", "completati": "completed", "di posa in {n}": "of exposure in {n}",
+  "Scegli dai target": "Pick from targets", "preferiti da iniziare": "favourites to start", "completati": "completed", "di posa in {n}": "of exposure in {n}", "di posa registrate": "of exposure logged",
   "In corso": "In progress", "ore raccolte e quanto manca": "hours collected and what is left", "Preferiti": "Favourites", "Fatti": "Done",
   "stanotte {h} utili": "tonight {h} usable", "prossima notte: {d}": "next night: {d}", "fine ≈ {d}": "done ≈ {d}",
   "Avvisi": "Alerts", "Piano della notte": "Plan for the night", "i primi della lista": "the top of the list", "del lavoro": "of the work",

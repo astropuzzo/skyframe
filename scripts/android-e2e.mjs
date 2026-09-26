@@ -10,7 +10,7 @@ const out = { checks: {}, notes: [] };
 const T0 = Date.now(), log = (m) => { const l = `[${Math.round((Date.now() - T0) / 1000)} s] ${m}`; console.log(l); out.notes.push(l); try { fs.writeFileSync('e2e/risultati.json', JSON.stringify(out, null, 2)); } catch { /* niente */ } };
 // limite generale: dopo 20 minuti si scrive quello che c'è e si esce
 setTimeout(() => { log('limite di tempo raggiunto'); process.exit(3); }, 20 * 60000);
-const shot = (name) => { try { execSync('adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS', { stdio: 'ignore' }); } catch { /* niente */ } try { fs.writeFileSync(`e2e/${name}.png`, execSync('adb exec-out screencap -p', { maxBuffer: 64e6 })); } catch (e) { out.notes.push(`schermata ${name}: ${e.message}`); } };
+const shot = (name, shade) => { if (!shade) try { execSync('adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS', { stdio: 'ignore' }); } catch { /* niente */ } try { fs.writeFileSync(`e2e/${name}.png`, execSync('adb exec-out screencap -p', { maxBuffer: 64e6 })); } catch (e) { out.notes.push(`schermata ${name}: ${e.message}`); } };
 const notifs = () => { try { return adb('shell dumpsys notification --noredact'); } catch { return ''; } };
 
 async function devtools() {
@@ -71,9 +71,22 @@ try {
   // italiano (l'emulatore è in inglese), poi di nuovo la guida da capo
   await ev(`localStorage.setItem('sf.lang', JSON.stringify('it')); location.reload(); return 1`).catch(() => {});
   await sleep(4000); await until('typeof state !== "undefined" && state.res && document.querySelector("#list .row")', 90000);
-  await ev(`if (TOUR.el) tourClose(); tourStart(TOUR_STEPS, 0); return 1`); await sleep(2200); shot('03-guida-it');
+  // la guida ripartita da sola al riavvio viene sostituita da quella avviata qui (una sopra l'altra: non deve sparire)
+  await until('TOUR.el', 8000);
+  await ev(`tourStart(TOUR_STEPS, 0); return 1`); await sleep(2200); shot('03-guida-it');
+  const seen = [await ev(`return !!TOUR.el && TOUR.i === 0`)];
   for (const [k, name] of [[1, 'luogo'], [3, 'notti'], [8, 'quanto-ci-vuole'], [11, 'cielo'], [12, 'progetti']]) {
     await ev(`tourGo(Math.min(${k}, TOUR.steps.length - 1)); return 1`); await sleep(2000); shot(`04-guida-${String(k).padStart(2, '0')}-${name}`);
+    seen.push(await ev(`return !!TOUR.el && TOUR.i === Math.min(${k}, TOUR.steps.length - 1) && !!document.querySelector('.tour-card.on h3')`));
+  }
+  out.checks.guida_passi = seen.every(Boolean);
+  // il pulsante di un passo («Imposta il mio luogo») chiude la guida e apre l'editor; indietro lo chiude e la guida riprende
+  const kc = await ev(`const k = TOUR.steps.findIndex((s) => s.cta); if (k >= 0) await tourGo(k); return k`);
+  if (kc >= 0) {
+    await sleep(1500); await ev(`document.querySelector('.tour [data-t=cta]').click(); return 1`); await sleep(2000);
+    out.checks.guida_pulsante_apre_editor = await ev(`return !document.getElementById('editor').hidden && !TOUR.el`); shot('04-guida-editor');
+    adb('shell input keyevent KEYCODE_BACK'); await sleep(2000);
+    out.checks.guida_riprende_dopo_editor = await ev(`return document.getElementById('editor').hidden && !!TOUR.el && TOUR.i === ${kc + 1}`);
   }
   await ev(`tourEnd(); return 1`); await sleep(1200);
   // meteo, preferiti, sezioni
@@ -108,7 +121,7 @@ try {
   out.runner_status = await ev(`try { return await ${BR}.dispatchEvent({ label: '${LABEL}', event: 'status', details: {} }); } catch (e) { return 'errore: ' + e.message; }`);
   // il lavoro periodico registrato nel sistema (WorkManager)
   try { out.jobs = adb('shell dumpsys jobscheduler').split('\n').filter((l) => l.includes(PKG)).slice(0, 12); } catch { /* niente */ }
-  try { adb('shell cmd statusbar expand-notifications'); await sleep(1500); shot('09-notifiche'); adb('shell cmd statusbar collapse'); } catch (e) { out.notes.push('tendina: ' + e.message); }
+  try { adb('shell cmd statusbar expand-notifications'); await sleep(2500); shot('09-notifiche', true); adb('shell cmd statusbar collapse'); } catch (e) { out.notes.push('tendina: ' + e.message); }
   out.errori_console = await ev(`return (window.__errs || []).slice(0, 10)`).catch(() => null);
 } catch (e) {
   log('errore: ' + (e && e.stack || e));

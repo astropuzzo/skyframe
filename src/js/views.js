@@ -211,7 +211,7 @@ function rowHTML(r, i) {
 }
 /* Notti di ripresa: dal calendario notte per notte quando è pronto, altrimenti (per un attimo) la stima con notti
    tutte come questa, in grigio. Se basta questa notte il calendario è immediato. */
-const nNights = (n) => (n <= 1 ? tx('1 notte') : tx('{n} notti', { n }));
+const nNights = (n) => (n > 0 && n <= 1 ? tx('1 notte') : tx('{n} notti', { n }));
 function nightsTag(r, e, C) {
   const b = e.best; if (!b) return ''; C = C || state.res.C;
   const A = C.ahead, md = calMode(C); let cal = A && (A.cache.get(calKey(r, e, false, md)) || A.cache.get(calKey(r, e, true, md)));
@@ -264,8 +264,10 @@ function openDetail(id) {
   const r = state.byId.get(id); if (!r) return;
   state.sel = id; state.selCfg = r.e.cfg.key; state.rotFor = null; renderDetail.last = null;
   renderDetail(); const d = $('#drawer'), bd = $('#backdrop'); freshAnim(d);
-  if (d.hidden) backPush(closeDetail);
-  d.hidden = false; bd.hidden = false; requestAnimationFrame(() => { d.classList.add('on'); bd.classList.add('on'); });
+  // anche se si stava ancora chiudendo (riaperto subito dopo): il passo per il tasto indietro ci dev'essere
+  if (!Back.stack.includes(closeDetail)) backPush(closeDetail);
+  const on = () => { d.classList.add('on'); bd.classList.add('on'); };
+  if (d.hidden) { d.hidden = false; bd.hidden = false; requestAnimationFrame(on); } else on();
   d.scrollTop = 0; d.focus({ preventScroll: true });
   $$('#list .row.sel').forEach((el) => el.classList.remove('sel')); const row = $(`#list .row[data-id="${CSS.escape(id)}"]`); if (row) row.classList.add('sel');
   pushDome(); drawStrip();
