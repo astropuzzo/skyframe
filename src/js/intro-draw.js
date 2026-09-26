@@ -46,7 +46,32 @@ self.IntroDraw = (function () {
     };
     for (let i = 0; i < n0; i++) add(1, true);
     for (let i = 0; i < n1; i++) add(Math.exp((0.04 + r() * 0.96) * Math.log(ZMAX * 1.1)), false);
-    return { stars, R, sprites: new Map() };
+    const F = { stars, R, sprites: new Map(), cost: 0, stride: 1 };
+    for (const st of stars) sprite(F, st.c, st.rad, P.dpr);
+    prerender(F, P);
+    return F;
+  }
+  /* le parti costose si disegnano una volta sola (sfocatura, bagliore, sfumature) e poi a ogni fotogramma si copiano:
+     su un telefono lento, o sull'emulatore senza scheda grafica, rifarle ogni volta ferma l'intro */
+  function prerender(F, P) {
+    const d = P.dpr, n = Math.ceil(P.S * d * 1.3), pad = Math.ceil(P.S * d * 0.15), N = n + pad * 2;
+    const neb = new OffscreenCanvas(N, N), g = neb.getContext('2d');
+    g.translate(N / 2, N / 2); g.scale(P.S / 32 * d, P.S / 32 * d); g.rotate(-24 * Math.PI / 180);
+    const gr = g.createLinearGradient(-7.2, -5.6, 7.2, 5.6); gr.addColorStop(0, '#FF7A5E'); gr.addColorStop(1, '#D8353F');
+    g.beginPath(); g.ellipse(0, 0, 7.2, 5.6, 0, 0, Math.PI * 2); g.strokeStyle = gr; g.lineWidth = 2.6; g.stroke();
+    g.beginPath(); g.ellipse(0, 0, 3.9, 2.9, 0, 0, Math.PI * 2); g.fillStyle = 'rgba(76,207,188,.85)'; g.fill();
+    const soft = new OffscreenCanvas(N, N), gs = soft.getContext('2d'); gs.filter = `blur(${(P.S * 0.06 * d).toFixed(1)}px)`; gs.drawImage(neb, 0, 0);
+    // il bagliore degli angoli, già in posizione finale
+    const glow = new OffscreenCanvas(N, N), gg = glow.getContext('2d');
+    gg.translate(N / 2, N / 2); gg.scale(P.S / 32 * d, P.S / 32 * d); gg.translate(-16, -16);
+    gg.shadowColor = '#FFFFFF'; gg.shadowBlur = P.S * 0.16 * d; gg.strokeStyle = '#FFFFFF'; gg.lineWidth = 2.2; gg.lineCap = 'round'; gg.lineJoin = 'round';
+    for (const [, , pts] of CORNERS) { gg.beginPath(); gg.moveTo(pts[0][0], pts[0][1]); gg.lineTo(pts[1][0], pts[1][1]); gg.lineTo(pts[2][0], pts[2][1]); gg.stroke(); }
+    // la Via Lattea a zoom 1 (poi si ingrandisce copiandola: è una sfumatura, non perde nulla)
+    const bw = Math.ceil(F.R * 2 * d * 0.5), band = new OffscreenCanvas(bw, Math.ceil(bw * 0.2)), gb = band.getContext('2d');
+    gb.translate(bw / 2, band.height / 2); gb.scale(1, 0.2);
+    const bg = gb.createRadialGradient(0, 0, 0, 0, 0, bw / 2); bg.addColorStop(0, 'rgba(183,198,230,.12)'); bg.addColorStop(0.5, 'rgba(130,149,196,.05)'); bg.addColorStop(1, 'rgba(124,143,192,0)');
+    gb.fillStyle = bg; gb.beginPath(); gb.arc(0, 0, bw / 2, 0, Math.PI * 2); gb.fill();
+    Object.assign(F, { neb, soft, glow, band, N });
   }
   // una stella già disegnata (nucleo e alone) per ogni colore e grandezza: disegnarne tremila a fotogramma resta leggero
   function sprite(F, c, rad, dpr) {
@@ -62,16 +87,11 @@ self.IntroDraw = (function () {
   const CORNERS = [[-1, -1, [[5.5, 11], [5.5, 7.5], [9.5, 7.5]]], [1, -1, [[22.5, 7.5], [26.5, 7.5], [26.5, 11]]], [1, 1, [[26.5, 21], [26.5, 24.5], [22.5, 24.5]]], [-1, 1, [[9.5, 24.5], [5.5, 24.5], [5.5, 21]]]];
 
   /* il logo (unità della griglia 32 del logo, centro in 16,16) */
-  function nebula(g, P, d, k, blur, alpha) {
+  function nebula(g, P, d, F, img, k, alpha) {
     if (alpha <= 0.003 || k <= 0) return;
-    g.save(); g.globalAlpha = alpha; if (blur > 0.2) g.filter = `blur(${blur.toFixed(2)}px)`;
-    g.translate(P.cx * d, P.cy * d); g.scale(P.S / 32 * d * k, P.S / 32 * d * k); g.rotate(-24 * Math.PI / 180);
-    const gr = g.createLinearGradient(-7.2, -5.6, 7.2, 5.6); gr.addColorStop(0, '#FF7A5E'); gr.addColorStop(1, '#D8353F');
-    g.beginPath(); g.ellipse(0, 0, 7.2, 5.6, 0, 0, Math.PI * 2); g.strokeStyle = gr; g.lineWidth = 2.6; g.stroke();
-    g.beginPath(); g.ellipse(0, 0, 3.9, 2.9, 0, 0, Math.PI * 2); g.fillStyle = 'rgba(76,207,188,.85)'; g.fill();
-    g.restore();
+    const w = F.N * k; g.globalAlpha = alpha; g.drawImage(img, Math.round(P.cx * d - w / 2), Math.round(P.cy * d - w / 2), w, w); g.globalAlpha = 1;
   }
-  function corners(g, P, d, t, glow) {
+  function corners(g, P, d, t) {
     const o = P.S * 3 / 112, off = cornerOff(t, P.D, o), rot = frameRot(t) * Math.PI / 180, op = sm(500, 684, t);
     if (op <= 0) return;
     g.save(); g.translate(P.cx * d, P.cy * d); g.rotate(rot);
@@ -79,7 +99,6 @@ self.IntroDraw = (function () {
       g.save(); g.translate(sx * off * d, sy * off * d); g.scale(P.S / 32 * d, P.S / 32 * d); g.translate(-16, -16);
       g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); g.lineTo(pts[1][0], pts[1][1]); g.lineTo(pts[2][0], pts[2][1]);
       g.lineCap = 'round'; g.lineJoin = 'round'; g.lineWidth = 2.2; g.globalAlpha = op; g.strokeStyle = '#EEF3F9';
-      if (glow > 0) { g.shadowColor = `rgba(255,255,255,${glow})`; g.shadowBlur = P.S * 0.16 * d; g.strokeStyle = '#FFFFFF'; }
       g.stroke(); g.restore();
     }
     g.restore();
@@ -87,22 +106,22 @@ self.IntroDraw = (function () {
 
   /* un fotogramma */
   function frame(g, t, P, F) {
-    const d = P.dpr, W = P.W * d, H = P.H * d, z = Z(t), v = V(t);
+    const t0 = performance.now(), d = P.dpr, W = P.W * d, H = P.H * d, z = Z(t), v = V(t);
     g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H);
     const gA = sm(0, 250, t) * (1 - sm(1320, 1800, t));
     // la Via Lattea del campo largo: si allarga con lo zoom e sfuma
     const bA = gA * (1 - sm(1.5, 3.4, z));
     if (bA > 0.01) {
-      g.save(); g.translate(P.cx * d, P.cy * d); g.rotate(BAND); g.scale(z, z * 0.2);
-      const rr = F.R * d, gr = g.createRadialGradient(0, 0, 0, 0, 0, rr);
-      gr.addColorStop(0, `rgba(183,198,230,${0.12 * bA})`); gr.addColorStop(0.5, `rgba(130,149,196,${0.05 * bA})`); gr.addColorStop(1, 'rgba(124,143,192,0)');
-      g.fillStyle = gr; g.beginPath(); g.arc(0, 0, rr, 0, Math.PI * 2); g.fill(); g.restore();
+      g.save(); g.globalAlpha = bA; g.translate(P.cx * d, P.cy * d); g.rotate(BAND); g.scale(z * 2, z * 2);
+      g.drawImage(F.band, -F.band.width / 2, -F.band.height / 2); g.restore();
     }
     // stelle: puntini che si allontanano dal centro; quando lo zoom corre lasciano una scia
     if (gA > 0.003) {
       const cx = P.cx * d, cy = P.cy * d, ex = 7; // «esposizione» della scia (ms): un filo di mosso, non l'iperspazio
       g.lineCap = 'round';
-      for (const s of F.stars) {
+      const L = F.stars, step = F.stride;
+      for (let i = 0; i < L.length; i += step) {
+        const s = L[i];
         const ap = s.z <= 1 ? 1 : sm(s.z, s.z * 1.45, z); if (ap <= 0) continue;
         const X = cx + s.x * z * d, Y = cy + s.y * z * d;
         if (X < -8 || Y < -8 || X > W + 8 || Y > H + 8) continue;
@@ -126,15 +145,18 @@ self.IntroDraw = (function () {
     }
     // il target: sfocato finché la cornice non aggancia, poi a fuoco
     const k = z / ZMAX, nA = 0.35 + 0.65 * sm(0.03, 0.2, k), f = sm(1180, 1300, t);
-    nebula(g, P, d, k, P.S * 0.05 * d * (0.4 + 0.6 * k), nA * (1 - f));
-    nebula(g, P, d, k, 0, nA * f);
+    nebula(g, P, d, F, F.soft, k, nA * (1 - f));
+    nebula(g, P, d, F, F.neb, k, nA * f);
     // cornice, e il suo bagliore allo scatto
     const glow = t > LOCK && t < 1600 ? (t < 1280 ? (t - LOCK) / 30 : 1 - (t - 1280) / 320) * 0.9 : 0;
-    if (glow > 0.01) corners(g, P, d, t, glow);
-    corners(g, P, d, t, 0);
+    if (glow > 0.01) { g.globalAlpha = glow; g.drawImage(F.glow, Math.round(P.cx * d - F.N / 2), Math.round(P.cy * d - F.N / 2)); g.globalAlpha = 1; }
+    corners(g, P, d, t);
     // la stella al centro
     const sp = starPop(t);
     if (sp > 0) { g.save(); g.globalAlpha = sm(LOCK, 1273, t); g.fillStyle = '#FFFFFF'; g.beginPath(); g.arc(P.cx * d, P.cy * d, P.S / 32 * d * sp, 0, Math.PI * 2); g.fill(); g.restore(); }
+    // se un fotogramma costa troppo, i prossimi disegnano una stella su due (o su quattro)
+    const dt = performance.now() - t0; F.cost = F.cost ? F.cost * 0.6 + dt * 0.4 : dt;
+    F.stride = F.cost > 20 ? 4 : F.cost > 10 ? 2 : 1;
   }
   return { T, LOCK, Z, V, cornerOff, frameRot, starPop, field, frame };
 })();
