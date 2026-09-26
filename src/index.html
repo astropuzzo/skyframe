@@ -182,7 +182,7 @@
         <h3>Camera</h3>
         <div class="grid">
           <label class="field w2"><span>Modello</span><select id="f_cam"></select></label>
-          <label class="field"><span>Tipo</span><select id="f_ctype"><option value="osc">A colori (OSC)</option><option value="mono">Monocromatica</option><option value="dslr">Reflex / mirrorless</option></select></label>
+          <label class="field"><span>Tipo</span><select id="f_ctype"><option value="osc">A colori (OSC)</option><option value="mono">Monocromatica</option><option value="dslr">Reflex / mirrorless</option><option value="dslrmod">Reflex modificata (Hα)</option></select></label>
           <label class="field"><span>Binning</span><select id="f_bin"><option value="1">1×1</option><option value="2">2×2</option><option value="3">3×3</option></select></label>
           <label class="field"><span>Larghezza sensore (px)</span><input id="f_cw" type="number" min="100" step="1"></label>
           <label class="field"><span>Altezza sensore (px)</span><input id="f_ch" type="number" min="100" step="1"></label>
@@ -257,9 +257,9 @@
           <label class="field"><span>Inizio del buio</span><select id="f_thr"><option value="-12">Sole a −12° (nautico)</option><option value="-15">Sole a −15°</option><option value="-18">Sole a −18° (astronomico)</option></select></label>
           <label class="field"><span>Dalle (facoltativo)</span><input id="f_from" type="time"></label>
           <label class="field"><span>Alle (facoltativo)</span><input id="f_to" type="time"></label>
-          <label class="field"><span>Qualità</span><select id="f_quality"><option value="quick">Rapida</option><option value="good">Buona</option><option value="great">Eccellente</option></select></label>
+          <label class="field"><span>Qualità</span><select id="f_quality"><option value="quick">Rapida</option><option value="good">Buona</option><option value="great">Eccellente</option><option value="deep">Profonda</option></select></label>
         </div>
-        <p class="hint">«Buona» è il livello tipico delle foto apprezzate su AstroBin; «rapida» chiede 0,4 volte il tempo, «eccellente» 2,5 volte.</p>
+        <p class="hint">«Buona» è la mediana delle foto vere; «rapida» chiede metà tempo, «eccellente» il doppio, «profonda» come i progetti più lunghi.</p>
       </section>
       <section class="fs ed-loc">
         <h3>Orizzonte</h3>

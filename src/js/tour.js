@@ -24,6 +24,7 @@ const TOUR_STEPS = [
 ];
 /* novità per versione (le più recenti in cima) */
 const NEWS = [
+  { v: '0.16.0', items: ['Tempi ritarati su 1205 foto vere da cieli di città', 'Foto vere: per 93 target ore, filtri e sub di chi li ha ripresi da Bortle 6–8', 'In catalogo 20 camere, 30 telescopi e 13 filtri in più; qualità «profonda»'] },
   { v: '0.15.0', items: ['Tutti i testi riscritti: più corti, in italiano e in inglese'] },
   { v: '0.14.0', items: ['Logo nuovo all’avvio: dal campo stellare allo scatto sul target', 'Animazioni: in Setup scegli se seguire il sistema o averle sempre'] },
   { v: '0.13.1', items: ['Android: il tasto indietro chiude fogli, dettaglio e guida invece di uscire', 'Android: gli avvisi ad app chiusa ora ricevono le notti da controllare'] },

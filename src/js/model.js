@@ -33,9 +33,30 @@ const CAMERAS = [
   { id: 'qhy268m', name: 'QHY268M', w: 6280, h: 4210, pix: 3.76, type: 'mono', qe: 87, rn: 1.5 },
   { id: 'qhy600m', name: 'QHY600M', w: 9576, h: 6388, pix: 3.76, type: 'mono', qe: 87, rn: 1.5 },
   { id: 'poseidonc', name: 'Player One Poseidon-C Pro', w: 6244, h: 4168, pix: 3.76, type: 'osc', qe: 80, rn: 1.5 },
+  // più usate nelle foto vere da cielo di città (raccolta AstroBin 2026)
+  { id: 'asi2600mcair', name: 'ZWO ASI2600MC Air', w: 6248, h: 4176, pix: 3.76, type: 'osc', qe: 80, rn: 1.5 },
+  { id: 'asi2600mcduo', name: 'ZWO ASI2600MC Duo', w: 6248, h: 4176, pix: 3.76, type: 'osc', qe: 80, rn: 1.5 },
+  { id: 'atr26000', name: 'ToupTek / RisingCam ATR3CMOS26000KPA', w: 6248, h: 4176, pix: 3.76, type: 'osc', qe: 80, rn: 1.5 },
+  { id: 'vetec571c', name: 'Omegon veTEC 571 C', w: 6248, h: 4176, pix: 3.76, type: 'osc', qe: 80, rn: 1.5 },
+  { id: 'ts2600cp', name: 'TS-Optics TS2600CP', w: 6248, h: 4176, pix: 3.76, type: 'osc', qe: 80, rn: 1.5 },
+  { id: 'asi533mcnc', name: 'ZWO ASI533MC (non raffreddata)', w: 3008, h: 3008, pix: 3.76, type: 'osc', qe: 80, rn: 1.5 },
+  { id: 'aresc', name: 'Player One Ares-C Pro', w: 3008, h: 3008, pix: 3.76, type: 'osc', qe: 80, rn: 1.5 },
+  { id: 'asi2400mc', name: 'ZWO ASI2400MC Pro', w: 6072, h: 4042, pix: 5.94, type: 'osc', qe: 80, rn: 1.1 },
+  { id: 'hc294c', name: 'Altair Hypercam 294C Pro TEC', w: 4144, h: 2822, pix: 4.63, type: 'osc', qe: 75, rn: 1.8 },
+  { id: 'artemisc', name: 'Player One Artemis-C Pro', w: 4144, h: 2822, pix: 4.63, type: 'osc', qe: 75, rn: 1.8 },
+  { id: 'asi585mcnc', name: 'ZWO ASI585MC / MC Air', w: 3840, h: 2160, pix: 2.9, type: 'osc', qe: 80, rn: 1 },
+  { id: 'atr585c', name: 'ToupTek ATR585C', w: 3840, h: 2160, pix: 2.9, type: 'osc', qe: 80, rn: 1 },
+  { id: 'uranusc', name: 'Player One Uranus-C', w: 3840, h: 2160, pix: 2.9, type: 'osc', qe: 80, rn: 1 },
+  { id: 'asi715mc', name: 'ZWO ASI715MC', w: 3840, h: 2160, pix: 1.45, type: 'osc', qe: 80, rn: 0.9 },
+  { id: 'asi676mc', name: 'ZWO ASI676MC', w: 3552, h: 3552, pix: 2, type: 'osc', qe: 80, rn: 0.9 },
+  { id: 'seestars50', name: 'ZWO Seestar S50 (camera integrata)', w: 1920, h: 1080, pix: 2.9, type: 'osc', qe: 80, rn: 1 },
+  { id: 'seestars30', name: 'ZWO Seestar S30 (camera integrata)', w: 1920, h: 1080, pix: 2.9, type: 'osc', qe: 80, rn: 1 },
+  { id: 'seestars30p', name: 'ZWO Seestar S30 Pro (camera integrata)', w: 3840, h: 2160, pix: 2.9, type: 'osc', qe: 80, rn: 1 },
   { id: 'canon6d', name: 'Canon EOS 6D', w: 5472, h: 3648, pix: 6.55, type: 'dslr', qe: 50, rn: 3 },
   { id: 'canonr6', name: 'Canon EOS R6', w: 5472, h: 3648, pix: 6.56, type: 'dslr', qe: 55, rn: 2 },
   { id: 'canon600d', name: 'Canon EOS 600D', w: 5184, h: 3456, pix: 4.3, type: 'dslr', qe: 40, rn: 3.5 },
+  { id: 'canon2000d', name: 'Canon EOS 2000D / 250D', w: 6000, h: 4000, pix: 3.72, type: 'dslr', qe: 45, rn: 2.5 },
+  { id: 'canon100d', name: 'Canon EOS 100D / 550D', w: 5184, h: 3456, pix: 4.3, type: 'dslr', qe: 40, rn: 3.5 },
   { id: 'nikond5300', name: 'Nikon D5300', w: 6000, h: 4000, pix: 3.9, type: 'dslr', qe: 45, rn: 2.5 },
   { id: 'nikonz6', name: 'Nikon Z6 II', w: 6048, h: 4024, pix: 5.9, type: 'dslr', qe: 50, rn: 2 },
   { id: 'sonya7iii', name: 'Sony α7 III', w: 6000, h: 4000, pix: 5.9, type: 'dslr', qe: 50, rn: 2.5 },
@@ -95,7 +116,7 @@ const OPTICS = [
   { id: 'tsag16', name: 'TS-Optics Astrograph 16" f/5,13 (correttore integrato)', ap: 406, fl: 2083, obs: 30 },
   { id: 'tsag8f38', name: 'TS-Optics Astrograph 8" f/3,8', ap: 203, fl: 760, obs: 38, acc: [['Correttore/riduttore 0,95×', 0.95]] },
   { id: 'tsphoton6', name: 'TS-Photon 6" f/4', ap: 150, fl: 600, obs: 35, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
-  { id: 'gso8f4', name: 'TS-Photon 8" f/4', ap: 200, fl: 800, obs: 35, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
+  { id: 'tsphoton8f4', name: 'TS-Photon 8" f/4', ap: 200, fl: 800, obs: 35, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
   { id: 'tsphoton10f4', name: 'TS-Photon 10" f/4', ap: 254, fl: 1016, obs: 35, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
   { id: 'tsphoton10f5', name: 'TS-Photon 10" f/5', ap: 254, fl: 1270, obs: 30, acc: [['Correttore di coma GPU 1,0×', 1.0], ['Starizona Nexus 0,75×', 0.75]] },
   { id: 'tshnt130', name: 'TS-Optics 130 mm f/2,8 iperbolico (correttore integrato)', ap: 130, fl: 364, obs: 48 },
@@ -135,6 +156,37 @@ const OPTICS = [
   { id: 'evo100', name: 'Sky-Watcher Evostar 100ED', ap: 100, fl: 900, obs: 0, acc: [['Riduttore 0,85×', 0.85]] },
   { id: 'esprit150', name: 'Sky-Watcher Esprit 150ED', ap: 150, fl: 1050, obs: 0 },
   { id: 'ed102', name: 'Explore Scientific ED102', ap: 102, fl: 714, obs: 0, acc: [['Riduttore 0,7×', 0.7]] },
+  // più usati nelle foto vere da cielo di città (raccolta AstroBin 2026)
+  { id: 'edgehd925', name: 'Celestron EdgeHD 9.25', ap: 235, fl: 2350, obs: 36, acc: [['Riduttore EdgeHD 0,7×', 0.7]] },
+  { id: 'c925', name: 'Celestron C9.25', ap: 235, fl: 2350, obs: 36, acc: [['Riduttore f/6,3 (0,63×)', 0.63]] },
+  { id: 'c6', name: 'Celestron C6', ap: 150, fl: 1500, obs: 35, acc: [['Riduttore f/6,3 (0,63×)', 0.63]] },
+  { id: 'c11', name: 'Celestron C11', ap: 280, fl: 2800, obs: 34, acc: [['Riduttore f/6,3 (0,63×)', 0.63]] },
+  { id: 'lx200-12', name: 'Meade LX200 12" ACF', ap: 305, fl: 3048, obs: 37, acc: [['Riduttore f/6,3 (0,63×)', 0.63]] },
+  { id: 'origin', name: 'Celestron Origin (correttore integrato)', ap: 152, fl: 335, obs: 45 },
+  { id: 'seestars50o', name: 'ZWO Seestar S50', ap: 50, fl: 250, obs: 0 },
+  { id: 'seestars30o', name: 'ZWO Seestar S30', ap: 30, fl: 150, obs: 0 },
+  { id: 'seestars30po', name: 'ZWO Seestar S30 Pro', ap: 30, fl: 160, obs: 0 },
+  { id: 'sw250pds', name: 'Sky-Watcher 250PDS (Black Diamond 250/1200)', ap: 254, fl: 1200, obs: 25, acc: [['Correttore di coma 0,9×', 0.9]] },
+  { id: 'tsphoton8f6', name: 'TS-Photon 8" f/6', ap: 200, fl: 1200, obs: 22, acc: [['Correttore di coma GPU 1,0×', 1]] },
+  { id: 'gsorc6', name: 'GSO / Apertura Ritchey-Chrétien 6" f/9', ap: 152, fl: 1370, obs: 47, acc: [['Riduttore/spianatore RC 0,75×', 0.75]] },
+  { id: 'gsorc8', name: 'GSO / Apertura Ritchey-Chrétien 8" f/8', ap: 203, fl: 1624, obs: 47, acc: [['Riduttore/spianatore RC 0,75×', 0.75]] },
+  { id: 'askar140', name: 'Askar 140APO', ap: 140, fl: 980, obs: 0, acc: [['Riduttore 0,8×', 0.8]] },
+  { id: 'askar80phq', name: 'Askar 80PHQ', ap: 80, fl: 600, obs: 0, acc: [['Riduttore 0,8×', 0.8]] },
+  { id: 'fra500', name: 'Askar FRA500', ap: 90, fl: 500, obs: 0, acc: [['Riduttore 0,7×', 0.7]] },
+  { id: 'fra300', name: 'Askar FRA300 Pro', ap: 60, fl: 300, obs: 0, acc: [['Riduttore 0,7×', 0.7]] },
+  { id: 'fma180', name: 'Askar FMA180 Pro', ap: 40, fl: 180, obs: 0 },
+  { id: 'at92', name: 'Astro-Tech AT92', ap: 92, fl: 643, obs: 0, acc: [['Riduttore 0,8×', 0.8]] },
+  { id: 'at72ed2', name: 'Astro-Tech AT72EDII', ap: 72, fl: 430, obs: 0, acc: [['Riduttore 0,8×', 0.8]] },
+  { id: 'flt132', name: 'William Optics FLT 132', ap: 132, fl: 925, obs: 0, acc: [['Spianatore/riduttore 0,8×', 0.8]] },
+  { id: 'zs61', name: 'William Optics ZenithStar 61 II', ap: 61, fl: 360, obs: 0, acc: [['Spianatore 1,0×', 1], ['Riduttore 0,8×', 0.8]] },
+  { id: 'gt102', name: 'William Optics GT102', ap: 102, fl: 703, obs: 0, acc: [['Spianatore/riduttore 0,8×', 0.8]] },
+  { id: 'pleiades111', name: 'William Optics Pleiades 111', ap: 111, fl: 540, obs: 0 },
+  { id: 'sharp61', name: 'Sharpstar 61EDPH II', ap: 61, fl: 335, obs: 0, acc: [['Riduttore 0,8×', 0.8]] },
+  { id: 'ff65', name: 'ZWO FF65', ap: 65, fl: 416, obs: 0, acc: [['Riduttore 0,75×', 0.75]] },
+  { id: 'sv503-70', name: 'SVBony SV503 70ED', ap: 70, fl: 420, obs: 0, acc: [['Riduttore 0,8×', 0.8]] },
+  { id: 'tecno90', name: 'Tecnosky 90/540 FPL55', ap: 90, fl: 540, obs: 0, acc: [['Riduttore 0,79×', 0.79]] },
+  { id: 'tecno80', name: 'Tecnosky EDT 80/480', ap: 80, fl: 480, obs: 0, acc: [['Riduttore 0,79×', 0.79]] },
+  { id: 'svr90t', name: 'Stellarvue SVR90T', ap: 90, fl: 495, obs: 0 },
   { id: 'lens200', name: 'Obiettivo 200 mm f/2,8', ap: 71.4, fl: 200, obs: 0 },
   { id: 'samyang135', name: 'Samyang 135 mm f/2', ap: 67.5, fl: 135, obs: 0 },
   { id: 'lens85', name: 'Obiettivo 85 mm f/1,8 (a f/2,8)', ap: 30.4, fl: 85, obs: 0 },
@@ -161,7 +213,7 @@ function opticKind(o) {
 const presetsFor = (o) => { const k = opticKind(o); return ACCESSORY_PRESETS.filter((x) => x[2] === 'any' || x[2] === k); };
 const BORTLE_SQM = { 1: 21.95, 2: 21.7, 3: 21.45, 4: 20.8, 5: 20.0, 6: 19.2, 7: 18.6, 8: 18.1, 9: 17.6 };
 const sqmToBortle = (s) => (s >= 21.9 ? 1 : s >= 21.6 ? 2 : s >= 21.3 ? 3 : s >= 20.4 ? 4 : s >= 19.5 ? 5 : s >= 18.9 ? 6 : s >= 18.4 ? 7 : s >= 17.8 ? 8 : 9);
-const QLABEL = { quick: 'rapida', good: 'buona', great: 'eccellente' };
+const QLABEL = { quick: 'rapida', good: 'buona', great: 'eccellente', deep: 'profonda' };
 const accId = () => 'a' + Math.random().toString(36).slice(2, 8);
 
 function templateProfile() {
@@ -494,7 +546,7 @@ function skyModel(site) {
 /* ============================ calcolo target ============================ */
 const F0 = 1000, MOON0 = Math.pow(10, -0.4 * 17.8);
 /* Qualità = SNR per elemento di risoluzione sulla parte principale dell'oggetto e sulle sue parti deboli.
-   Taratura sulle foto reali (README, «Taratura»; scripts/calibrate.cjs): 190 foto su AstroBin di 23 oggetti, con
+   Prima taratura sulle foto reali (README, «Taratura»; scripts/calibrate.cjs): 190 foto su AstroBin di 23 oggetti, con
    strumento, filtri, cielo e integrazione dichiarati; il modello rifà i conti con la loro attrezzatura e si confronta
    con le ore vere:
    - l'elemento di risoluzione è proporzionale al diametro (RES_DL/D: 2,3″ a 200 mm, 4,7″ a 100 mm) e non fisso: ogni
@@ -504,9 +556,19 @@ const F0 = 1000, MOON0 = Math.pow(10, -0.4 * 17.8);
    - lo SNR richiesto cresce con la luminosità superficiale (SNR_B): sugli oggetti luminosi si pretende più pulizia e
      dettaglio, su quelli deboli si accetta più rumore. Fuori campione (lasciando fuori un oggetto alla volta) l'errore
      sull'oggetto scende da ×4,6 a ×2,7. Dipende solo dall'oggetto: cielo, Luna, filtri e camera restano pura fisica;
-   - i livelli: "buona" = la mediana delle foto (in pratica il tipico scatto apprezzato), "rapida" ≈ il quartile basso
-     (tipico da città con camera a colori), "eccellente" ≈ il quartile alto (tipico da cielo buio o in mono). */
-const QUALITY = { quick: { main: 50, faint: 6 }, good: { main: 75, faint: 9.5 }, great: { main: 120, faint: 15 } };
+   - i livelli si danno sulle ore vere, sotto (realHours). */
+const QUALITY = { quick: { main: 75, faint: 9.5, k: 0.47 }, good: { main: 75, faint: 9.5, k: 1 }, great: { main: 75, faint: 9.5, k: 2 }, deep: { main: 75, faint: 9.5, k: 3.3 } };
+/* Ore vere. Seconda taratura (2026): 1205 foto a colori da cieli Bortle 6–8 su 101 oggetti (almeno 30 like, dal 2024) più
+   le 222 della prima, ognuna rifatta con il suo telescopio, la sua camera, i suoi filtri e il suo cielo. Chi riprende
+   non allunga le pose quanto chiederebbe un SNR fisso: sotto un cielo 10 volte più chiaro, o con un filtro 10 volte più
+   largo, ci mette circa 3 volte tanto, non 10. Le ore di una foto come quelle vere crescono come la radice di quelle a
+   SNR fisso (TIME_B): lasciando fuori un oggetto alla volta l'errore sull'oggetto scende da ×2,2 a ×1,6. TIME_C porta
+   "buona" sulla mediana delle foto a colori; "rapida" ed "eccellente" sono i quartili (×0,47 e ×2), "profonda" il 90°
+   percentile (×3,3: i progetti più lunghi). Chi riprende in SHO con due duo-band ci mette il doppio (SHO_TIME). Globulari e
+   planetarie si riprendono più a lungo del previsto (si cercano stelle al centro e aloni): TYPE_TIME. Le polveri
+   attorno a un oggetto contano la metà (DUST_CTX). */
+const TIME_C = 1.29, TIME_B = 0.5, TYPE_TIME = { GC: 1.9, PN: 1.5 }, SHO_TIME = 2;
+const realHours = (t, o, Q, s) => TIME_C * Math.pow(t, TIME_B) * (TYPE_TIME[o.type] || 1) * (Q.k || 1) * (/^sho-/.test(s.id) ? SHO_TIME : 1);
 const RES_DL = 468; // ″·mm: 4× il limite di diffrazione (1,03 λ/D a 550 nm)
 const SNR_B = { main: 0.45, faint: 0.4 }, SNR_SB0 = 22;
 const snrK = (sb, b) => Math.pow(10, -0.4 * b * (sb - SNR_SB0));
@@ -530,7 +592,7 @@ function lineSB(o) {
 const MAIN_DELTA = { Gx: -0.5 };
 const FAINT_DELTA = { Gx: 3.5, EN: 1.0, PN: 4.5, SNR: 0.7, RN: 1.0, DN: 0, OC: 0, GC: 0 }; // PN: gli aloni esterni sono 4–5 mag sotto il corpo
 /* la polvere è una struttura grande e liscia: si valuta a LS ≥ 26,5 e con 1,6× il SNR "debole" per non uscire a chiazze */
-const DUST_SB = 26.5, DUST_SNR = 1.6;
+const DUST_SB = 26.5, DUST_SNR = 1.6, DUST_CTX = 0.5; // DUST_CTX: polveri attorno a un altro oggetto (foto vere: la metà)
 /* Hα diffuso misurato attorno all'oggetto (mappa Finkbeiner 2003, Rayleigh): 1 R = 10⁶/4π fotoni/s/cm²/sr in Hα
    = 1,87·10⁻⁶ fotoni/s/cm²/″². Conta per nebulose, polveri e ammassi della Via Lattea, non per galassie e globulari. */
 const R_TO_PH = 1.87e-6, DIFF_MIN_R = 3, DIFF_REL = 0.02, NO_DIFF = { Gx: 1, GC: 1, PN: 1 };
@@ -546,8 +608,8 @@ const dustOf = (o, field) => field.ctx.filter((c) => bigDust(o, c)).sort((a, b) 
 /* limiti pratici dei sub per tipo di filtro [min, max] s: il minimo fisico lo decide il fondo cielo */
 function subLimits(f, fr) {
   if (f.kind === 'nb') { const w = f.bands[0][1] - f.bands[0][0]; return w <= 4.5 ? [300, 900] : [300, 600]; }
-  if (f.kind === 'multi') return [180, 600];
-  return fr < 4 ? [30, 120] : [60, 180];
+  if (f.kind === 'multi') return fr < 3 ? [120, 300] : [180, 300]; // foto vere: 300 s quasi sempre
+  return fr < 3 ? [30, 120] : [120, 300];
 }
 const moonFlux = (night, i, v) => {
   if (night.mAlt[i] <= 0) return [0, 180];
@@ -591,12 +653,12 @@ function fillInfo(o, g, field) {
 /* costanti di una configurazione, indipendenti dall'oggetto */
 function configConst(cfg) {
   const p = cfg.profile, g = cfg.geom;
-  const qe = (+p.camera.qe || 70) / 100, rn = +p.camera.rn || 2, dark = p.camera.type === 'dslr' ? 0.05 : 0.003;
+  const qe = (+p.camera.qe || 70) / 100, rn = +p.camera.rn || 2, dark = p.camera.type === 'dslr' || p.camera.type === 'dslrmod' ? 0.05 : 0.003;
   const Dcm = g.D / 10, obs = (+cfg.optic.obs || 0) / 100, Aeff0 = Math.PI * Dcm * Dcm / 4 * (1 - obs * obs) * 0.85 * qe;
   const res = Math.max(g.px, RES_DL / g.D), area = res * res, npix = Math.pow(res / g.px, 2);
   // posa più lunga in banda larga indicata per il telescopio (stelle non sature); con un accessorio scala col quadrato del fattore
   const sm = +cfg.optic.subMax, fac = +cfg.acc.fac || 1, subMax = sm > 0 ? (fac === 1 ? Math.round(sm) : niceFloor(sm * fac * fac * 1.05)) : 0;
-  return { Aeff0, geo: Aeff0 * area, npix, rn, dark, fr: g.fr, pxArea: g.px * g.px, haMul: p.camera.type === 'dslr' ? 0.3 : 1, subMax };
+  return { Aeff0, geo: Aeff0 * area, npix, rn, dark, fr: g.fr, pxArea: g.px * g.px, haMul: p.camera.type === 'dslr' ? 0.3 : 1, subMax }; // reflex non modificata: passa il 30% dell'Hα (dslrmod: tutta)
 }
 /* segnale di un canale da un "livello" di oggetto (tipo, LS), fotoni/s per elemento di risoluzione a massa d'aria 1 */
 function chanSignal(c, type, sb, K) {
@@ -646,7 +708,7 @@ function evalStrategies(o, S, K, U, Q, T, field) {
         if (diffOn && c.target !== 'all' && c.target.includes('Ha') && c.lineW.Ha > 0.02)
           R.push({ S: R_TO_PH * o.ha * K.haMul * (c.lineW.Ha + 0.3 * (0.25 * c.lineW.NIIa + 0.75 * c.lineW.NIIb)) * K.geo, snr: Q.faint * (c.snr || 1) * snrK(sbDiff, SNR_B.faint), what: 'diffHa', deep: true });
       }
-      if (dust && c.target === 'all') R.push({ S: chanSignal(c, 'DN', Math.max(dust.sb, DUST_SB), K), snr: Q.faint * DUST_SNR * (c.snr || 1) * snrK(Math.max(dust.sb, DUST_SB), SNR_B.faint), what: 'dust' });
+      if (dust && c.target === 'all') R.push({ S: chanSignal(c, 'DN', Math.max(dust.sb, DUST_SB), K), snr: Q.faint * DUST_SNR * DUST_CTX * (c.snr || 1) * snrK(Math.max(dust.sb, DUST_SB), SNR_B.faint), what: 'dust' });
       // sub: minimo perché il fondo cielo (con la Luna di stanotte) copra 10× il rumore di lettura; poi limiti pratici del filtro
       const skyPx = F0 * K.Aeff0 * K.pxArea * ((0.75 * c.I + 44 * c.skyL) * avg.art + c.I * (avg.nat + avg.mf)) / PIX_FRAC[c.w];
       // oltre il minimo che copre il rumore di lettura l'SNR non cambia: in banda larga decide la posa più lunga che le stelle
@@ -705,8 +767,12 @@ function evalStrategies(o, S, K, U, Q, T, field) {
       fill('hID', 0, 'driveDeep'); fill('hTD', 1); fill('hDD', 2);
     }
     let ideal = 0, tonight = 0, dark = 0, idealDeep = 0, tonightDeep = 0, darkDeep = 0;
+    // dalle ore a SNR fisso a quelle di una foto vera (realHours): un solo fattore per strada, uguale per passi e Luna
+    const base = X.reduce((a, x) => a + x.hD, 0), baseI = X.reduce((a, x) => a + x.hI, 0), b0 = isFinite(base) && base > 0 ? base : baseI;
+    const k = b0 > 0 && isFinite(b0) ? realHours(b0, o, Q, s) / b0 : 1;
     const steps = X.map((x) => {
       x.hID = Math.max(x.hID, x.hI); x.hTD = Math.max(x.hTD, x.hT); x.hDD = Math.max(x.hDD, x.hD);
+      for (const f of ['hI', 'hT', 'hD', 'hID', 'hTD', 'hDD']) x[f] *= k;
       ideal += x.hI; tonight += x.hT; dark += x.hD; idealDeep += x.hID; tonightDeep += x.hTD; darkDeep += x.hDD;
       return { f: x.st.f, keys: x.st.ch.map((c) => c.key), hI: x.hI, hT: x.hT, hD: x.hD, hID: x.hID, hTD: x.hTD, hDD: x.hDD, subs: x.chs.map((ch) => ({ key: ch.c.key, s: ch.sub, min: Math.round(ch.minSub) })), purpose: x.st.purpose || '', drive: x.drive, driveDeep: x.driveDeep };
     });
@@ -720,7 +786,7 @@ function evalStrategies(o, S, K, U, Q, T, field) {
 /* Scelta della strategia. Oggetti a emissione (nebulose, resti di supernova, planetarie, bolle WR): se ci sono filtri a
    banda stretta si usa la banda stretta, anche sotto un cielo buio (la banda larga resta per le stelle, facoltativa, o per
    le polveri attorno). Fra le strade in banda stretta si preferisce quella che raccoglie tutte le righe importanti
-   dell'oggetto (SHO dove c'è SII, HOO nelle planetarie), purché non costi più di 8 volte la più rapida (su una camera a
+   dell'oggetto (SHO dove c'è SII, HOO nelle planetarie), purché non costi più di 6 volte la più rapida (su una camera a
    colori l'SII passa solo dai pixel rossi ed è debole: costa, ma è la combinazione giusta). Il resto: tempo
    senza Luna × penalità. */
 const LINE_KEYS = { Ha: ['Ha'], OIII: ['OIII'], SII: ['SII'], HaO: ['Ha', 'OIII'] };
@@ -733,7 +799,7 @@ function pickBest(strat, o) {
   if (line.length && best && need.length > 1) {
     const covers = (s) => { const got = new Set(s.steps.flatMap((st) => st.keys.flatMap((k) => LINE_KEYS[k] || []))); return need.every((g) => got.has(g)); };
     let full = null; for (const s of pool) if (covers(s) && (!full || cost(s) < cost(full))) full = s;
-    if (full && cost(full) <= 8 * cost(best)) best = full;
+    if (full && cost(full) <= 6 * cost(best)) best = full;
   }
   return best;
 }

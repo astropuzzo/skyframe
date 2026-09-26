@@ -473,6 +473,38 @@ button.st-item:hover, .st-item.tap:hover { background: var(--card-2); }
 .plan-card .deep { margin-top: 8px; font-size: 13px; color: var(--ink-2); padding: 7px 10px; border-left: 2px solid var(--ha); background: var(--ha-dim); border-radius: 0 8px 8px 0; }
 .plan-card .deep b { font-family: var(--font-m); color: var(--ink); }
 .plan-card .indic { margin-top: 8px; font-size: 12.5px; color: var(--ink-3); line-height: 1.45; display: flex; gap: 7px; align-items: flex-start; }
+.real-card { margin-top: 12px; border: 1px solid var(--line-2); background: var(--card); border-radius: var(--r3); padding: 14px 16px; }
+.real-card .head { display: flex; align-items: baseline; gap: 10px; }
+.real-card .head .t { font: 600 16px var(--font-d); letter-spacing: .03em; }
+.real-card .head .n { margin-left: auto; font-size: 12.5px; color: var(--ink-3); }
+.rbar { position: relative; height: 34px; margin: 14px 4px 2px; }
+.rbar::before { content: ''; position: absolute; left: 0; right: 0; top: 10px; height: 6px; border-radius: 3px; background: var(--card-3); }
+.rbar .iqr { position: absolute; top: 10px; height: 6px; left: var(--a); width: calc(var(--b) - var(--a)); border-radius: 3px; background: linear-gradient(90deg, rgba(230, 180, 75, .45), rgba(230, 180, 75, .8)); }
+.rbar .md { position: absolute; top: 4px; left: var(--m); width: 2px; height: 18px; margin-left: -1px; border-radius: 1px; background: var(--warn); }
+.rbar .me { position: absolute; top: 7px; left: var(--u); width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--card), 0 0 14px rgba(76, 207, 188, .55); }
+.rbar .tk { position: absolute; top: 22px; transform: translateX(-50%); font: 10.5px var(--font-m); color: var(--ink-4); white-space: nowrap; }
+.rleg { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; font-size: 12.5px; color: var(--ink-2); }
+.rleg i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 50%; vertical-align: -1px; }
+.rleg .k-md { width: 3px; height: 12px; border-radius: 1px; background: var(--warn); vertical-align: -2px; }
+.rleg .k-iqr { width: 14px; height: 6px; border-radius: 3px; background: rgba(230, 180, 75, .65); vertical-align: 1px; }
+.rleg .k-me { background: var(--accent); }
+.recs { margin-top: 12px; display: grid; gap: 7px; }
+.rec { display: grid; grid-template-columns: minmax(0, 1fr) 54px 30px 44px 46px; gap: 10px; align-items: center; font-size: 13px; }
+.rec.hd { font-size: 11px; color: var(--ink-4); text-transform: uppercase; letter-spacing: .06em; }
+.rec.hd span:nth-child(n+3) { text-align: right; }
+.rec .l { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rec .c { height: 4px; background: var(--card-3); border-radius: 2px; overflow: hidden; }
+.rec .c i { display: block; height: 100%; background: var(--ink-3); border-radius: 2px; transform-origin: left; }
+.rec .v { font: 12px var(--font-m); color: var(--ink-2); text-align: right; white-space: nowrap; }
+@media (max-width: 480px) { .rec { grid-template-columns: minmax(0, 1fr) 26px 42px 44px; gap: 8px; } .rec .c, .rec.hd span:nth-child(2) { display: none; } .rec .l { white-space: normal; line-height: 1.25; } .real-card { padding: 12px; } }
+html.motion .real-card.in .rbar .iqr { animation: rIqr .7s var(--ease) both .1s; }
+html.motion .real-card.in .rbar .md { animation: rPop .4s var(--ease) both .45s; }
+html.motion .real-card.in .rbar .me { animation: rMe .8s cubic-bezier(.2, 1.4, .4, 1) both .55s; }
+html.motion .real-card.in .rec .c i { animation: rGrow .6s var(--ease) both; animation-delay: calc(.3s + var(--i, 0) * 60ms); }
+@keyframes rIqr { from { clip-path: inset(0 50%); opacity: 0; } to { clip-path: inset(0 0); opacity: 1; } }
+@keyframes rPop { from { transform: scaleY(0); } to { transform: none; } }
+@keyframes rMe { from { transform: translateX(-24px) scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes rGrow { from { transform: scaleX(0); } to { transform: none; } }
 .plan-card .indic .ic { width: 16px; height: 16px; color: var(--warn); margin-top: 1px; }
 .steps { margin-top: 10px; display: grid; gap: 6px; }
 .step { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 9px 11px; background: var(--card-2); border-radius: 10px; }

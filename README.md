@@ -86,38 +86,42 @@ Le bolle di Wolf-Rayet (NGC 6888, WR 134, NGC 2359, Sh2-308) hanno un profilo di
 
 ### Taratura
 
-I livelli di qualità e le regole qui sopra sono tarati su **190 foto pubbliche di AstroBin** di 23 oggetti: nebulose a emissione (NGC 281, NGC 7635, NGC 7000, IC 1396, NGC 2237, Sh2-129, IC 1805), bolle di Wolf-Rayet (WR 134, NGC 6888), resti di supernova (i due Veli), planetarie (M 27, M 57, M 97, Helix), nebulose a riflessione e polveri (Cocoon, Iris, NGC 1333, M 78, Pleiadi) e galassie (M 31, M 33, M 51, M 81, M 101). Ogni foto ha dichiarati telescopio, camera, filtri, integrazione per filtro e, in circa metà dei casi, il cielo (Bortle o SQM). Sono state lette una per una dalle pagine pubbliche, una volta sola; nel repository ci sono solo il metodo e i risultati. Per ogni foto Skyframe rifà i conti con quell'attrezzatura e quel cielo (`scripts/calibrate.cjs`) e confronta le sue ore con quelle vere.
+Il modello è tarato su foto vere di AstroBin, in due tempi. Per ogni foto Skyframe rifà i conti con quel telescopio, quella camera, quei filtri e quel cielo (`scripts/calibrate.cjs`) e confronta le sue ore con quelle dichiarate. Nel repository ci sono solo il metodo e i risultati aggregati; le schede restano in `scripts/raw/`, fuori dal repository.
 
-Per allargare la taratura c'è `scripts/astrobin-raccolta.user.js`, uno script per Firefox (Violentmonkey o Tampermonkey) che chi ha un account AstroBin può lanciare dal proprio browser: per 100 oggetti apre le foto più apprezzate, una pagina ogni 5–9 secondi, legge integrazione, filtri, telescopio, camera e cielo, si ferma se AstroBin chiede una verifica e alla fine scarica un file `skyframe-astrobin-AAAA-MM-GG.jsonl`. Messo in `scripts/raw/`, `node scripts/astrobin-convert.cjs` lo converte e `node scripts/calibrate.cjs` confronta il modello con le foto vere (con `CAL_OBJ="M 82"` anche foto per foto).
+**Prima taratura: 190 foto di 23 oggetti**, lette una per una, con cieli e camere di ogni tipo. Ha fissato la fisica:
 
-Cosa è emerso:
+- **L'apertura quasi non conta nelle foto reali.** Con un elemento di risoluzione fisso (2″) i tempi reali uscivano come D^2,6 rispetto al previsto. Con l'elemento proporzionale al diametro lo scarto non dipende più né dall'apertura né dalla scala.
+- **Agli oggetti luminosi e piccoli si chiede più pulizia**, su quelli deboli e grandi si accetta più rumore (SNR che cresce con la luminosità superficiale, esponente 0,45).
+- **Galassie:** una buona foto mostra il disco ben oltre l'isofota 25 (parti deboli a +3,5 mag sulla media di catalogo).
 
-- **L'apertura quasi non conta nelle foto reali.** Con un elemento di risoluzione fisso (2″) i tempi reali uscivano come D^2,6 rispetto al previsto: un Seestar da 30 mm previsto a 359 h contro 9 reali, un 610 mm a 0,1 h contro 18. Con l'elemento proporzionale al diametro lo scarto non dipende più né dall'apertura né dalla scala dell'immagine.
-- **Le persone chiedono più pulizia agli oggetti luminosi e piccoli** e accettano più rumore su quelli deboli e grandi: M 57 usciva 20 volte troppo breve, il Velo e la Helix 7–100 volte troppo lunghi. Con lo SNR che cresce con la luminosità superficiale (esponente 0,45) l'errore su un oggetto lasciato fuori dalla taratura scende da un fattore 4,6 a un fattore 2,7.
-- **Galassie:** una buona foto mostra il disco ben oltre l'isofota 25 (parti deboli a +3,5 mag sulla media di catalogo); prima uscivano 5 volte troppo brevi.
-- **Cielo, filtri e camera restano pura fisica.** A parità di oggetto chi fotografa da cielo buio o in mono raccoglie molte più ore di quelle che servirebbero (punta più in alto), chi fotografa da città con la camera a colori meno: la differenza fra i due gruppi è la qualità, non il tempo che serve. Lo conferma la Cocoon ripresa dallo stesso astrofilo: circa lo stesso segnale in 6 h da un sito buio e in 60 h dal terrazzo.
-- La stessa foto fatta da persone diverse varia già di un fattore 3 circa: nessun modello può fare meglio di così sul singolo scatto.
+**Seconda taratura: 1205 foto di 101 oggetti**, raccolte con uno script lanciato dal browser di un account AstroBin (file `skyframe-astrobin-dataset-*.json`; un esempio di raccolta è `scripts/astrobin-raccolta.user.js`). Solo camere a colori, cieli Bortle 6–8, almeno 30 like, riprese dal 2024: la situazione di chi fotografa da un terrazzo di città. `node scripts/astrobin-dataset.cjs` riconosce l'attrezzatura (tabelle in `scripts/gear.cjs`: 199 telescopi, 52 camere, 168 filtri) e 1125 foto risultano confrontabili. Cosa è emerso:
 
-I livelli: **buona** = la mediana delle foto; **rapida** ≈ il quartile basso (≈ 0,4 volte il tempo, tipico da città con camera a colori); **eccellente** ≈ il quartile alto (≈ 2,5 volte il tempo, tipico da cielo buio o in mono).
+- **Le ore vere crescono come la radice di quelle a qualità fissa.** Chi riprende da un cielo 10 volte più chiaro, o con un filtro 10 volte più largo, non ci mette 10 volte tanto ma circa 3: accetta più rumore e lo toglie in elaborazione. Col modello lineare le foto da Bortle 6–8 uscivano a un quarto del previsto, quelle in banda larga a un decimo. Con la radice il cielo e il filtro non spostano più il rapporto, e lasciando fuori un oggetto alla volta l'errore sull'oggetto scende da un fattore 2,2 a 1,5.
+- **SHO con due duo-band:** chi lo fa ci mette il doppio della strada a un solo filtro. Il modello lo sceglie quando non costa più di 6 volte la strada più rapida.
+- **Globulari e planetarie** si riprendono più a lungo del previsto (×1,9 e ×1,5: si cercano le stelle del centro e gli aloni). **Le polveri attorno** a un oggetto pesano la metà di quanto si pensava.
+- **Pose singole:** in banda larga 60 s sotto f/3, altrimenti 120–180 s; con i duo-band quasi sempre 300 s. Il modello ora propone questi valori.
+- Chi riprende in mono da cielo buio punta più in alto: ci mette 5 volte le ore "buone".
 
-| Rapporto ore reali / modello (qualità buona) | mediana | foto |
+I livelli: **buona** = la mediana delle foto; **rapida** e **eccellente** = i quartili (×0,47 e ×2); **profonda** = il 90° percentile (×3,3), come i progetti più lunghi.
+
+| Rapporto ore vere / modello (qualità buona) | mediana | foto |
 | --- | --- | --- |
-| tutte | 0,91 (quartili 0,37 – 2,96) | 173 |
-| camera a colori / mono | 0,48 / 3,15 | 106 / 67 |
-| cielo SQM < 20,4 / 20,4–21,3 / ≥ 21,3 | 0,44 / 0,84 / 2,32 | 45 / 27 / 28 |
-| apertura < 80 / 80–200 / ≥ 200 mm | 0,57 / 0,84 / 1,07 | 26 / 68 / 79 |
+| camera a colori, tutte | 0,99 (quartili 0,46 – 1,96) | 1217 |
+| per tipo: emissione / galassie / planetarie / resti di SN / riflessione / oscure / globulari | 0,99 / 0,95 / 1,04 / 1,15 / 1,06 / 1,17 / 1,02 | 511 / 356 / 103 / 91 / 86 / 34 / 36 |
+| Bortle 6 / 7 / 8 | 1,03 / 0,90 / 0,90 | 627 / 289 / 169 |
+| mono (prima taratura) | 5,4 | 90 |
 
-Riferimenti con un solo telescopio e camera a colori:
+Nel dettaglio di ogni target, la scheda **Foto vere** mostra per 93 di questi oggetti le ore di chi l'ha ripreso da Bortle 6–8 (mediana e metà centrale), i filtri usati e i sub, e dove cade la stima per il tuo setup (`scripts/real-stats.cjs` → `src/data/real.js`, solo numeri aggregati).
 
-| Target | Skyframe (qualità buona) | Immagine reale |
+Riferimenti con un solo telescopio e camera a colori, dal terrazzo (SQM 19,3):
+
+| Target | Skyframe | Foto vere |
 | --- | --- | --- |
-| Cocoon (IC 5146), 200/800, quad-band, SQM 19,25 | 93 h (16 h da SQM 21,3) | 60 h dal terrazzo ≈ 6 h da un sito buio, stesso astrofilo |
-| Cocoon, 800 mm f/5, L-eXtreme + L-Synergy + banda larga, SQM 19,3 | 118 h | 100 h |
-| WR 134, 800 mm f/5, L-eXtreme + L-Synergy, SQM 19,3 | 56 h | ≈ 95 h per un SNR discreto |
-| NGC 281, 200/800 f/4, dual-band + D2, SQM 19,25 | 8 h col solo dual-band, 35 h in SHO | almeno 4–5 h per il corpo centrale |
-| NGC 281 sotto cieli fra SQM 18,6 e 21,9 | — | mediana 5,6 h su 21 foto |
+| Cocoon (IC 5146), 800 mm f/5, L-eXtreme + L-Synergy | 23 h buona · 77 h profonda | 100 h dello stesso astrofilo; mediana 12 h su 12 foto da Bortle 6–8 |
+| WR 134, 800 mm f/5, L-eXtreme + L-Synergy | 18 h buona · 61 h profonda | ≈ 95 h per un SNR discreto; mediana 20 h su 15 foto |
+| NGC 281, 200/800 f/4, due duo-band (SHO) | 15 h (10 h da SQM 21,3) | mediana 7,5 h in duo-band, 26 h in SHO |
 
-Nelle galassie la parte principale è il corpo (0,5 mag sopra la media di catalogo). Le righe deboli (SII in una nebulosa a emissione, Hα in una planetaria) si accettano più rumorose, in proporzione alla loro intensità. Per gli oggetti a emissione si consiglia la banda stretta anche sotto un cielo buio, e fra le combinazioni quella che raccoglie tutte le righe importanti (SHO dove c'è SII) purché non costi più di 8 volte la più rapida; un po' di banda larga per il colore delle stelle è facoltativa.
+Nelle galassie la parte principale è il corpo (0,5 mag sopra la media di catalogo). Le righe deboli (SII in una nebulosa a emissione, Hα in una planetaria) si accettano più rumorose, in proporzione alla loro intensità. Per gli oggetti a emissione si consiglia la banda stretta anche sotto un cielo buio, e fra le combinazioni quella che raccoglie tutte le righe importanti (SHO dove c'è SII) purché non costi più di 6 volte la più rapida; un po' di banda larga per il colore delle stelle è facoltativa.
 
 Sono stime per scegliere, non promesse.
 
@@ -125,7 +129,7 @@ Il **punteggio** della lista combina l'inquadratura (quanto l'oggetto riempie il
 
 Le **pose singole** in banda larga: oltre il minimo che copre il rumore di lettura (pochi secondi sotto un cielo cittadino) l'SNR finale dipende solo dal tempo totale, quindi decide quanto reggono le stelle. In ogni telescopio puoi scrivere la posa più lunga che usi in banda larga senza saturare: Skyframe la propone (scalata col quadrato del fattore di riduttori e Barlow); se il campo è vuoto propone il minimo della fascia pratica del filtro.
 
-**Senza Luna e con la Luna sono due numeri diversi.** Il tempo di posa mostrato per ogni target è quello senza Luna lungo il suo percorso reale nella notte scelta (altezza, estinzione, cielo e luci nella sua direzione a ogni passo di 5 minuti): è quanto chiede il target sotto quel cielo, e si confronta fra luoghi e filtri. Con lo stesso profilo (200/800 e camera a colori), un terrazzo di città (SQM 19,25) contro un sito a SQM 21,3, la Cocoon in quad-band passa da 93 h a 16 h (×6, in linea con 60 h contro 6 h misurate davvero), mentre in banda stretta NGC 281 passa solo da 8 a 5 h. Quanto costerebbe con la Luna della notte scelta è indicato a parte (con la Luna piena i due cieli si somigliano: ×1,3). Nel profilo si sceglie se il calendario delle notti usa anche le notti con la Luna, col loro rallentamento, o solo le ore senza Luna.
+**Senza Luna e con la Luna sono due numeri diversi.** Il tempo di posa mostrato per ogni target è quello senza Luna lungo il suo percorso reale nella notte scelta (altezza, estinzione, cielo e luci nella sua direzione a ogni passo di 5 minuti): è quanto chiede il target sotto quel cielo, e si confronta fra luoghi e filtri. Con lo stesso profilo (200/800, camera a colori, due duo-band), un terrazzo di città (SQM 19,25) contro un sito a SQM 21,3: la Cocoon passa da 25 a 15 h, NGC 281 da 15 a 10 h. Quanto costerebbe con la Luna della notte scelta è indicato a parte (con la Luna piena i due cieli si somigliano: ×1,3). Nel profilo si sceglie se il calendario delle notti usa anche le notti con la Luna, col loro rallentamento, o solo le ore senza Luna.
 
 Le **notti di ripresa** non sono le ore divise per le ore di stanotte: Skyframe scorre le notti una per una, da quella scelta in avanti (fino a un anno), e per ognuna calcola quante ore il target è libero sopra orizzonte e altezza minima col buio, e quanto rende in quelle ore con la Luna, l'altezza e il cielo di quella notte. Somma il lavoro fatto finché basta. Le notti in cui il target rende più di 2,5 volte meno che nella notte migliore del mese (di solito per la Luna) si saltano, perché conviene dedicarle ad altro. Si assume il cielo sempre sereno. Nel dettaglio un grafico mostra le notti usate, quelle saltate e quando finisci (anche per il tempo profondo).
 

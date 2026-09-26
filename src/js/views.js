@@ -404,6 +404,21 @@ function wireGallery(r, e) {
   });
 }
 
+/* Foto vere (src/data/real.js): come è stato ripreso questo oggetto da cieli Bortle 6–8 con camera a colori, e dove cade
+   la stima per il tuo setup. Scala logaritmica da mezz'ora a 80 ore. */
+const REAL_REC = { bb: 'Banda larga', lp: 'Anti-inquinamento', duo: 'Duo-band Hα+OIII', so: 'Duo-band SII+OIII', quad: 'Quad-band', sho: 'SHO con due duo-band', 'duo+rgb': 'Duo-band e banda larga', 'quad+rgb': 'Quad-band e banda larga', 'so+rgb': 'SII+OIII e banda larga' };
+function realHTML(o, mine, anim) {
+  const R = window.REAL && window.REAL.o[o.id]; if (!R) return '';
+  const [n, q1, md, q3, recs] = R, lo = Math.log(0.5), span = Math.log(80) - lo, me = mine > 0 && isFinite(mine);
+  const x = (h) => clamp(((Math.log(Math.max(h, 0.5)) - lo) / span) * 100, 0, 100).toFixed(1);
+  const rows = recs.filter((r) => r[1] >= 2).slice(0, 4), max = Math.max(...rows.map((r) => r[1]), 1);
+  const aria = tx('Foto vere: mediana {m}, metà fra {a} e {b}', { m: fmtH(md), a: fmtH(q1), b: fmtH(q3) }) + (me ? ' · ' + tx('tu {h}', { h: fmtH(mine) }) : '');
+  return `<div class="real-card${anim ? ' in' : ''}"><div class="head"><span class="t">${tx('Foto vere')}</span><span class="n">${tx('{n} da cieli come il tuo', { n })}</span></div>
+    <div class="rbar" role="img" aria-label="${esc(aria)}" style="--a:${x(q1)}%;--b:${x(q3)}%;--m:${x(md)}%${me ? `;--u:${x(mine)}%` : ''}"><span class="iqr"></span><span class="md"></span>${me ? '<span class="me"></span>' : ''}${[1, 3, 10, 30].map((h) => `<span class="tk" style="left:${x(h)}%">${h} h</span>`).join('')}</div>
+    <div class="rleg"><span><i class="k-md"></i>${tx('mediana {h}', { h: fmtH(md) })}</span><span><i class="k-iqr"></i>${tx('metà fra {a} e {b}', { a: fmtH(q1), b: fmtH(q3) })}</span>${me ? `<span><i class="k-me"></i>${tx('tu {h}', { h: fmtH(mine) })}</span>` : ''}</div>
+    ${rows.length ? `<div class="recs"><div class="rec hd"><span>${tx('filtri')}</span><span></span><span>${tx('foto')}</span><span>${tx('ore')}</span><span>sub</span></div>${rows.map(([k, c, h, s], i) => `<div class="rec" style="--i:${i}"><span class="l">${esc(tx(REAL_REC[k] || k))}</span><span class="c"><i style="width:${Math.round((c / max) * 100)}%"></i></span><span class="v">${c}</span><span class="v">${fmtH(h)}</span><span class="v">${s ? s + ' s' : '—'}</span></div>`).join('')}</div>` : ''}
+    <p class="note">${tx('Camera a colori, Bortle 6–8, almeno 30 like su AstroBin, riprese dal 2024.')}</p></div>`;
+}
 const D_TABS = [['piano', 'Piano'], ['quando', 'Quando'], ['campo', 'Campo'], ['consigli', 'Consigli']];
 /* le animazioni d'ingresso del dettaglio (strisce, calendario) solo all'apertura o al cambio di scheda, non a ogni aggiornamento */
 function freshAnim(d) { d.classList.remove('fresh'); void d.offsetWidth; d.classList.add('fresh'); clearTimeout(freshAnim.t); freshAnim.t = setTimeout(() => d.classList.remove('fresh'), 1600); }
@@ -499,6 +514,7 @@ function renderDetail() {
     ${scenHTML(r, e)}
     ${projHTML(r, e, b)}
     ${planHTML}
+    ${realHTML(o, b ? planTot : NaN, !renderDetail.same)}
   </section>
 
   <section class="tabp" data-tab="quando" ${tab === 'quando' ? '' : 'hidden'}>
@@ -530,7 +546,7 @@ function renderDetail() {
   const HOW_IT = `<p>Ogni filtro è modellato con le sue bande reali (schede dei produttori). Per ogni banda calcolo quanta luce dell’oggetto passa (continuo più le righe Hα, [NII], Hβ, OIII, SII, pesate dalla risposta dei pixel rossi, verdi e blu se la camera è a colori) e quanto fondo cielo: il tuo SQM, diviso tra un continuo tipo LED e le righe di mercurio e sodio, più la luce lunare di ogni 5 minuti. Il target si segue lungo il suo percorso nella notte scelta: a ogni passo cambiano altezza, estinzione e cielo nella sua direzione. Il tempo mostrato è quello <b>senza Luna</b> su quel percorso, cioè quanto chiede il target sotto quel cielo, confrontabile fra luoghi e filtri; quanto costerebbe con la Luna di stanotte è indicato a parte, e il calendario delle notti mette la Luna di ogni notte (o conta solo le ore senza Luna, se lo scegli nel profilo).</p>
     <p>Il fondo cielo cambia con la direzione: SQM allo zenit dall’atlante di Lorenz 2025 (o dal tuo valore), più brillante verso l’orizzonte e verso le luci con i pesi per azimut calcolati dall’atlante.</p>
     <p>La qualità è un rapporto segnale/rumore per elemento di risoluzione. L’elemento è proporzionale al diametro (2,3″ a 200 mm, 4,7″ a 100 mm, o il pixel se è più grande): ogni telescopio si guarda al dettaglio che sa dare, e infatti nelle foto reali i tempi quasi non dipendono dall’apertura. Si chiede su tre livelli: il corpo dell’oggetto (per le nebulose a emissione dall’Hα misurato nelle survey NSNS e SHASSA, non dalla magnitudine di catalogo), le parti deboli (aloni, bracci esterni) e, se ci sono, le polveri estese attorno. Sugli oggetti luminosi e piccoli si chiede più pulizia, su quelli deboli e grandi si accetta più rumore, come fa chi fotografa. Il tempo “profondo” aggiunge l’Hα diffuso misurato attorno all’oggetto (Finkbeiner 2003). Le righe deboli (OIII e SII in una nebulosa a emissione) sono chieste in proporzione alla loro intensità; nelle bolle di Wolf-Rayet conta anche il guscio esterno in OIII. Se due filtri lasciano passare la stessa riga, il segnale si somma e le ore si dividono tra i due.</p>
-    <p>Taratura sulle foto reali: 190 immagini pubbliche su AstroBin di 23 oggetti (nebulose, planetarie, resti di supernova, galassie, polveri), ognuna con strumento, filtri, cielo e integrazione dichiarati. Per ognuna Skyframe rifà i conti con quell’attrezzatura e quel cielo e li confronta con le ore vere. “Buona” è la mediana di quelle foto; “rapida” il quartile basso, tipico da città con camera a colori; “eccellente” quello alto, tipico da cielo buio o in mono. Su un oggetto non usato nella taratura l’errore tipico è un fattore 2,7, e la stessa foto fatta da persone diverse varia già di un fattore 3. Con un 200/800 e camera a colori sotto SQM 19,3: Cocoon 93 h in quad-band, WR 134 60 h in SHO, NGC 281 8 h in HOO; il cielo e i filtri contano per pura fisica (la Cocoon da SQM 21,3 scende a 16 h). Sono stime per scegliere, non promesse: seeing, trasparenza ed elaborazione contano molto.</p>`;
+    <p>Taratura sulle foto reali, in due tempi: 190 immagini pubbliche di AstroBin su 23 oggetti, poi 1205 foto con camera a colori da cieli Bortle 6–8 su 101 oggetti (almeno 30 like, riprese dal 2024). Per ognuna Skyframe rifà i conti con quel telescopio, quella camera, quei filtri e quel cielo, e li confronta con le ore vere. Chi fotografa non allunga le pose quanto chiederebbe la fisica a qualità fissa: con un cielo o un filtro 10 volte più svantaggioso ci mette circa 3 volte tanto. Per questo le ore crescono come la radice di quelle a qualità fissa. “Buona” è la mediana delle foto, “rapida” ed “eccellente” i quartili, “profonda” i progetti più lunghi. Su un oggetto rimasto fuori dalla taratura l’errore tipico è un fattore 1,5; la stessa foto fatta da persone diverse varia già di un fattore 2,7. Sono stime per scegliere, non promesse: seeing, trasparenza ed elaborazione contano molto.</p>`;
   if (LANG === 'it') $('#drawer details.how').innerHTML = `<summary>${tx('Come vengono stimati i tempi')}</summary>` + HOW_IT;
   $('#dClose').onclick = closeDetail;
   wireProj(r, e); wireScen(r); wireTargetCal(); if (!renderDetail.same) countUp($('#scen')); $$('#drawer .d-title [data-fav]').forEach((x) => (x.onclick = () => toggleFav(o.id)));
