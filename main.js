@@ -69,7 +69,10 @@ function evalScript(win, file) {
   win.webContents.on('console-message', (e) => { if (e.level === 'error' || e.level === 3) console.log('[renderer]', e.message); });
   win.webContents.once('did-finish-load', async () => {
     try {
-      await sleep(2500); const code = await fs.readFile(file, 'utf8'), res = await win.webContents.executeJavaScript(`(async () => { ${code} })()`, true);
+      await sleep(2500);
+      // SKYFRAME_EVAL_CPU=6: processore rallentato 6 volte (come un telefono economico) per le prove di fluidità
+      if (process.env.SKYFRAME_EVAL_CPU) { win.webContents.debugger.attach('1.3'); await win.webContents.debugger.sendCommand('Emulation.setCPUThrottlingRate', { rate: +process.env.SKYFRAME_EVAL_CPU }); }
+      const code = await fs.readFile(file, 'utf8'), res = await win.webContents.executeJavaScript(`(async () => { ${code} })()`, true);
       // più schermate: lo script può restituire { shots: [{ js, file }] } (js eseguito prima di ogni cattura)
       if (res && Array.isArray(res.shots)) for (const s of res.shots) { await win.webContents.executeJavaScript(s.js, true); await sleep(120); await fs.writeFile(s.file, (await win.webContents.capturePage()).toPNG()); }
       console.log(JSON.stringify(res && res.shots ? { ...res, shots: res.shots.length } : res));

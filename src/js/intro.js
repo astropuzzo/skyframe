@@ -24,10 +24,17 @@
     const end = () => { box.classList.remove('playing'); cv.classList.add('gone'); res(); };
     if (!window.IntroDraw || !cv.getContext) { end(); return; }
     const P = params(cv, box, D); fit(cv, P); cv.classList.remove('gone'); box.classList.add('playing');
-    const g = cv.getContext('2d'), F = IntroDraw.field(P), t0 = performance.now();
+    /* se il telefono non ce la fa (preparazione lenta, fotogrammi da più di 60 ms, o pochi fotogrammi nel primo
+       secondo) l'intro si ferma e resta il logo: meglio un logo fermo che un'animazione a scatti */
+    const p0 = performance.now(), g = cv.getContext('2d'), F = IntroDraw.field(P);
+    if (performance.now() - p0 > 180) { end(); return; }
+    const t0 = performance.now(); let n = 0, slow = 0;
     const loop = () => {
       if (!cv.isConnected) { res(); return; }
-      const t = performance.now() - t0; IntroDraw.frame(g, Math.min(t, IntroDraw.T), P, F); if (onT) onT(t);
+      const t = performance.now() - t0, a = performance.now();
+      IntroDraw.frame(g, Math.min(t, IntroDraw.T), P, F); if (onT) onT(t);
+      n++; if (performance.now() - a > 60) slow++;
+      if (slow >= 3 || (t > 900 && n < 12)) { end(); return; }
       if (t < IntroDraw.T) requestAnimationFrame(loop); else end();
     };
     requestAnimationFrame(loop); setTimeout(() => { if (box.classList.contains('playing') && !cv.isConnected) res(); }, 3000);
