@@ -161,15 +161,21 @@ function renderSetup() {
   const el = $('#setupView'); if (!el) return;
   const prof = state.profiles.map((p) => `<div class="st-item"><button type="button" class="st-main" data-prof="${esc(p.id)}"><span class="radio${p.id === state.activeId ? ' on' : ''}"></span><span class="tx"><b>${esc(exName(p.name, p.unsaved))}</b><small>${esc(profLine(p))}</small></span></button><button type="button" class="icon-btn" data-editp="${esc(p.id)}" aria-label="${tx('Modifica')}" title="${tx('Modifica')}">${ic('edit')}</button></div>`).join('');
   const locs = state.locs.map((l) => `<div class="st-item"><button type="button" class="st-main" data-loc="${esc(l.id)}"><span class="radio${l.id === state.locId ? ' on' : ''}"></span><span class="tx"><b>${esc(exName(l.site.name, l.unsaved))}</b><small>${locLine(l)}</small></span></button><button type="button" class="icon-btn" data-editl="${esc(l.id)}" aria-label="${tx('Modifica')}" title="${tx('Modifica')}">${ic('edit')}</button></div>`).join('');
-  const red = !$('#veil').hidden, on = notifyOn(), v = window.SKYFRAME_VERSION || '';
+  const red = !$('#veil').hidden, on = notifyOn(), nc = ncfg(), v = window.SKYFRAME_VERSION || '';
   el.innerHTML = `<div class="view-h"><h2>${tx('Setup')}</h2><small>${tx('attrezzatura, luoghi e preferenze')}</small></div>
     <div class="st-sec"><h3>${tx('Attrezzatura')}</h3><div class="st-list">${prof}<button type="button" class="st-item" data-newp>${ic('plus')}<span class="tx"><b>${tx('Nuovo profilo')}</b><small>${tx('un altro telescopio, un’altra camera o altri filtri')}</small></span></button></div></div>
     <div class="st-sec"><h3>${tx('Luoghi')}</h3><div class="st-list">${locs}<button type="button" class="st-item" data-newl>${ic('plus')}<span class="tx"><b>${tx('Nuovo luogo')}</b><small>${tx('cielo, mappa all-sky e orizzonte arrivano da soli')}</small></span></button></div></div>
     <div class="st-sec"><h3>${tx('Preferenze')}</h3><div class="st-list">
       <div class="st-item wrap">${ic('moon')}<span class="tx"><b>${tx('Con la Luna')}</b><small>${tx(MODE_TXT[moonMode()][1])}</small></span><div class="seg" id="moonSeg">${MOON_MODES.map((m) => `<button type="button" data-mode="${m}" aria-pressed="${m === moonMode()}">${tx(MODE_TXT[m][0])}</button>`).join('')}</div></div>
-      <label class="st-item tap">${ic('bell')}<span class="tx"><b>${tx('Avvisi')}</b><small>${tx('un’ora prima del buio, quando il meteo dà sereno per i tuoi target')}</small></span><span class="switch"><input type="checkbox" id="swNotify" ${on ? 'checked' : ''}><i></i></span></label>
       <label class="st-item tap">${ic('eye')}<span class="tx"><b>${tx('Luce rossa')}</b><small>${tx('tinge tutto di rosso per non perdere l’adattamento al buio')}</small></span><span class="switch"><input type="checkbox" id="swRed" ${red ? 'checked' : ''}><i></i></span></label>
       <div class="st-item">${ic('globe')}<span class="tx"><b>${tx('Lingua')}</b></span><select class="sel" id="langSel" aria-label="${tx('Lingua')}">${Object.entries(LANGS).map(([k, n]) => `<option value="${k}" ${k === LANG ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+    </div></div>
+    <div class="st-sec"><h3>${tx('Avvisi')}</h3><div class="st-list">
+      <label class="st-item tap">${ic(on ? 'bell-on' : 'bell')}<span class="tx"><b>${tx('Avvisi')}</b><small>${tx(on ? 'accesi: arrivano quando serve, anche ad app chiusa sul telefono' : 'spenti')}</small></span><span class="switch"><input type="checkbox" id="swNotify" ${on ? 'checked' : ''}><i></i></span></label>
+      ${on ? [['evening', 'Stasera si scatta', 'prima del buio, se la notte merita: finestra serena e target con gli orari'], ['top', 'Notte ottima in arrivo', 'il giorno prima, per una notte senza Luna e serena con buona probabilità'], ['change', 'Il meteo è cambiato', 'se stanotte si apre, o se le nuvole tornano dopo l’avviso'], ['season', 'Ultime settimane', 'quando un tuo target sta per uscire di stagione']].map(([k, t, d]) => `<label class="st-item tap sub"><span class="tx"><b>${tx(t)}</b><small>${tx(d)}</small></span><span class="switch"><input type="checkbox" data-nk="${k}" ${nc[k] ? 'checked' : ''}><i></i></span></label>`).join('') +
+        `<div class="st-item wrap sub"><span class="tx"><b>${tx('Quanto prima del buio')}</b></span><div class="seg" id="nLead">${[30, 60, 90, 120].map((m) => `<button type="button" data-v="${m}" aria-pressed="${nc.lead === m}">${m < 60 ? m + ' min' : m / 60 + ' h'}</button>`).join('')}</div></div>
+        <div class="st-item wrap sub"><span class="tx"><b>${tx('Da quale notte')}</b><small>${tx('il voto minimo per l’avviso della sera')}</small></span><div class="seg" id="nMin">${[[2, 'Discreta'], [3, 'Buona'], [4, 'Ottima']].map(([v, t]) => `<button type="button" data-v="${v}" aria-pressed="${nc.min === v}">${tx(t)}</button>`).join('')}</div></div>
+        <button type="button" class="st-item sub" data-test>${ic('bell')}<span class="tx"><b>${tx('Prova un avviso')}</b><small>${tx('arriva fra 5 secondi, con la notte di stanotte')}</small></span></button>` : ''}
     </div></div>
     <div class="st-sec"><h3>${tx('Dati')}</h3><div class="st-list">
       <button type="button" class="st-item" data-export>${ic('upload')}<span class="tx"><b>${tx('Esporta')}</b><small>${tx(DESK ? 'profili, luoghi e progetti in un file' : 'profili, luoghi e progetti: si copiano negli appunti')}</small></span></button>
@@ -183,6 +189,10 @@ function renderSetup() {
     else if ('newp' in d) openEditor(state.activeId, true); else if ('newl' in d) openLocEditor(null, true);
     else if ('export' in d) exportProfiles(); else if ('import' in d) importProfiles();
   };
+  el.querySelector('[data-test]') && (el.querySelector('[data-test]').onclick = testNotify);
+  $$('#setupView [data-nk]').forEach((x) => (x.onchange = () => setNcfg(x.dataset.nk, x.checked)));
+  const segv = (id, k) => { const g = $(id); if (g) g.onclick = (e) => { const b = e.target.closest('[data-v]'); if (!b) return; setNcfg(k, +b.dataset.v); renderSetup(); }; };
+  segv('#nLead', 'lead'); segv('#nMin', 'min');
   $('#moonSeg').onclick = (e) => { const m = e.target.closest('[data-mode]'); if (m) setMoonMode(m.dataset.mode); };
   $('#swNotify').onchange = () => toggleNotify();
   $('#swRed').onchange = (e) => setRed(e.target.checked);

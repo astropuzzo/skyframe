@@ -12,6 +12,14 @@
     "LocalNotifications": {
       "smallIcon": "ic_stat_skyframe",
       "iconColor": "#45C8B4"
+    },
+    "BackgroundRunner": {
+      "label": "io.github.astropuzzo.skyframe.check",
+      "src": "runners/background.js",
+      "event": "check",
+      "repeat": true,
+      "interval": 20,
+      "autoStart": true
     }
   }
 }

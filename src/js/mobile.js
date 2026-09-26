@@ -50,6 +50,11 @@
         if (items.length) await LN.schedule({ notifications: items });
       } catch { /* niente */ }
     },
+    // avvisi ad app chiusa: lo script in background (src/runners/background.js) riceve le notti già calcolate
+    async bgConfig(details) { const B = bgRunner(); if (!B) return false; try { await B.dispatchEvent({ label: BG_LABEL, event: 'config', details }); return true; } catch { return false; } },
+    async bgStatus() { const B = bgRunner(); if (!B) return null; try { return await B.dispatchEvent({ label: BG_LABEL, event: 'status', details: {} }); } catch { return null; } },
   };
+  const BG_LABEL = 'io.github.astropuzzo.skyframe.check';
+  function bgRunner() { return (C.Plugins && C.Plugins.BackgroundRunner) || (C.registerPlugin ? C.registerPlugin('BackgroundRunner') : null); }
   function localNotif() { return (C.Plugins && C.Plugins.LocalNotifications) || (C.registerPlugin ? C.registerPlugin('LocalNotifications') : null); }
 })();

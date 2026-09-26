@@ -958,3 +958,6 @@ button.fact:hover { background: var(--card-2); }
 @media (max-width: 759px) { .pm .d small { display: none; } .ss-ax .sc-ax .lab span { font-size: 9.5px; } }
 .pc .m { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
 .yr-c i { background: rgba(76, 207, 188, calc(.05 + var(--a) * .95)); }
+.st-item.sub { padding-left: 46px; min-height: 50px; }
+.st-item.sub .tx b { font-size: 14px; }
+@media (max-width: 759px) { .st-item.wrap.sub .seg { margin-left: 0; } }

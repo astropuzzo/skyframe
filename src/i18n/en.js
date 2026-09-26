@@ -670,4 +670,18 @@ window.I18N.en = {
   "{h} di buio sereno": "{h} of clear darkness", "Apri questa notte": "Open this night", "Le stagioni": "Seasons",
   "quando ogni target rende di più nei prossimi 12 mesi (più acceso = più ore col buio)": "when each target is at its best in the next 12 months (brighter = more dark hours)",
   "settimana del {d}: {h} col buio": "week of {d}: {h} in the dark",
+  // ---------- 0.11: avvisi ----------
+  "condensa: scalda l’ottica": "dew: heat the optics", "raffiche {v} km/h": "gusts {v} km/h", "Stasera si scatta: {w}": "Shooting tonight: {w}", "Si apre: {w}": "It is clearing: {w}",
+  "Cambio di programma: nuvole stanotte": "Change of plan: clouds tonight", "Ora è sereno solo il {p}% del buio: tieni le ore per un’altra notte.": "Now only {p}% of the dark is clear: keep the hours for another night.",
+  "{d}: notte ottima in arrivo": "{d}: an excellent night is coming", "Senza Luna, sereno al {p}%": "No Moon, {p}% clear", "Per {t}": "For {t}",
+  "{t}: ultime settimane buone": "{t}: last good weeks", "In stagione fino al {d} e ti manca il {p}%: il piano di stagione gli dà la precedenza.": "In season until {d} and {p}% is still missing: the season plan gives it priority.",
+  "Avvisi accesi: scegli in Setup quali e con quanto anticipo": "Alerts on: choose in Setup which ones and how early", "Prova degli avvisi di Skyframe": "Skyframe alert test", "Arriva fra 5 secondi": "Arriving in 5 seconds",
+  "Quanto prima del buio": "How long before dark", "Da quale notte": "From which night", "il voto minimo per l’avviso della sera": "the minimum rating for the evening alert",
+  "Prova un avviso": "Try an alert", "arriva fra 5 secondi, con la notte di stanotte": "arrives in 5 seconds, with tonight's night",
+  "accesi: arrivano quando serve, anche ad app chiusa sul telefono": "on: they arrive when needed, even with the app closed on the phone", "spenti": "off",
+  "Stasera si scatta": "Shooting tonight", "Notte ottima in arrivo": "Excellent night coming", "Il meteo è cambiato": "The weather changed", "Ultime settimane": "Last weeks",
+  "prima del buio, se la notte merita: finestra serena e target con gli orari": "before dark, if the night is worth it: clear window and targets with times",
+  "il giorno prima, per una notte senza Luna e serena con buona probabilità": "the day before, for a moonless night that is likely to be clear",
+  "se stanotte si apre, o se le nuvole tornano dopo l’avviso": "if tonight clears up, or if clouds come back after the alert",
+  "quando un tuo target sta per uscire di stagione": "when one of your targets is about to go out of season",
 };
