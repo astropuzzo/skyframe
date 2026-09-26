@@ -76,7 +76,10 @@ try {
   await ev(`tourStart(TOUR_STEPS, 0); return 1`); await sleep(2200); shot('03-guida-it');
   const seen = [await ev(`return !!TOUR.el && TOUR.i === 0`)];
   for (const [k, name] of [[1, 'luogo'], [3, 'notti'], [8, 'quanto-ci-vuole'], [11, 'cielo'], [12, 'progetti']]) {
-    await ev(`tourGo(Math.min(${k}, TOUR.steps.length - 1)); return 1`); await sleep(2000); shot(`04-guida-${String(k).padStart(2, '0')}-${name}`);
+    // sull'emulatore (senza GPU) i passi che aprono il dettaglio impiegano qualche secondo: si aspetta la scheda giusta
+    await ev(`tourGo(Math.min(${k}, TOUR.steps.length - 1)); return 1`);
+    await until(`TOUR.el && (TOUR.el.querySelector('.tour-card.on .tour-n') || {}).textContent === (TOUR.i + 1) + ' / ' + TOUR.steps.length`, 20000);
+    await sleep(1200); shot(`04-guida-${String(k).padStart(2, '0')}-${name}`);
     seen.push(await ev(`return !!TOUR.el && TOUR.i === Math.min(${k}, TOUR.steps.length - 1) && !!document.querySelector('.tour-card.on h3')`));
   }
   out.checks.guida_passi = seen.every(Boolean);
