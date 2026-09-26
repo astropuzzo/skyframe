@@ -15,7 +15,7 @@ async function devtools() {
     const pid = (() => { try { return adb(`shell pidof ${PKG}`).trim().split(/\s+/)[0]; } catch { return ''; } })();
     const socks = adb('shell cat /proc/net/unix').match(/@webview_devtools_remote_\d+/g) || [];
     const m = socks.find((x) => pid && x.endsWith('_' + pid)) || socks[0];
-    if (m) { try { adb('forward --remove tcp:9222'); } catch { /* niente */ } adb(`forward tcp:9222 localabstract:${m.slice(1)}`); break; }
+    if (m) { try { execSync('adb forward --remove-all', { stdio: 'ignore' }); } catch { /* niente */ } adb(`forward tcp:9222 localabstract:${m.slice(1)}`); break; }
     await sleep(2000);
   }
   for (let i = 0; i < 30; i++) {
@@ -50,7 +50,7 @@ async function reconnect() {
   cdp = new CDP(await devtools()); await cdp.ready;
 }
 async function ev(body, ms) {
-  for (let k = 0; k < 3; k++) { try { return await ev(body, ms); } catch (e) { out.notes.push(`comando ripetuto (${e.message})`); await reconnect(); } }
+  for (let k = 0; k < 3; k++) { try { return await cdp.eval(body, ms); } catch (e) { out.notes.push(`comando ripetuto (${e.message})`); await reconnect(); } }
   throw new Error('comando non riuscito: ' + body.slice(0, 80));
 }
 const until = async (cond, ms = 60000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { try { if (await ev(`return !!(${cond})`, 10000)) return true; } catch { /* riprova */ } await sleep(800); } return false; };
