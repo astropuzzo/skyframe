@@ -68,6 +68,21 @@ function planNight(n, cand, mine, pins = []) {
   }
   return { blocks: out, mine };
 }
+/* a notte iniziata, ogni blocco del piano si registra come sessione con un tocco (ore serene del blocco; si corregge
+   nel dettaglio del target) */
+const loggedOn = (id, ds) => !!(state.projects[id] && (state.projects[id].sessions || []).some((q) => q.date === ds));
+function logBtn(n, b) {
+  if (Date.now() < b.t0 - 10 * 60000) return '';
+  const done = loggedOn(b.id, n.ds);
+  return `<button type="button" class="icon-btn tn-log${done ? ' on' : ''}" ${done ? 'disabled' : `data-log="${esc(b.id)}"`} title="${tx(done ? 'Sessione già registrata' : 'Registra questa sessione')}" aria-label="${tx(done ? 'Sessione già registrata' : 'Registra questa sessione')}">${ic('check', 'sm')}</button>`;
+}
+function logFromPlan(id) {
+  const n = state.res.night, P = tonightPlan(), b = P.blocks.find((x) => x.id === id); if (!b) return;
+  // quanto vale: le ore che servirebbero con notti come questa (Luna compresa), come nel piano
+  const r = b.r, e = r.e, s = e.best, l = activeLoc(), need = isFinite(s.tonight) && s.tonight > 0 ? s.tonight : needHours(id, e.cfg.key, s.id, l.id), h = Math.max(0.25, Math.round(b.hClear * 4) / 4);
+  addSession(id, { date: n.ds, h, loc: l.id, locName: l.site.name, cfg: e.cfg.key, cfgLabel: e.cfg.label, strat: s.id, stratLabel: s.label, need, frac: need ? h / need : 0 });
+  toast(need ? tx('{t}: {h} registrate, +{p}% del lavoro (si correggono nel dettaglio)', { t: id, h: fmtH(h), p: Math.round(h / need * 100) }) : tx('Sessione salvata'));
+}
 function renderTonight() {
   const el = $('#tonight'); if (!el || !state.res) return;
   const n = state.res.night, P = tonightPlan(), wn = wxNight(n);
@@ -76,6 +91,7 @@ function renderTonight() {
   const head = `<div class="card-h"><h3>${today ? tx('Piano di stanotte') : tx('Piano della notte')}</h3><small>${P.mine ? tx('i tuoi preferiti e progetti') : tx('i primi della lista')}</small><span class="acts">${bell}</span></div>`;
   const wire = () => { el.onclick = (ev) => {
     if (ev.target.closest('#notifyBtn')) { toggleNotify(); return; }
+    const lg = ev.target.closest('[data-log]'); if (lg) { logFromPlan(lg.dataset.log); return; }
     const k = ev.target.closest('[data-skip]'); if (k) { planSkip(k.dataset.skip); toast(tx('{t} tolto dal piano di questa notte', { t: k.dataset.skip })); return; }
     if (ev.target.closest('[data-reset]')) { planReset(); return; }
     const x = ev.target.closest('[data-id]'); if (x) openDetail(x.dataset.id);
@@ -91,7 +107,7 @@ function renderTonight() {
   for (let ms = h0.getTime() + 3600000; ms < n.t[i1]; ms += 3600000) { if (new Date(ms).getHours() % 2) continue; ticks.push(`<span style="left:${X(ms)}%">${String(new Date(ms).getHours()).padStart(2, '0')}</span>`); }
   const wtxt = wn ? (wn.clear >= 0.85 ? tx('Previsto sereno') : wn.clear < 0.15 ? tx('Previsto coperto') : wn.win && wn.winH >= 1 ? tx('Sereno {a}–{b}, altrove nuvole', { a: fmtT(wn.win[0]), b: fmtT(wn.win[1]) }) : tx('Nuvole a tratti ({p}% sereno)', { p: Math.round(wn.clear * 100) })) : '';
   el.innerHTML = head + `<div class="tn-g"><div class="tn-track">${track}</div><div class="tn-ax">${ticks.join('')}</div></div>
-    <ol class="tn-l">${P.blocks.map((b) => `<li><button type="button" class="tn-row" data-id="${esc(b.id)}"><i style="background:${TYPE_COLOR[b.r.o.type]}"></i><span class="nm"><span class="l1"><b>${esc(b.id)}</b>${b.r.o.nick ? `<small>${esc(b.r.o.nick)}</small>` : ''}</span><span class="tm num">${fmtT(b.t0)}–${fmtT(b.t1)}</span></span><span class="hh num">${fmtH(b.hClear)}${b.frac > 0.005 ? `<b>+${Math.round(Math.min(1, b.frac) * 100)}% ${tx('del lavoro')}</b>` : ''}</span></button><button type="button" class="icon-btn tn-x" data-skip="${esc(b.id)}" title="${tx('Togli dal piano')}" aria-label="${tx('Togli {t} dal piano', { t: b.id })}">${ic('x', 'sm')}</button></li>`).join('')}</ol>
+    <ol class="tn-l">${P.blocks.map((b) => `<li><button type="button" class="tn-row" data-id="${esc(b.id)}"><i style="background:${TYPE_COLOR[b.r.o.type]}"></i><span class="nm"><span class="l1"><b>${esc(b.id)}</b>${b.r.o.nick ? `<small>${esc(b.r.o.nick)}</small>` : ''}</span><span class="tm num">${fmtT(b.t0)}–${fmtT(b.t1)}</span></span><span class="hh num">${fmtH(b.hClear)}${b.frac > 0.005 ? `<b>+${Math.round(Math.min(1, b.frac) * 100)}% ${tx('del lavoro')}</b>` : ''}</span></button>${logBtn(n, b)}<button type="button" class="icon-btn tn-x" data-skip="${esc(b.id)}" title="${tx('Togli dal piano')}" aria-label="${tx('Togli {t} dal piano', { t: b.id })}">${ic('x', 'sm')}</button></li>`).join('')}</ol>
     ${P.edited ? `<div class="note">${tx('Piano modificato a mano')} · <button type="button" class="link" data-reset>${tx('ripristina')}</button></div>` : ''}
     ${wtxt ? `<div class="note">${esc(wtxt)}${WX.d ? ' · ' + tx('meteo Open-Meteo') : ''}</div>` : ''}`;
   wire();

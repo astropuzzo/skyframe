@@ -961,3 +961,6 @@ button.fact:hover { background: var(--card-2); }
 .st-item.sub { padding-left: 46px; min-height: 50px; }
 .st-item.sub .tx b { font-size: 14px; }
 @media (max-width: 759px) { .st-item.wrap.sub .seg { margin-left: 0; } }
+.tn-log { width: 32px; height: 32px; color: var(--ink-3); flex: none; }
+.tn-log:hover { color: var(--good); }
+.tn-log.on, .tn-log:disabled { color: var(--good); opacity: .8; cursor: default; }

@@ -685,4 +685,6 @@ window.I18N.en = {
   "se stanotte si apre, o se le nuvole tornano dopo l’avviso": "if tonight clears up, or if clouds come back after the alert",
   "quando un tuo target sta per uscire di stagione": "when one of your targets is about to go out of season",
   "Ore di posa col cielo senza Luna · {s}": "Exposure hours under a moonless sky · {s}",
+  "Sessione già registrata": "Session already logged", "Registra questa sessione": "Log this session",
+  "{t}: {h} registrate, +{p}% del lavoro (si correggono nel dettaglio)": "{t}: {h} logged, +{p}% of the work (edit them in the details)",
 };

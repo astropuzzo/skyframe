@@ -36,12 +36,14 @@ function addSession(id, s) {
   p.sessions.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.ts - b.ts)); p.updated = Date.now(); projTouched();
 }
 function removeSession(id, ts) { const p = projOf(id); if (!p) return; p.sessions = p.sessions.filter((s) => s.ts !== ts); p.updated = Date.now(); tidyProj(id); projTouched(); }
-/* ore che servono a un target con una strategia in un luogo (profilo attivo): la base per pesare una sessione */
-function needHours(id, cfgKey, stratId, locId) {
+/* ore che servono a un target con una strategia in un luogo (profilo attivo): la base per pesare una sessione. Per la
+   notte scelta nell'app contano le sue condizioni, Luna compresa (un'ora con la Luna piena vale meno); per le altre
+   date il cielo senza Luna. */
+function needHours(id, cfgKey, stratId, locId, date) {
   const l = state.locs.find((x) => x.id === locId) || activeLoc(), o = CAT_BY_ID.get(id);
   const r = l.id === activeLoc().id ? state.byId.get(id) : o ? cmpFull(l, o) : null; if (!r) return null;
   const e = r.evals.find((x) => x.cfg.key === cfgKey) || r.e, s = e.strat.find((x) => x.id === stratId) || e.best;
-  const h = s ? hoursOf(s) : Infinity; return isFinite(h) ? h : null;
+  const h = !s ? Infinity : date && date === state.res.night.ds && isFinite(s.tonight) && s.tonight > 0 ? s.tonight : hoursOf(s); return isFinite(h) ? h : null;
 }
 /* progetti e preferiti nel file importato: si uniscono a quelli che ci sono (sessioni riconosciute dall'istante in cui
    sono state registrate) */
@@ -95,7 +97,7 @@ function wireProj(r, e) {
     const h = +String($('#sH').value).replace(',', '.'), date = $('#sDate').value, stratId = $('#sStrat').value, locId = $('#sLoc').value;
     if (!(h > 0) || !date) return;
     const s = e.strat.find((x) => x.id === stratId), l = state.locs.find((x) => x.id === locId);
-    const need = needHours(id, e.cfg.key, stratId, locId);
+    const need = needHours(id, e.cfg.key, stratId, locId, date);
     addSession(id, { date, h, loc: locId, locName: l ? l.site.name : '', cfg: e.cfg.key, cfgLabel: e.cfg.label, strat: stratId, stratLabel: s ? s.label : '', need, frac: need ? h / need : 0 });
     toast(need ? tx('Sessione salvata: +{p}% del lavoro', { p: Math.round(h / need * 100) }) : tx('Sessione salvata'));
     if (projProgress(id) >= 1 && !isDone(id)) toast(tx('Hai raccolto tutto il tempo stimato: segnalo come fatto quando ti piace il risultato'));
