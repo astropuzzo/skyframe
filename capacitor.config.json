@@ -3,7 +3,7 @@
   "appName": "Skyframe",
   "webDir": "src",
   "android": {
-    "backgroundColor": "#06080D"
+    "backgroundColor": "#05070B"
   },
   "plugins": {
     "SystemBars": {
@@ -11,7 +11,7 @@
     },
     "LocalNotifications": {
       "smallIcon": "ic_stat_skyframe",
-      "iconColor": "#45C8B4"
+      "iconColor": "#4CCFBC"
     },
     "BackgroundRunner": {
       "label": "io.github.astropuzzo.skyframe.check",

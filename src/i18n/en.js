@@ -684,4 +684,5 @@ window.I18N.en = {
   "il giorno prima, per una notte senza Luna e serena con buona probabilità": "the day before, for a moonless night that is likely to be clear",
   "se stanotte si apre, o se le nuvole tornano dopo l’avviso": "if tonight clears up, or if clouds come back after the alert",
   "quando un tuo target sta per uscire di stagione": "when one of your targets is about to go out of season",
+  "Ore di posa col cielo senza Luna · {s}": "Exposure hours under a moonless sky · {s}",
 };

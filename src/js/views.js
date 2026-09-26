@@ -193,8 +193,8 @@ function rowHTML(r, i) {
   let plan;
   if (!b) plan = `<span style="color:var(--ink-3)">—</span><small>${tx('serve la banda larga')}</small>`;
   else {
-    const h = hoursOf(b), hm = moonHoursOf(b);
-    plan = `<b title="${tx('Ore di posa indicative, senza Luna, lungo il percorso del target in questa notte')}">≈ ${fmtH(h)}</b><span class="nt">${nightsTag(r, e)}</span>${state.cfgs.length > 1 ? `<span class="rig" title="${tx('Setup consigliato')}: ${esc(e.cfg.label)} · ${e.cfg.short}"><i></i><span>${esc(e.cfg.tag)}</span><em>${e.cfg.short}</em></span>` : ''}<small>${esc(b.label)}${b.deep ? ` · ${tx('profondo')} ${fmtH(deepHoursOf(b))}` : ''}${isFinite(hm) && hm > h * 1.15 ? ` · <span class="moonh">${tx('con la Luna di stanotte {h}', { h: fmtH(hm) })}</span>` : ''}</small>`;
+    const h = hoursOf(b);
+    plan = `<b title="${esc(tx('Ore di posa col cielo senza Luna · {s}', { s: b.label }))}">≈ ${fmtH(h)}</b><span class="nt">${nightsTag(r, e)}</span>${state.cfgs.length > 1 ? `<span class="rig" title="${tx('Setup consigliato')}: ${esc(e.cfg.label)} · ${e.cfg.short}"><i></i><span>${esc(e.cfg.tag)}</span><em>${e.cfg.short}</em></span>` : ''}`;
   }
   plan += rowProgress(r) + `<span class="lh">${locHint(r)}</span>`;
   const win = r.first >= 0 ? `${fmtT(n.t[r.first])}–${fmtT(n.t[r.last] + DT)}` : '';
