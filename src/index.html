@@ -63,7 +63,8 @@
   <symbol id="i-logo" viewBox="0 0 32 32"><path d="M5.5 11V7.5H9.5M22.5 7.5h4V11M26.5 21v3.5h-4M9.5 24.5h-4V21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="16" cy="16" rx="7.2" ry="5.6" transform="rotate(-24 16 16)" fill="none" stroke="url(#lgRing)" stroke-width="2.6"/><ellipse cx="16" cy="16" rx="3.9" ry="2.9" transform="rotate(-24 16 16)" fill="#4CCFBC" fill-opacity=".85"/><circle cx="16" cy="16" r="1" fill="#fff"/></symbol>
 </svg>
 
-<div id="bootScreen" class="boot-screen" role="status" aria-live="polite"><div class="boot-bg"></div><div class="intro" id="bootIntro"></div><div class="boot-name" aria-label="Skyframe"><span style="--i:0">S</span><span style="--i:1">k</span><span style="--i:2">y</span><b><span style="--i:3">f</span><span style="--i:4">r</span><span style="--i:5">a</span><span style="--i:6">m</span><span style="--i:7">e</span></b></div><div class="boot-msg">Calcolo il cielo di stanotte…</div></div>
+<div id="bootScreen" class="boot-screen" role="status" aria-live="polite"><div class="boot-bg"></div><canvas class="in-cv" id="bootCv" aria-hidden="true"></canvas><div class="intro" id="bootIntro"><svg class="in-final" viewBox="0 0 32 32" aria-hidden="true"><use href="#i-logo"/></svg></div><div class="boot-name" aria-label="Skyframe"><span style="--i:0">S</span><span style="--i:1">k</span><span style="--i:2">y</span><b><span style="--i:3">f</span><span style="--i:4">r</span><span style="--i:5">a</span><span style="--i:6">m</span><span style="--i:7">e</span></b></div><div class="boot-msg">Calcolo il cielo di stanotte…</div></div>
+<script src="js/intro-draw.js"></script>
 <script src="js/intro.js"></script>
 
 <div class="app" id="app" data-view="tonight">

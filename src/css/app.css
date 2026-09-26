@@ -97,9 +97,8 @@ input[type=checkbox] { width: 17px; height: 17px; }
 .link .ic { width: 16px; height: 16px; }
 
 /* ---------- avvio: intro del logo (src/js/intro.js) ----------
-   Un campo stellare largo, lo zoom sul target, la cornice che si chiude con uno scatto, il logo fermo. Solo
-   trasformazioni e trasparenze: le anima la scheda grafica e restano fluide mentre l'app calcola il cielo.
-   Tempi (su 1,9 s): stelle 0–0,25 s, zoom 0,25–1,25 s, cornice 0,5–1,25 s, scatto a 1,25 s, nome 1,35 s. */
+   Un campo stellare largo, lo zoom sul target, la cornice che si chiude con uno scatto, il logo fermo: la disegna
+   js/intro-draw.js su un canvas (.in-cv); qui solo il riquadro, il logo vero che resta alla fine e il nome. */
 .boot-screen { position: fixed; inset: 0; z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; color: #EEF3F9; overflow: hidden; }
 .boot-screen.leaving { pointer-events: none; }
 .boot-bg { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 42%, #0C1322, var(--bg) 62%); transition: opacity .55s var(--ease); }
@@ -108,213 +107,14 @@ input[type=checkbox] { width: 17px; height: 17px; }
 .boot-name b { color: var(--accent); }
 .boot-name span { display: inline-block; }
 .boot-msg { position: relative; z-index: 2; font-size: 13px; color: var(--ink-3); }
-.intro { --D: 150px; --o: 3px; position: relative; z-index: 1; width: 112px; height: 112px; color: #EEF3F9; flex: none; }
-.intro > svg, .intro .in-nebw, .intro .in-nebw > svg, .intro .in-frame, .intro .in-frame > svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.in-sky { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
-.in-l { position: absolute; left: 0; top: 0; transform-origin: 50% 50%; opacity: 0; }
-.in-flash { position: absolute; left: 50%; top: 50%; width: 220%; height: 220%; margin: -110% 0 0 -110%; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, .55), rgba(190, 240, 232, .18) 38%, transparent 68%); opacity: 0; }
-.in-neb.soft, .in-cg { opacity: 0; }
-.c1 { --sx: -1; --sy: -1; } .c2 { --sx: 1; --sy: -1; } .c3 { --sx: 1; --sy: 1; } .c4 { --sx: -1; --sy: 1; }
+.intro { position: relative; z-index: 1; width: 112px; height: 112px; color: #EEF3F9; flex: none; }
+.intro .in-final { position: absolute; inset: 0; width: 100%; height: 100%; transition: opacity .12s; }
+.intro.playing .in-final { opacity: 0; }
+.in-cv { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; transition: opacity .25s var(--ease); }
+.in-cv.gone { opacity: 0; }
 /* animazioni accese (html.motion) */
-  html.motion .in-l, html.motion .in-nebw { will-change: transform, opacity; }
-  html.motion .in-l1 { animation: inL1 1.9s linear both; } html.motion .in-l2 { animation: inL2 1.9s linear both; } html.motion .in-l3 { animation: inL3 1.9s linear both; }
-  html.motion .in-nebw { animation: inNeb 1.9s linear both; }
-  html.motion .in-neb.soft { animation: inSoft 1.9s linear both; } html.motion .in-neb.sharp { animation: inSharp 1.9s linear both; }
-  html.motion .in-frame { animation: inFrame 1.9s linear both; }
-  html.motion .in-c { animation: inCorner 1.9s linear both; }
-  html.motion .in-cg { animation: inGlowK 1.9s linear both; }
-  html.motion .in-flash { animation: inFlash 1.9s linear both; }
-  html.motion .in-star { animation: inStar 1.9s linear both, inTw 3.2s ease-in-out 2.4s infinite; }
   html.motion .boot-name span { animation: inLetter .55s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(1.35s + var(--i) * 35ms); }
   html.motion .boot-msg { animation: inFade .45s var(--ease) 1.9s both; }
-  @keyframes inL1 {
-    0% { transform: scale(1); opacity: 0; }
-    2.63% { transform: scale(1); opacity: 0.104; }
-    5.26% { transform: scale(1); opacity: 0.352; }
-    7.89% { transform: scale(1); opacity: 0.648; }
-    10.53% { transform: scale(1); opacity: 0.896; }
-    13.16% { transform: scale(1); opacity: 1; }
-    15.79% { transform: scale(1.0017); opacity: 1; }
-    18.42% { transform: scale(1.0137); opacity: 1; }
-    21.05% { transform: scale(1.047); opacity: 1; }
-    23.68% { transform: scale(1.115); opacity: 1; }
-    26.32% { transform: scale(1.2369); opacity: 1; }
-    28.95% { transform: scale(1.4439); opacity: 1; }
-    31.58% { transform: scale(1.792); opacity: 0.566; }
-    34.21% { transform: scale(2.3886); opacity: 0; }
-    36.84% { transform: scale(3.4547); opacity: 0; }
-    39.47% { transform: scale(5.4772); opacity: 0; }
-    42.11% { transform: scale(8.6838); opacity: 0; }
-    44.74% { transform: scale(12.5597); opacity: 0; }
-    47.37% { transform: scale(16.7415); opacity: 0; }
-    50% { transform: scale(20.7774); opacity: 0; }
-    52.63% { transform: scale(24.255); opacity: 0; }
-    55.26% { transform: scale(26.9063); opacity: 0; }
-    57.89% { transform: scale(28.6537); opacity: 0; }
-    60.53% { transform: scale(29.5946); opacity: 0; }
-    63.16% { transform: scale(29.949); opacity: 0; }
-    65.79% { transform: scale(30); opacity: 0; }
-    68.42% { transform: scale(30); opacity: 0; }
-    71.05% { transform: scale(30); opacity: 0; }
-    73.68% { transform: scale(30); opacity: 0; }
-    76.32% { transform: scale(30); opacity: 0; }
-    78.95% { transform: scale(30); opacity: 0; }
-    81.58% { transform: scale(30); opacity: 0; }
-    84.21% { transform: scale(30); opacity: 0; }
-    86.84% { transform: scale(30); opacity: 0; }
-    89.47% { transform: scale(30); opacity: 0; }
-    92.11% { transform: scale(30); opacity: 0; }
-    94.74% { transform: scale(30); opacity: 0; }
-    97.37% { transform: scale(30); opacity: 0; }
-    100% { transform: scale(30); opacity: 0; }
-  }
-  @keyframes inL2 {
-    0% { transform: scale(0.1667); opacity: 0; }
-    2.63% { transform: scale(0.1667); opacity: 0; }
-    5.26% { transform: scale(0.1667); opacity: 0; }
-    7.89% { transform: scale(0.1667); opacity: 0; }
-    10.53% { transform: scale(0.1667); opacity: 0; }
-    13.16% { transform: scale(0.1667); opacity: 0; }
-    15.79% { transform: scale(0.167); opacity: 0; }
-    18.42% { transform: scale(0.1689); opacity: 0; }
-    21.05% { transform: scale(0.1745); opacity: 0; }
-    23.68% { transform: scale(0.1858); opacity: 0; }
-    26.32% { transform: scale(0.2061); opacity: 0; }
-    28.95% { transform: scale(0.2406); opacity: 0; }
-    31.58% { transform: scale(0.2987); opacity: 0.19; }
-    34.21% { transform: scale(0.3981); opacity: 0.847; }
-    36.84% { transform: scale(0.5758); opacity: 1; }
-    39.47% { transform: scale(0.9129); opacity: 1; }
-    42.11% { transform: scale(1.4473); opacity: 1; }
-    44.74% { transform: scale(2.0933); opacity: 0.055; }
-    47.37% { transform: scale(2.7903); opacity: 0; }
-    50% { transform: scale(3.4629); opacity: 0; }
-    52.63% { transform: scale(4.0425); opacity: 0; }
-    55.26% { transform: scale(4.4844); opacity: 0; }
-    57.89% { transform: scale(4.7756); opacity: 0; }
-    60.53% { transform: scale(4.9324); opacity: 0; }
-    63.16% { transform: scale(4.9915); opacity: 0; }
-    65.79% { transform: scale(5); opacity: 0; }
-    68.42% { transform: scale(5); opacity: 0; }
-    71.05% { transform: scale(5); opacity: 0; }
-    73.68% { transform: scale(5); opacity: 0; }
-    76.32% { transform: scale(5); opacity: 0; }
-    78.95% { transform: scale(5); opacity: 0; }
-    81.58% { transform: scale(5); opacity: 0; }
-    84.21% { transform: scale(5); opacity: 0; }
-    86.84% { transform: scale(5); opacity: 0; }
-    89.47% { transform: scale(5); opacity: 0; }
-    92.11% { transform: scale(5); opacity: 0; }
-    94.74% { transform: scale(5); opacity: 0; }
-    97.37% { transform: scale(5); opacity: 0; }
-    100% { transform: scale(5); opacity: 0; }
-  }
-  @keyframes inL3 {
-    0% { transform: scale(0.0333); opacity: 0; }
-    2.63% { transform: scale(0.0333); opacity: 0; }
-    5.26% { transform: scale(0.0333); opacity: 0; }
-    7.89% { transform: scale(0.0333); opacity: 0; }
-    10.53% { transform: scale(0.0333); opacity: 0; }
-    13.16% { transform: scale(0.0333); opacity: 0; }
-    15.79% { transform: scale(0.0334); opacity: 0; }
-    18.42% { transform: scale(0.0338); opacity: 0; }
-    21.05% { transform: scale(0.0349); opacity: 0; }
-    23.68% { transform: scale(0.0372); opacity: 0; }
-    26.32% { transform: scale(0.0412); opacity: 0; }
-    28.95% { transform: scale(0.0481); opacity: 0; }
-    31.58% { transform: scale(0.0597); opacity: 0; }
-    34.21% { transform: scale(0.0796); opacity: 0; }
-    36.84% { transform: scale(0.1152); opacity: 0; }
-    39.47% { transform: scale(0.1826); opacity: 0; }
-    42.11% { transform: scale(0.2895); opacity: 0.278; }
-    44.74% { transform: scale(0.4187); opacity: 1; }
-    47.37% { transform: scale(0.5581); opacity: 1; }
-    50% { transform: scale(0.6926); opacity: 1; }
-    52.63% { transform: scale(0.8085); opacity: 1; }
-    55.26% { transform: scale(0.8969); opacity: 1; }
-    57.89% { transform: scale(0.9551); opacity: 1; }
-    60.53% { transform: scale(0.9865); opacity: 1; }
-    63.16% { transform: scale(0.9983); opacity: 1; }
-    65.79% { transform: scale(1); opacity: 1; }
-    68.42% { transform: scale(1); opacity: 1; }
-    71.05% { transform: scale(1); opacity: 0.989; }
-    73.68% { transform: scale(1); opacity: 0.926; }
-    76.32% { transform: scale(1); opacity: 0.82; }
-    78.95% { transform: scale(1); opacity: 0.684; }
-    81.58% { transform: scale(1); opacity: 0.531; }
-    84.21% { transform: scale(1); opacity: 0.376; }
-    86.84% { transform: scale(1); opacity: 0.232; }
-    89.47% { transform: scale(1); opacity: 0.112; }
-    92.11% { transform: scale(1); opacity: 0.03; }
-    94.74% { transform: scale(1); opacity: 0; }
-    97.37% { transform: scale(1); opacity: 0; }
-    100% { transform: scale(1); opacity: 0; }
-  }
-  @keyframes inNeb {
-    0% { transform: scale(0.0333); opacity: 0.351; }
-    2.63% { transform: scale(0.0333); opacity: 0.351; }
-    5.26% { transform: scale(0.0333); opacity: 0.351; }
-    7.89% { transform: scale(0.0333); opacity: 0.351; }
-    10.53% { transform: scale(0.0333); opacity: 0.351; }
-    13.16% { transform: scale(0.0333); opacity: 0.351; }
-    15.79% { transform: scale(0.0334); opacity: 0.351; }
-    18.42% { transform: scale(0.0338); opacity: 0.351; }
-    21.05% { transform: scale(0.0349); opacity: 0.352; }
-    23.68% { transform: scale(0.0372); opacity: 0.353; }
-    26.32% { transform: scale(0.0412); opacity: 0.358; }
-    28.95% { transform: scale(0.0481); opacity: 0.371; }
-    31.58% { transform: scale(0.0597); opacity: 0.403; }
-    34.21% { transform: scale(0.0796); opacity: 0.484; }
-    36.84% { transform: scale(0.1152); opacity: 0.676; }
-    39.47% { transform: scale(0.1826); opacity: 0.981; }
-    42.11% { transform: scale(0.2895); opacity: 1; }
-    44.74% { transform: scale(0.4187); opacity: 1; }
-    47.37% { transform: scale(0.5581); opacity: 1; }
-    50% { transform: scale(0.6926); opacity: 1; }
-    52.63% { transform: scale(0.8085); opacity: 1; }
-    55.26% { transform: scale(0.8969); opacity: 1; }
-    57.89% { transform: scale(0.9551); opacity: 1; }
-    60.53% { transform: scale(0.9865); opacity: 1; }
-    63.16% { transform: scale(0.9983); opacity: 1; }
-    65.79% { transform: scale(1); opacity: 1; }
-    68.42% { transform: scale(1); opacity: 1; }
-    71.05% { transform: scale(1); opacity: 1; }
-    73.68% { transform: scale(1); opacity: 1; }
-    76.32% { transform: scale(1); opacity: 1; }
-    78.95% { transform: scale(1); opacity: 1; }
-    81.58% { transform: scale(1); opacity: 1; }
-    84.21% { transform: scale(1); opacity: 1; }
-    86.84% { transform: scale(1); opacity: 1; }
-    89.47% { transform: scale(1); opacity: 1; }
-    92.11% { transform: scale(1); opacity: 1; }
-    94.74% { transform: scale(1); opacity: 1; }
-    97.37% { transform: scale(1); opacity: 1; }
-    100% { transform: scale(1); opacity: 1; }
-  }
-  /* nebulosa: sfocata finché la cornice non aggancia, poi a fuoco */
-  @keyframes inSoft { 0%, 62% { opacity: 1; } 68.5%, 100% { opacity: 0; } }
-  @keyframes inSharp { 0%, 62% { opacity: 0; } 68.5%, 100% { opacity: 1; } }
-  /* la cornice arriva da fuori ruotando appena, si chiude sul target (lieve rimbalzo verso l'interno) e si ferma */
-  @keyframes inFrame {
-    0%, 26.3% { transform: rotate(-10deg); animation-timing-function: cubic-bezier(.2, .7, .3, 1); }
-    52.6% { transform: rotate(.8deg); animation-timing-function: ease-in-out; } 60%, 100% { transform: rotate(0); }
-  }
-  /* come un autofocus: vola dentro, si ferma poco più larga del target, cerca un attimo, poi scatta stretta */
-  @keyframes inCorner {
-    0%, 26.3% { transform: translate(calc(var(--sx) * var(--D)), calc(var(--sy) * var(--D))); opacity: 0; animation-timing-function: cubic-bezier(.2, .7, .3, 1); }
-    36% { opacity: 1; }
-    52.6% { transform: translate(calc(var(--sx) * var(--o) * 4), calc(var(--sy) * var(--o) * 4)); animation-timing-function: ease-in-out; }
-    58% { transform: translate(calc(var(--sx) * var(--o) * 4.8), calc(var(--sy) * var(--o) * 4.8)); animation-timing-function: ease-in-out; }
-    62.1% { transform: translate(calc(var(--sx) * var(--o) * 4), calc(var(--sy) * var(--o) * 4)); animation-timing-function: cubic-bezier(.7, 0, .9, .6); }
-    65.8% { transform: translate(calc(var(--sx) * var(--o) * -1), calc(var(--sy) * var(--o) * -1)); animation-timing-function: cubic-bezier(.3, 0, .3, 1); }
-    71.5% { transform: translate(calc(var(--sx) * var(--o) * .25), calc(var(--sy) * var(--o) * .25)); animation-timing-function: ease-in-out; }
-    76.5%, 100% { transform: translate(0, 0); opacity: 1; }
-  }
-  /* lo scatto: gli angoli si accendono, un lampo breve, la stella al centro */
-  @keyframes inGlowK { 0%, 65.8% { opacity: 0; transform: scale(1.06); } 67.4% { opacity: .9; transform: scale(1); } 84%, 100% { opacity: 0; transform: scale(1); } }
-  @keyframes inFlash { 0%, 65.8% { opacity: 0; transform: scale(.45); } 67.4% { opacity: .5; } 80%, 100% { opacity: 0; transform: scale(1.35); } }
-  @keyframes inStar { 0%, 65.8% { opacity: 0; transform: scale(0); } 67% { opacity: 1; } 70.5% { transform: scale(1.8); } 79%, 100% { opacity: 1; transform: scale(1); } }
-  @keyframes inTw { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.45); opacity: .75; } }
   @keyframes inLetter { from { opacity: 0; transform: translateY(9px); } }
   @keyframes inFade { from { opacity: 0; } }
 
@@ -1205,7 +1005,7 @@ button.fact:hover { background: var(--card-2); }
    Serve a far capire (da dove arriva una sezione, cosa si è appena disegnato), mai a distrarre; tutto spento con
    «riduci animazioni» del sistema. */
 .tour-hero { position: relative; height: 128px; margin: 2px -4px 8px; border-radius: 14px; overflow: hidden; background: radial-gradient(ellipse 70% 90% at 50% 85%, rgba(76, 207, 188, .12), transparent 70%), linear-gradient(180deg, #0C1424, #070A12); display: grid; place-items: center; color: #EEF3F9; }
-.tour-hero .intro { --D: 105px; --o: 2px; width: 78px; height: 78px; margin-top: -10px; }
+.tour-hero .intro { width: 78px; height: 78px; margin-top: -10px; }
 .tour-hero .th-hz { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 30px; }
 .tour-hero .th-hz path { fill: none; stroke: var(--accent); stroke-width: 2; opacity: .9; vector-effect: non-scaling-stroke; }
 /* animazioni accese (html.motion) */

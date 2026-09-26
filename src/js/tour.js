@@ -89,12 +89,14 @@ async function tourGo(i) {
   if (t && t.offsetParent) { t.scrollIntoView({ block: 'center', behavior: 'smooth' }); TOUR.target = t; }
   const n = TOUR.steps.length, last = i === n - 1;
   card.innerHTML = `<div class="tour-top"><span class="tour-n">${i + 1} / ${n}</span><button type="button" class="link" data-t="skip">${tx(last ? 'Chiudi' : 'Salta la guida')}</button></div>
-    ${st.hero ? `<div class="tour-hero"><div class="intro">${introHTML()}</div><svg class="th-hz" viewBox="0 0 300 30" preserveAspectRatio="none" aria-hidden="true"><path d="M0 28 C 90 6, 210 6, 300 28"/></svg></div>` : ''}
+    ${st.hero ? `<div class="tour-hero"><canvas class="in-cv" aria-hidden="true"></canvas><div class="intro"><svg class="in-final" viewBox="0 0 32 32" aria-hidden="true"><use href="#i-logo"/></svg></div><svg class="th-hz" viewBox="0 0 300 30" preserveAspectRatio="none" aria-hidden="true"><path d="M0 28 C 90 6, 210 6, 300 28"/></svg></div>` : ''}
     <h3>${tx(st.t)}</h3><p>${tx(st.d)}</p>
     <div class="tour-dots">${TOUR.steps.map((_, k) => `<i class="${k === i ? 'on' : k < i ? 'done' : ''}"></i>`).join('')}</div>
     <div class="tour-acts${st.cta ? ' cta' : ''}">${i > 0 ? `<button type="button" class="btn ghost" data-t="prev" aria-label="${tx('Indietro')}">${ic('chev-l')}<span>${tx('Indietro')}</span></button>` : '<span></span>'}
       ${st.cta ? `<button type="button" class="btn" data-t="next">${tx('Dopo')}</button><button type="button" class="btn primary" data-t="cta">${tx(st.cta[0])}</button>` : `<button type="button" class="btn primary" data-t="next">${tx(last ? 'Fine' : i === 0 ? 'Iniziamo' : 'Avanti')}${last ? '' : ic('chev-r')}</button>`}</div>`;
   card.classList.remove('in'); void card.offsetWidth; card.classList.add('in');
+  // benvenuto e saluto: l'intro del logo (campo stellare, zoom, scatto) nel riquadro della scheda
+  const hero = card.querySelector('.tour-hero'); if (hero && motionOn()) { hero.querySelector('.intro').classList.add('playing'); requestAnimationFrame(() => introPlay(hero.querySelector('.in-cv'), hero.querySelector('.intro'), 105)); }
   requestAnimationFrame(() => { tourPlace(); card.classList.add('on'); const f = card.querySelector('.btn.primary'); if (f) f.focus({ preventScroll: true }); });
 }
 /* il riquadro illuminato segue l'elemento; la scheda gli sta accanto (sul telefono in basso, o in alto se l'elemento è giù) */
