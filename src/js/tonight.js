@@ -5,6 +5,7 @@
    sta per tramontare, blocchi di almeno 45 minuti per non cambiare di continuo, e chi ha finito il suo lavoro lascia il
    posto. Le ore contano col meteo: un'ora al 50% di cielo sgombro vale mezz'ora, e dove è coperto non si mette niente. */
 const PLAN_MIN = 9; // passi da 5 min: 45 minuti
+const hexA = (h, a) => `rgba(${parseInt(h.slice(1, 3), 16)},${parseInt(h.slice(3, 5), 16)},${parseInt(h.slice(5, 7), 16)},${a})`;
 const planOk = (r) => r.usableH >= 0.25 && r.e.best && isFinite(r.e.best.tonight) && !isDone(r.o.id);
 function tonightPlan() {
   const res = state.res; if (res.night.first < 0) return { blocks: [], mine: false, none: 'dark' };
@@ -59,20 +60,22 @@ function planNight(n, cand, mine) {
 function renderTonight() {
   const el = $('#tonight'); if (!el || !state.res) return;
   const n = state.res.night, P = tonightPlan(), wn = wxNight(n);
-  const on = notifyOn();
-  const head = `<div class="tn-h"><h3 class="lbl">${tx('Piano di stanotte')}</h3><small>${P.mine ? tx('i tuoi preferiti e progetti') : tx('i primi della lista: segna i tuoi con ☆')}</small><button class="btn sm ghost tn-bell" id="notifyBtn" aria-pressed="${on}" title="${tx(on ? 'Avvisi attivi: un’ora prima del buio, quando il meteo dà sereno per i tuoi target' : 'Avvisami le sere serene per i miei target')}">${on ? '🔔 ' + tx('Avvisi attivi') : '🔕 ' + tx('Avvisami')}</button></div>`;
-  if (!P.blocks.length) { el.innerHTML = head + `<div class="note">${P.none === 'dark' ? tx('Stanotte non c’è buio astronomico.') : WX.d && wn && wn.clear < 0.15 ? tx('Previsto coperto: niente da mettere in fila.') : tx('Nessun target da mettere in fila stanotte.')}</div>`; el.onclick = (ev) => { if (ev.target.closest('#notifyBtn')) toggleNotify(); }; return; }
-  const i0 = n.w0, i1 = n.w1, W = 100, X = (i) => ((i - i0) / (i1 - i0) * W).toFixed(2);
-  let clouds = '';
-  if (WX.d) for (let i = i0; i < i1; i++) { const f = wxAt(n.t[i]); if (f != null && f < 0.95) clouds += `<rect x="${X(i)}" y="0" width="${(W / (i1 - i0) + 0.05).toFixed(2)}" height="4" fill="#B8C2D4" fill-opacity="${(0.75 * (1 - f)).toFixed(2)}"/>`; }
-  let dark = ''; if (n.first >= 0) dark = `<rect x="${X(n.first)}" y="5" width="${(X(n.last + 1) - X(n.first)).toFixed(2)}" height="26" fill="#0E1520" rx="1"/>`;
-  const bars = P.blocks.map((b) => `<g data-id="${esc(b.id)}" class="tb"><rect x="${X(b.i0)}" y="7" width="${(X(b.i1 + 1) - X(b.i0) - 0.3).toFixed(2)}" height="22" rx="1.2" fill="${TYPE_COLOR[b.r.o.type]}" fill-opacity=".55" stroke="${TYPE_COLOR[b.r.o.type]}" stroke-width=".3"/></g>`).join('');
-  const t = Dome.time, now = t >= n.t[i0] && t <= n.t[i1] ? `<rect x="${((t - n.t[i0]) / (n.t[i1] - n.t[i0]) * W).toFixed(2)}" y="0" width=".35" height="32" fill="#fff"/>` : '';
-  const ticks = []; const h0 = new Date(n.t[i0]); h0.setMinutes(0, 0, 0);
-  for (let ms = h0.getTime() + 3600000; ms < n.t[i1]; ms += 3600000) { if (new Date(ms).getHours() % 2) continue; ticks.push(`<span style="left:${((ms - n.t[i0]) / (n.t[i1] - n.t[i0]) * 100).toFixed(1)}%">${String(new Date(ms).getHours()).padStart(2, '0')}</span>`); }
+  const on = notifyOn(), today = n.ds === defaultNightStr();
+  const bell = `<button type="button" class="icon-btn tn-bell" id="notifyBtn" aria-pressed="${on}" title="${tx(on ? 'Avvisi attivi: un’ora prima del buio, quando il meteo dà sereno per i tuoi target' : 'Avvisami le sere serene per i miei target')}" aria-label="${tx('Avvisi')}">${ic(on ? 'bell-on' : 'bell')}</button>`;
+  const head = `<div class="card-h"><h3>${today ? tx('Piano di stanotte') : tx('Piano della notte')}</h3><small>${P.mine ? tx('i tuoi preferiti e progetti') : tx('i primi della lista')}</small><span class="acts">${bell}</span></div>`;
+  const wire = () => { el.onclick = (ev) => { if (ev.target.closest('#notifyBtn')) { toggleNotify(); return; } const x = ev.target.closest('[data-id]'); if (x) openDetail(x.dataset.id); }; };
+  if (!P.blocks.length) { el.innerHTML = head + `<div class="note">${P.none === 'dark' ? tx('Stanotte non c’è buio astronomico.') : WX.d && wn && wn.clear < 0.15 ? tx('Previsto coperto: niente da mettere in fila.') : tx('Nessun target da mettere in fila stanotte.')}</div>`; wire(); return; }
+  // la notte in orizzontale: buio, nuvole previste (in alto), i blocchi coi nomi, l'ora scelta
+  const i0 = n.w0, i1 = n.w1, P0 = n.t[i0], span = n.t[i1] - P0, X = (ms) => ((ms - P0) / span * 100).toFixed(2);
+  let track = n.first >= 0 ? `<div class="tn-dark" style="left:${X(n.t[n.first])}%;width:${(X(n.t[n.last] + DT) - X(n.t[n.first])).toFixed(2)}%"></div>` : '';
+  if (WX.d) for (let i = i0; i < i1; i += 3) { const f = wxAt(n.t[i]); if (f != null && f < 0.95) track += `<i class="tn-cl" style="left:${X(n.t[i])}%;width:${(300 / (i1 - i0) * 1.02).toFixed(2)}%;opacity:${(0.8 * (1 - f)).toFixed(2)}"></i>`; }
+  track += P.blocks.map((b) => { const c = TYPE_COLOR[b.r.o.type]; return `<button type="button" class="tn-b" data-id="${esc(b.id)}" style="left:${X(b.t0)}%;width:calc(${(X(b.t1) - X(b.t0)).toFixed(2)}% - 2px);background:${hexA(c, 0.28)};border-color:${c}" title="${esc(b.id)} ${fmtT(b.t0)}–${fmtT(b.t1)}"><span>${esc(b.id)}</span></button>`; }).join('');
+  const t = Dome.time; if (t >= P0 && t <= n.t[i1]) track += `<i class="tn-now" style="left:${X(t)}%"></i>`;
+  const ticks = []; const h0 = new Date(P0); h0.setMinutes(0, 0, 0);
+  for (let ms = h0.getTime() + 3600000; ms < n.t[i1]; ms += 3600000) { if (new Date(ms).getHours() % 2) continue; ticks.push(`<span style="left:${X(ms)}%">${String(new Date(ms).getHours()).padStart(2, '0')}</span>`); }
   const wtxt = wn ? (wn.clear >= 0.85 ? tx('Previsto sereno') : wn.clear < 0.15 ? tx('Previsto coperto') : wn.win && wn.winH >= 1 ? tx('Sereno {a}–{b}, altrove nuvole', { a: fmtT(wn.win[0]), b: fmtT(wn.win[1]) }) : tx('Nuvole a tratti ({p}% sereno)', { p: Math.round(wn.clear * 100) })) : '';
-  el.innerHTML = head + `<div class="tn-g"><svg viewBox="0 0 ${W} 32" preserveAspectRatio="none" aria-hidden="true">${clouds}${dark}${bars}${now}</svg><div class="tn-ax">${ticks.join('')}</div></div>
-    <ol class="tn-l">${P.blocks.map((b) => `<li><button data-id="${esc(b.id)}"><i style="background:${TYPE_COLOR[b.r.o.type]}"></i><span class="tm num">${fmtT(b.t0)}–${fmtT(b.t1)}</span><span class="nm">${esc(b.id)}${b.r.o.nick ? ` <small>${esc(b.r.o.nick)}</small>` : ''}</span><span class="hh num">${fmtH(b.hClear)}${b.frac > 0.005 ? ` · +${Math.round(Math.min(1, b.frac) * 100)}%` : ''}</span></button></li>`).join('')}</ol>
+  el.innerHTML = head + `<div class="tn-g"><div class="tn-track">${track}</div><div class="tn-ax">${ticks.join('')}</div></div>
+    <ol class="tn-l">${P.blocks.map((b) => `<li><button type="button" data-id="${esc(b.id)}"><i style="background:${TYPE_COLOR[b.r.o.type]}"></i><span class="nm"><span class="l1"><b>${esc(b.id)}</b>${b.r.o.nick ? `<small>${esc(b.r.o.nick)}</small>` : ''}</span><span class="tm num">${fmtT(b.t0)}–${fmtT(b.t1)}</span></span><span class="hh num">${fmtH(b.hClear)}${b.frac > 0.005 ? `<b>+${Math.round(Math.min(1, b.frac) * 100)}% ${tx('del lavoro')}</b>` : ''}</span></button></li>`).join('')}</ol>
     ${wtxt ? `<div class="note">${esc(wtxt)}${WX.d ? ' · ' + tx('meteo Open-Meteo') : ''}</div>` : ''}`;
-  el.onclick = (ev) => { if (ev.target.closest('#notifyBtn')) { toggleNotify(); return; } const x = ev.target.closest('[data-id]'); if (x) openDetail(x.dataset.id); };
+  wire();
 }

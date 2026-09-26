@@ -193,7 +193,7 @@ const Dome = (() => {
   }
   function loop(now) {
     requestAnimationFrame(loop);
-    if (document.hidden) return;
+    if (document.hidden || !cv.offsetParent) return; // sezione nascosta: niente disegni
     const introOn = now - t0 < 1800, twinkle = !reduced && now - lastDraw > 66;
     if (dirty || anim || introOn || twinkle) { draw(now); lastDraw = now; dirty = false; }
   }

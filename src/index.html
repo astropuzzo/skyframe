@@ -3,69 +3,137 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://alasky.cds.unistra.fr https://skyview.gsfc.nasa.gov https://tile.openstreetmap.org https://djlorenz.github.io https://upload.wikimedia.org https://thumb.wikimedia.org; connect-src 'self' https://djlorenz.github.io https://photon.komoot.io https://api.open-meteo.com https://api.github.com https://commons.wikimedia.org">
+<meta name="theme-color" content="#05070B">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://alasky.cds.unistra.fr https://skyview.gsfc.nasa.gov https://tile.openstreetmap.org https://djlorenz.github.io https://upload.wikimedia.org https://thumb.wikimedia.org; connect-src 'self' https://djlorenz.github.io https://photon.komoot.io https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://api.github.com https://commons.wikimedia.org">
 <title>Skyframe</title>
+<link rel="icon" href="favicon.png">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
-<div id="bootScreen" class="boot-screen" role="status" aria-live="polite"><div class="boot-ring"></div><div class="boot-name">Sky<b>frame</b></div><div class="boot-msg">Calcolo il cielo di stanotte…</div></div>
-<div class="app">
-  <header class="top">
-    <div class="brand"><h1>Sky<b>frame</b></h1><small id="brandSub"></small><div class="upd" id="upd" role="status" aria-live="polite" hidden></div></div>
-    <div class="tools">
-      <div class="pick"><span class="pk">Profilo</span><select id="profileSel" class="sel" aria-label="Profilo attivo"></select><button id="editBtn" class="btn" title="Modifica il profilo: camera, telescopi, filtri">Modifica</button></div>
-      <div class="pick"><span class="pk">Luogo</span><select id="locSel" class="sel" aria-label="Luogo attivo"></select><button id="locBtn" class="btn" title="Modifica il luogo: cielo, mappa all-sky, orizzonte">Modifica</button></div>
-      <input id="nightDate" type="date" class="inp num" aria-label="Notte del">
-      <button id="todayBtn" class="btn ghost">Stanotte</button>
-      <button id="nightBtn" class="btn ghost" aria-pressed="false" title="Visione notturna: tinge tutto di rosso">Luce rossa</button>
-      <select id="langSel" class="sel" aria-label="Lingua"></select>
-      <span class="sync" id="sync"><i></i><span></span></span>
-    </div>
+<!-- icone: tratto 1,75 su griglia 24, disegnate per Skyframe -->
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="lgRing" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF7A5E"/><stop offset="1" stop-color="#D8353F"/></linearGradient>
+  </defs>
+  <symbol id="i-night" viewBox="0 0 24 24"><path d="M19.5 14.6A8 8 0 1 1 9.4 4.5a6.4 6.4 0 0 0 10.1 10.1z"/><path d="M16.5 3.5v3M15 5h3" stroke-width="1.5"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-projects" viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16.5" rx="2.5"/><path d="M3.5 9h17M8 2.5v3M16 2.5v3"/><path d="M12 11.6l1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4z" stroke-width="1.3"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7.2 18.5h10a4.2 4.2 0 0 0 .5-8.4 6 6 0 0 0-11.5 1.3 3.6 3.6 0 0 0 1 7.1z"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.6l2.6 5.2 5.8.9-4.2 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.2-4.1 5.8-.9z"/></symbol>
+  <symbol id="i-star-f" viewBox="0 0 24 24"><path d="M12 3.6l2.6 5.2 5.8.9-4.2 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.2-4.1 5.8-.9z" fill="currentColor"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6.2 16.5V11a5.8 5.8 0 0 1 11.6 0v5.5l1.5 1.8H4.7z"/><path d="M10 20.6a2.1 2.1 0 0 0 4 0"/></symbol>
+  <symbol id="i-bell-on" viewBox="0 0 24 24"><path d="M6.2 16.5V11a5.8 5.8 0 0 1 11.6 0v5.5l1.5 1.8H4.7z" fill="currentColor" fill-opacity=".22"/><path d="M10 20.6a2.1 2.1 0 0 0 4 0"/><path d="M3.5 8.5a8.6 8.6 0 0 1 2.4-4.3M20.5 8.5a8.6 8.6 0 0 0-2.4-4.3"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.3-5.8-6.3-10.8a6.3 6.3 0 0 1 12.6 0C18.3 15.2 12 21 12 21z"/><circle cx="12" cy="10.2" r="2.3"/></symbol>
+  <symbol id="i-scope" viewBox="0 0 24 24"><path d="M3.2 12.6l11.6-5.4 1.9 4.1-11.6 5.4z"/><path d="M14.8 7.2l3.6-1.7 1.9 4.1-3.6 1.7"/><path d="M10.4 14.9l-3 6.1M11.6 14.3l3.4 6.7"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 2.8v3.4M16 2.8v3.4"/></symbol>
+  <symbol id="i-chev-d" viewBox="0 0 24 24"><path d="M6.5 9.5l5.5 5.5 5.5-5.5"/></symbol>
+  <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></symbol>
+  <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.6l4.4 4.4L19 7.4"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.3"/><path d="M15.5 15.5l4.8 4.8"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 6.5h16M7 12h10M10 17.5h4"/></symbol>
+  <symbol id="i-sort" viewBox="0 0 24 24"><path d="M7.5 4.5v15M4.5 16.5l3 3 3-3M16.5 19.5v-15M13.5 7.5l3-3 3 3"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8.5 5.8v12.4l10-6.2z" fill="currentColor"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8.5 5.5v13M15.5 5.5v13" stroke-width="2.4"/></symbol>
+  <symbol id="i-now" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.3V12l3.2 2"/></symbol>
+  <symbol id="i-lights" viewBox="0 0 24 24"><path d="M3 20.5h18"/><path d="M6 20.5v-6h3v6M10.5 20.5V10h4v10.5M16 20.5v-4h2.5v4"/><path d="M12.5 7.5V6M8 12l-1-1M17 12.8l1-1" stroke-width="1.5"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.9"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M13.5 4.5h6v6M19.5 4.5l-8.5 8.5M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.3"/><circle cx="12" cy="7.9" r=".6" fill="currentColor"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4.5 19.5h4l10.3-10.3-4-4L4.5 15.5z"/><path d="M13.3 6.7l4 4"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15.5V4.5M7.5 9L12 4.5 16.5 9M4.5 15v4.5h15V15"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4.5v11M7.5 11l4.5 4.5 4.5-4.5M4.5 15v4.5h15V15"/></symbol>
+  <symbol id="i-arrow-r" viewBox="0 0 24 24"><path d="M4.5 12h15M13.5 6l6 6-6 6"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.4 3.4 5.3 3.4 8.5s-1 6.1-3.4 8.5c-2.4-2.4-3.4-5.3-3.4-8.5s1-6.1 3.4-8.5z"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19 14.8A7.5 7.5 0 1 1 9.2 5a6 6 0 0 0 9.8 9.8z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="18" cy="12" r="1.3" fill="currentColor"/></symbol>
+  <symbol id="i-frame" viewBox="0 0 24 24"><path d="M3.5 8.5v-3h4M16.5 5.5h4v3M20.5 15.5v3h-4M7.5 18.5h-4v-3"/><ellipse cx="12" cy="12" rx="4.2" ry="3.1" transform="rotate(-24 12 12)"/></symbol>
+  <symbol id="i-hourglass" viewBox="0 0 24 24"><path d="M7 3.5h10M7 20.5h10M8 3.5c0 4.5 8 5 8 8.5s-8 4-8 8.5M16 3.5c0 4.5-8 5-8 8.5s8 4 8 8.5"/></symbol>
+  <symbol id="i-logo" viewBox="0 0 32 32"><path d="M5.5 11V7.5H9.5M22.5 7.5h4V11M26.5 21v3.5h-4M9.5 24.5h-4V21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="16" cy="16" rx="7.2" ry="5.6" transform="rotate(-24 16 16)" fill="none" stroke="url(#lgRing)" stroke-width="2.6"/><ellipse cx="16" cy="16" rx="3.9" ry="2.9" transform="rotate(-24 16 16)" fill="#4CCFBC" fill-opacity=".85"/><circle cx="16" cy="16" r="1" fill="#fff"/></symbol>
+</svg>
+
+<div id="bootScreen" class="boot-screen" role="status" aria-live="polite"><svg class="boot-logo" viewBox="0 0 32 32"><use href="#i-logo"/></svg><div class="boot-name">Sky<b>frame</b></div><div class="boot-msg">Calcolo il cielo di stanotte…</div></div>
+
+<div class="app" id="app" data-view="tonight">
+  <nav class="nav" id="nav" aria-label="Sezioni">
+    <button type="button" data-view="tonight" aria-current="page"><svg class="ic"><use href="#i-night"/></svg><span>Stanotte</span></button>
+    <button type="button" data-view="targets"><svg class="ic"><use href="#i-target"/></svg><span>Target</span></button>
+    <button type="button" data-view="projects"><svg class="ic"><use href="#i-projects"/></svg><span>Progetti</span></button>
+    <button type="button" data-view="setup"><svg class="ic"><use href="#i-sliders"/></svg><span>Setup</span></button>
+  </nav>
+
+  <header class="topbar">
+    <div class="brand"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><use href="#i-logo"/></svg><span class="wm">Sky<b>frame</b></span></div>
+    <button type="button" class="ctx" id="locChip" title="Luogo attivo: cambia o modifica"><svg class="ic"><use href="#i-pin"/></svg><span class="t" id="locName"></span><svg class="ic chev"><use href="#i-chev-d"/></svg></button>
+    <button type="button" class="ctx" id="nightChip" title="Notte scelta"><svg class="ic"><use href="#i-cal"/></svg><span class="t" id="nightName"></span><svg class="ic chev"><use href="#i-chev-d"/></svg></button>
+    <button type="button" class="ctx" id="profChip" title="Attrezzatura attiva: cambia o modifica"><svg class="ic"><use href="#i-scope"/></svg><span class="t" id="profName"></span><svg class="ic chev"><use href="#i-chev-d"/></svg></button>
+    <div class="upd" id="upd" role="status" aria-live="polite" hidden></div>
+    <span class="grow"></span>
+    <button type="button" class="icon-btn" id="nightBtn" aria-pressed="false" title="Luce rossa: tinge tutto di rosso per non perdere l’adattamento al buio" aria-label="Luce rossa"><svg class="ic"><use href="#i-eye"/></svg></button>
+    <input id="nightDate" type="date" class="date-hidden" aria-label="Notte del" tabindex="-1">
   </header>
-  <div class="main">
-    <aside class="sky" aria-label="Cielo">
-      <div class="dome-wrap"><canvas id="dome" aria-label="Cielo visto dal tuo luogo"></canvas><div id="domeTip" class="dome-tip" hidden></div></div>
-      <div class="side">
-      <div class="clock">
-        <div class="time num" id="clockTime">--:--</div>
-        <div class="when" id="clockWhen"></div>
-        <div class="ctl">
-          <button class="btn sm" id="lpToggle" aria-pressed="false" title="Mostra la luminosità del cielo dovuta alle luci artificiali">Luci</button>
-          <button class="btn sm" id="liveBtn" aria-pressed="true">Adesso</button>
-          <button class="btn sm" id="playBtn" aria-pressed="false">Scorri la notte</button>
+
+  <main class="views">
+    <!-- STANOTTE -->
+    <section class="view" id="v-tonight" data-view="tonight" aria-label="Stanotte">
+      <div class="nightbar" id="nightBar" aria-label="Scegli la notte"></div>
+      <div class="tn-grid">
+        <div class="card verdict" id="facts"></div>
+        <div class="card skycard">
+          <div class="dome-wrap"><canvas id="dome" aria-label="Cielo visto dal tuo luogo"></canvas><div id="domeTip" class="dome-tip" hidden></div>
+            <div class="dome-ctl"><button type="button" class="icon-btn glass" id="lpToggle" aria-pressed="false" title="Mostra la luminosità del cielo dovuta alle luci artificiali" aria-label="Luci"><svg class="ic"><use href="#i-lights"/></svg></button></div>
+          </div>
+          <div class="clock">
+            <div class="time num" id="clockTime">--:--</div>
+            <div class="when" id="clockWhen"></div>
+            <div class="ctl">
+              <button type="button" class="btn sm" id="liveBtn" aria-pressed="true"><svg class="ic"><use href="#i-now"/></svg><span>Adesso</span></button>
+              <button type="button" class="icon-btn" id="playBtn" aria-pressed="false" title="Scorri la notte" aria-label="Scorri la notte"><svg class="ic"><use href="#i-play"/></svg></button>
+            </div>
+          </div>
+          <div class="strip" id="strip" aria-label="Notte: trascina per cambiare ora"><canvas id="stripCv"></canvas></div>
         </div>
+        <div class="card tonight" id="tonight"></div>
+        <div class="card toplist" id="topList"></div>
+        <div class="card setups" id="setups" hidden></div>
+        <div class="card setups locs" id="locs" hidden></div>
       </div>
-      <div class="strip" id="strip" aria-label="Notte: trascina per cambiare ora"><canvas id="stripCv"></canvas></div>
-      <div class="facts" id="facts"></div>
-      <div class="tonight" id="tonight"></div>
-      <div class="setups" id="setups" hidden></div>
-      <div class="setups locs" id="locs" hidden></div>
-      <button class="tolist" id="toList" type="button"><span id="toListN" class="num">–</span> target per questa notte <i aria-hidden="true">↓</i></button>
-      </div>
-    </aside>
-    <section class="work">
+    </section>
+
+    <!-- TARGET -->
+    <section class="view" id="v-targets" data-view="targets" aria-label="Target" hidden>
       <div id="notice"></div>
       <div class="bar">
         <div class="row1">
-          <input id="q" class="inp" type="search" placeholder="Cerca: M 31, Sh2-129, LDN 1235, Cave…" aria-label="Cerca target">
-          <select id="sortSel" class="sel" aria-label="Ordina per">
-            <option value="score">Punteggio</option>
-            <option value="usable">Ore utili stanotte</option>
-            <option value="hours">Integrazione più breve</option>
-            <option value="fill">Riempimento del frame</option>
-            <option value="transit">Orario di culmine</option>
-            <option value="now">Più alto all'ora scelta</option>
-            <option value="sb">Più debole (sfida)</option>
-            <option value="gain" hidden>Più rapidi in un altro luogo</option>
-          </select>
-          <button class="btn" id="mineBtn" aria-pressed="false" title="Solo i tuoi preferiti e progetti, anche quelli che stanotte non si riprendono">★ I miei</button>
-          <button class="btn" id="advBtn" aria-expanded="false">Filtri <span class="badge" id="advCount" hidden>0</span></button>
+          <label class="searchbox"><svg class="ic"><use href="#i-search"/></svg><input id="q" type="search" placeholder="Cerca: M 31, Sh2-129, LDN 1235, Cave…" aria-label="Cerca target" autocomplete="off"></label>
+          <button type="button" class="btn" id="mineBtn" aria-pressed="false" title="Solo i tuoi preferiti e progetti, anche quelli che stanotte non si riprendono"><svg class="ic"><use href="#i-star"/></svg><span>I miei</span></button>
+          <label class="selwrap" title="Ordina per"><svg class="ic"><use href="#i-sort"/></svg>
+            <select id="sortSel" aria-label="Ordina per">
+              <option value="score">Punteggio</option>
+              <option value="usable">Ore utili stanotte</option>
+              <option value="hours">Integrazione più breve</option>
+              <option value="fill">Riempimento del frame</option>
+              <option value="transit">Orario di culmine</option>
+              <option value="now">Più alto all'ora scelta</option>
+              <option value="sb">Più debole (sfida)</option>
+              <option value="gain" hidden>Più rapidi in un altro luogo</option>
+            </select></label>
+          <button type="button" class="btn" id="advBtn" aria-expanded="false"><svg class="ic"><use href="#i-filter"/></svg><span>Filtri</span> <span class="badge" id="advCount" hidden>0</span></button>
         </div>
-        <div class="chips" id="typeChips"></div>
-        <div class="adv" id="adv" hidden>
-          <div class="f"><span class="lbl">Cataloghi</span><div class="chips" id="srcChips"></div></div>
+        <div class="chips scroller" id="typeChips"></div>
+      </div>
+      <div class="adv-back" id="advBack" hidden></div>
+      <div class="adv" id="adv" hidden>
+        <div class="adv-head"><h3>Filtri</h3><button type="button" class="btn sm ghost" id="resetF">Azzera</button><button type="button" class="btn sm primary" id="advDone">Fatto</button></div>
+        <div class="adv-body">
+          <div class="f wide"><span class="lbl">Cataloghi</span><div class="chips" id="srcChips"></div></div>
           <label class="f"><span class="rv"><span>Ore utili stanotte, almeno</span><b class="num" id="minUseV"></b></span><input type="range" id="minUse" min="0" max="8" step="0.5"></label>
           <label class="f"><span class="rv"><span>Chiudibile in al massimo</span><b class="num" id="maxNightsV"></b></span><input type="range" id="maxNights" min="1" max="11" step="1"></label>
           <label class="f"><span class="rv"><span>Luminosità superficiale fino a</span><b class="num" id="maxSbV"></b></span><input type="range" id="maxSb" min="19" max="26" step="0.25"></label>
@@ -73,18 +141,23 @@
           <label class="f" id="cfgF" hidden><span class="lbl">Consigliati con</span><select id="cfgSel" class="sel"></select></label>
           <label class="f"><span class="lbl">Tecnica</span><select id="bandSel" class="sel"><option value="any">Qualsiasi</option><option value="nb">Si fanno in banda stretta</option><option value="bb">Solo banda larga</option></select></label>
           <label class="f"><span class="lbl">Costellazione</span><select id="conSel" class="sel"></select></label>
-          <div class="f"><span class="lbl">Altro</span>
+          <div class="f wide checks">
             <label class="chk"><input type="checkbox" id="hideClassic"> Nascondi i classici (Messier e i soliti noti)</label>
             <label class="chk"><input type="checkbox" id="showAll"> Mostra anche i non visibili stanotte</label>
             <label class="chk"><input type="checkbox" id="hideDone"> Nascondi i target già fatti</label>
-            <button class="btn sm ghost" id="resetF" style="align-self:flex-start;margin-top:4px">Azzera filtri</button>
           </div>
         </div>
       </div>
       <div class="count" id="count"></div>
-      <main class="list" id="list"></main>
+      <div class="list" id="list"></div>
     </section>
-  </div>
+
+    <!-- PROGETTI -->
+    <section class="view" id="v-projects" data-view="projects" aria-label="Progetti" hidden><div class="wrap" id="projView"></div></section>
+
+    <!-- SETUP -->
+    <section class="view" id="v-setup" data-view="setup" aria-label="Setup" hidden><div class="wrap" id="setupView"></div></section>
+  </main>
 </div>
 
 <div id="backdrop" class="backdrop" hidden></div>
@@ -92,7 +165,7 @@
 
 <div id="editor" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="edTitle">
   <div class="sheet">
-    <header class="sheet-head"><h2 id="edTitle">Profilo</h2><button class="btn ghost" id="edClose">Chiudi</button></header>
+    <header class="sheet-head"><button type="button" class="icon-btn" id="edClose" aria-label="Chiudi"><svg class="ic"><use href="#i-x"/></svg></button><h2 id="edTitle">Profilo</h2><button type="button" class="btn primary" id="edSave">Salva profilo</button></header>
     <div class="sheet-body">
       <section class="fs ed-prof"><div class="grid"><label class="field wide"><span>Nome profilo</span><input id="f_name" maxlength="80"></label></div></section>
       <section class="fs ed-prof">
@@ -111,7 +184,7 @@
       <section class="fs ed-prof">
         <h3>Telescopi e accessori</h3>
         <div id="optics" class="optics"></div>
-        <button class="btn sm" id="opticAdd" type="button">Aggiungi telescopio</button>
+        <button class="btn sm" id="opticAdd" type="button"><svg class="ic"><use href="#i-plus"/></svg><span>Aggiungi telescopio</span></button>
         <p class="hint">Ogni telescopio ha i suoi correttori e riduttori: a ciascuno si propongono solo quelli che ci vanno (Newton, rifrattore, SCT, RC). Ogni combinazione è una configurazione e Skyframe, per ogni target, ti dice quale conviene fra quelle di questo profilo.</p>
       </section>
       <section class="fs ed-prof">
@@ -147,7 +220,7 @@
               <div class="hzbar" style="margin:6px 0 4px"><button class="btn sm" id="lpmBtn" type="button">Prendi la mappa all-sky dal sito</button><span class="hint" style="margin:0">Parte da sola quando sposti lo spillo o scegli un luogo.</span></div>
               <p class="hint" style="margin:4px 0 0">In alternativa, a mano:</p>
               <ol>
-                <li data-t><a id="lpmOpen" href="https://www.lightpollutionmap.info" target="_blank" rel="noopener">Apri lightpollutionmap sul tuo punto ↗</a>, scegli il livello <i>Sky brightness</i> e clicca sul terrazzo.</li>
+                <li data-t><a id="lpmOpen" href="https://www.lightpollutionmap.info" target="_blank" rel="noopener">Apri lightpollutionmap sul tuo punto</a>, scegli il livello <i>Sky brightness</i> e clicca sul terrazzo.</li>
                 <li data-t>Nel riquadro premi <i>All-sky</i>, poi salva l’immagine (fisheye o panoramica vanno bene).</li>
                 <li data-t>Trascinala qui oppure <label class="linklike" for="skyFile">scegli il file</label>.</li>
               </ol>
@@ -199,14 +272,11 @@
       </section>
     </div>
     <footer class="sheet-foot">
-      <button class="btn danger" id="edDelete">Elimina</button>
+      <button class="btn danger" id="edDelete"><svg class="ic"><use href="#i-trash"/></svg><span>Elimina</span></button>
       <span id="delConfirm" hidden>Eliminare davvero? <button class="btn danger sm" id="delYes">Elimina</button> <button class="btn ghost sm" id="delNo">Annulla</button></span>
       <span id="leaveConfirm" class="leave" hidden>Modifiche non salvate. <button class="btn primary sm" id="leaveSave">Salva</button> <button class="btn danger sm" id="leaveYes">Esci senza salvare</button> <button class="btn ghost sm" id="leaveNo">Continua a modificare</button></span>
       <span class="sp"></span>
-      <button class="btn ghost" id="edImport" title="Importa profili e luoghi da un file">Importa</button>
-      <button class="btn ghost" id="edExport" title="Esporta profili e luoghi in un file">Esporta</button>
-      <button class="btn ghost" id="edDup">Duplica</button>
-      <button class="btn primary" id="edSave">Salva profilo</button>
+      <button class="btn ghost" id="edDup"><svg class="ic"><use href="#i-copy"/></svg><span>Duplica</span></button>
     </footer>
   </div>
 </div>
@@ -224,8 +294,10 @@
 <script src="js/astro.js"></script>
 <script src="js/model.js"></script>
 <script src="js/dome.js"></script>
+<script src="js/ui.js"></script>
 <script src="js/views.js"></script>
 <script src="js/weather.js"></script>
+<script src="js/nights.js"></script>
 <script src="js/projects.js"></script>
 <script src="js/tonight.js"></script>
 <script src="js/notify.js"></script>

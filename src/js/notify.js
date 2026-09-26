@@ -42,9 +42,10 @@ async function planNotifications() {
   try { await notifySchedule(out); } catch { /* niente */ }
 }
 async function toggleNotify() {
-  if (notifyOn()) { LS.set('sf.notify', false); await notifySchedule([]); toast(tx('Avvisi spenti')); renderTonight(); return; }
+  const sync = () => { renderTonight(); if (UI.view === 'setup') renderSetup(); };
+  if (notifyOn()) { LS.set('sf.notify', false); await notifySchedule([]); toast(tx('Avvisi spenti')); sync(); return; }
   const ok = await notifyPermission();
-  if (!ok) { toast(tx('Le notifiche non sono permesse: abilitale nelle impostazioni del sistema')); return; }
-  LS.set('sf.notify', true); await planNotifications(); renderTonight();
+  if (!ok) { toast(tx('Le notifiche non sono permesse: abilitale nelle impostazioni del sistema')); sync(); return; }
+  LS.set('sf.notify', true); await planNotifications(); sync();
   toast(tx('Ti avviso un’ora prima del buio quando il meteo dà sereno per i tuoi target'));
 }

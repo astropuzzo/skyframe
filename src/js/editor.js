@@ -89,6 +89,7 @@ function showEditor(asNew) {
   F('editor').dataset.mode = edMode;
   F('edSave').textContent = tx(edMode === 'loc' ? 'Salva luogo' : 'Salva profilo');
   F('delConfirm').hidden = true; F('leaveConfirm').hidden = true;
+  if (F('editor').hidden) backPush(editorBack);
   F('editor').hidden = false; edDirty = !!asNew;
   F('editor').querySelector('.sheet-body').scrollTop = 0;
 }
@@ -129,7 +130,9 @@ function openLocEditor(id, asNew) {
   if (geoMap) requestAnimationFrame(() => { const la = +F('f_lat').value, lo = +F('f_lon').value; geoMap.invalidateSize(); geoPin.setLatLng([la, lo]); geoMap.setView([la, lo], asNew ? 8 : d.site.example && la === d.site.lat ? 6 : Math.max(geoMap.getZoom(), 12)); });
   (asNew && DESK_GEO() ? F('geoQ') : F('f_site')).focus();
 }
-function closeEditor() { F('editor').hidden = true; F('leaveConfirm').hidden = true; draft = null; edDirty = false; }
+function closeEditor(fromPop) { if (F('editor').hidden) return; F('editor').hidden = true; F('leaveConfirm').hidden = true; draft = null; edDirty = false; if (fromPop !== true) backDone(editorBack); }
+/* tasto indietro: con modifiche non salvate si resta e si chiede cosa fare */
+function editorBack(fromPop) { if (fromPop !== true) return; if (edDirty) { backPush(editorBack); F('leaveConfirm').hidden = false; F('leaveNo').focus(); return; } closeEditor(true); }
 /* chiusura richiesta dall'utente (Chiudi, Esc): con modifiche non salvate si chiede prima cosa fare */
 let edDirty = false;
 function askCloseEditor() {
@@ -334,11 +337,11 @@ function wireEditor() {
   [F('skyTop'), F('skyBot')].forEach((i) => i.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); skyApply(); } }));
   wireGeo();
   // un clic fuori dal pannello non chiude più nulla: si esce solo con Chiudi, Esc o Salva
-  F('edClose').onclick = askCloseEditor;
+  F('edClose').onclick = () => askCloseEditor();
   ['input', 'change'].forEach((ev) => F('editor').addEventListener(ev, () => { edDirty = true; }));
   F('editor').querySelector('.sheet-body, .sheet > div, form')?.addEventListener('pointerdown', () => { edDirty = true; });
   F('leaveNo').onclick = () => { F('leaveConfirm').hidden = true; };
-  F('leaveYes').onclick = closeEditor;
+  F('leaveYes').onclick = () => closeEditor();
   F('leaveSave').onclick = () => F('edSave').click();
   F('edSave').onclick = () => {
     const d = readForm(), loc = edMode === 'loc';
@@ -354,7 +357,7 @@ function wireEditor() {
   F('edDelete').onclick = () => { F('delConfirm').hidden = false; F('edDelete').hidden = true; };
   F('delNo').onclick = () => { F('delConfirm').hidden = true; F('edDelete').hidden = false; };
   F('delYes').onclick = () => { const id = draft.id, loc = edMode === 'loc'; closeEditor(); if (loc) removeLoc(id); else removeProfile(id); refresh(true); toast(tx(loc ? 'Luogo eliminato' : 'Profilo eliminato')); };
-  F('edExport').onclick = exportProfiles; F('edImport').onclick = importProfiles;
+
   // orizzonte
   const svg = F('hzSvg'); let down = false;
   svg.addEventListener('contextmenu', (e) => e.preventDefault());

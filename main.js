@@ -26,7 +26,7 @@ async function migrateOldProfiles() {
 function createWindow() {
   const win = new BrowserWindow({
     show: false, // si mostra quando la pagina (con la schermata di avvio) è pronta: niente finestra bianca
-    backgroundColor: '#06080D',
+    backgroundColor: '#05070B',
     width: 1360,
     height: 900,
     minWidth: 420,
@@ -89,7 +89,7 @@ function smokeTest(win, out) {
       await win.webContents.executeJavaScript(`Dome.setLP(false); document.querySelector('#domeTip').hidden = true`);
       await wait(300);
       await fs.writeFile(out.replace(/[.]png$/, '-glow.png'), (await win.webContents.capturePage()).toPNG());
-      await win.webContents.executeJavaScript(`document.querySelector('.main').style.scrollBehavior = 'auto'; document.querySelector('.work').scrollIntoView()`);
+      await win.webContents.executeJavaScript(`setView('targets')`);
       await wait(600);
       await fs.writeFile(out.replace(/\.png$/, '-list.png'), (await win.webContents.capturePage()).toPNG());
       // banner degli aggiornamenti, con un messaggio simulato

@@ -1,15 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- icona degli avvisi: anello (l'apertura) con una stella al centro, monocromatica come vuole Android -->
+<!-- icona degli avvisi: la cornice e l'anello dell'icona dell'app, monocromatica come vuole Android -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
-        android:fillColor="#FFFFFFFF"
-        android:fillType="evenOdd"
-        android:pathData="M12,2.5a9.5,9.5 0,1 0,0.001 0zM12,4.6a7.4,7.4 0,1 1,-0.001 0z" />
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.9"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M2.5,8.2L2.5,5L6,5 M18,5L21.5,5L21.5,8.2 M21.5,15.8L21.5,19L18,19 M6,19L2.5,19L2.5,15.8" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:pathData="M17.02,9.76A5.5,4.1 -24 1,1 6.98,14.24A5.5,4.1 -24 1,1 17.02,9.76Z" />
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M12,7.2L13.3,10.7L16.8,12L13.3,13.3L12,16.8L10.7,13.3L7.2,12L10.7,10.7Z" />
+        android:pathData="M10.9,12a1.1,1.1 0,1 0,2.2 0a1.1,1.1 0,1 0,-2.2 0z" />
 </vector>

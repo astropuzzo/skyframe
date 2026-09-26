@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Skyframe: la cornice del sensore su una nebulosa ad anello (Hα fuori, OIII dentro), sopra l'orizzonte del tuo luogo.
+       Livelli con id: "sky" (fondo), "glow" e "ground" (orizzonte), "fg" (nebulosa, stelle, cornice); scripts/icons.cjs li usa
+       per le icone adattive di Android. -->
+  <defs>
+    <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#121D33"/><stop offset=".6" stop-color="#080C16"/><stop offset="1" stop-color="#05070C"/></linearGradient>
+    <radialGradient id="ringG" cx="50%" cy="50%" r="50%"><stop offset=".56" stop-color="#FF8466" stop-opacity="0"/><stop offset=".66" stop-color="#F65A47"/><stop offset=".86" stop-color="#D63A40"/><stop offset="1" stop-color="#9E2238" stop-opacity="0"/></radialGradient>
+    <radialGradient id="coreG" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#D8FFF7"/><stop offset=".35" stop-color="#6FE3D0"/><stop offset=".75" stop-color="#2FB5A6" stop-opacity=".85"/><stop offset="1" stop-color="#1F7E86" stop-opacity="0"/></radialGradient>
+    <linearGradient id="glowG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E8A860" stop-opacity="0"/><stop offset="1" stop-color="#E8A860" stop-opacity=".16"/></linearGradient>
+    <clipPath id="sq"><rect width="1024" height="1024" rx="230"/></clipPath>
+  </defs>
+  <g clip-path="url(#sq)">
+    <g id="sky"><rect x="-300" y="-300" width="1624" height="1624" fill="url(#skyG)"/></g>
+    <g id="glow"><path d="M-300 700 H1324 V880 C 810 790, 610 770, 512 770 S 214 790, -300 880 Z" fill="url(#glowG)"/></g>
+    <g id="ground">
+      <path d="M-300 930 C 200 800, 420 770, 512 770 S 824 800, 1324 930 V1324 H-300 Z" fill="#090D15"/>
+      <path d="M-300 930 C 200 800, 420 770, 512 770 S 824 800, 1324 930" fill="none" stroke="#45C8B4" stroke-width="10" opacity=".9"/>
+    </g>
+    <g id="fg">
+      <g fill="#DCE4F2"><circle cx="160" cy="180" r="5" opacity=".5"/><circle cx="872" cy="160" r="4" opacity=".45"/><circle cx="905" cy="520" r="5" opacity=".4"/><circle cx="118" cy="560" r="4" opacity=".4"/><circle cx="470" cy="120" r="3.5" opacity=".4"/><circle cx="700" cy="140" r="3" opacity=".35"/><circle cx="330" cy="150" r="3" opacity=".3"/></g>
+      <g transform="rotate(-24 512 470)">
+        <ellipse cx="512" cy="470" rx="236" ry="186" fill="url(#ringG)"/>
+        <ellipse cx="512" cy="470" rx="150" ry="114" fill="url(#coreG)"/>
+      </g>
+      <circle cx="512" cy="470" r="13" fill="#fff"/>
+      <g fill="none" stroke="#EEF3F9" stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M200 350 V260 H300"/><path d="M724 260 H824 V350"/><path d="M824 590 V680 H724"/><path d="M300 680 H200 V590"/>
+      </g>
+    </g>
+  </g>
+</svg>

@@ -11,7 +11,7 @@ const activeLoc = () => state.locs.find((l) => l.id === state.locId) || state.lo
 /* profilo attivo nel luogo attivo (è quello che usa il calcolo); si ricrea solo quando cambia uno dei due */
 let effMemo = null;
 function active() { const p = activeProfile(), l = activeLoc(); if (!effMemo || effMemo.p !== p || effMemo.l !== l) effMemo = { p, l, e: effectiveProfile(p, l) }; return effMemo.e; }
-function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3200); }
+function toast(msg) { $$('.toast').forEach((x) => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3200); }
 async function copyText(txt) {
   try { if (window.cielo && window.cielo.copy) await window.cielo.copy(txt); else await navigator.clipboard.writeText(txt); toast(tx('Copiato negli appunti')); }
   catch (e) { toast(tx('Copia non riuscita: seleziona il testo e copialo a mano')); }
@@ -206,16 +206,14 @@ function refresh(force) {
   if (changed) initTime();
   if (changed || cmp.keys.size !== state.locs.length) scheduleCompare();
   applyFilters();
-  renderHeader(); renderFacts(); renderTonight(); renderSetups(); renderLocs(); renderChips(); state.page = Math.max(60, state.page); renderList(); pushDome(); drawStrip(); renderClock();
+  renderHeader(); renderNightBar(); renderFacts(); renderTonight(); renderSetups(); renderLocs(); renderChips(); state.page = Math.max(60, state.page); renderList(); renderTopList(); pushDome(); drawStrip(); renderClock();
+  if (UI.view === 'projects') renderProjects(); else if (UI.view === 'setup') renderSetup();
   refreshWeather(false); // il meteo del luogo, se non c'è o è vecchio: arriva dopo e ridisegna
   if (state.sel && !$('#drawer').hidden) { if (state.byId.has(state.sel)) { const sc = $('#drawer').scrollTop; renderDetail(); $('#drawer').scrollTop = sc; } else closeDetail(); }
 }
 function renderHeader() {
-  const a = active(), ex = ' (' + tx('esempio') + ')';
-  $('#profileSel').innerHTML = state.profiles.map((p) => `<option value="${esc(p.id)}" ${p.id === state.activeId ? 'selected' : ''}>${esc(p.name)}${p.unsaved ? ex : ''}</option>`).join('') + `<option value="__new">＋ ${tx('Nuovo profilo…')}</option>`;
-  $('#locSel').innerHTML = state.locs.map((l) => `<option value="${esc(l.id)}" ${l.id === state.locId ? 'selected' : ''}>${esc(l.site.name)}${l.unsaved ? ex : ''}</option>`).join('') + `<option value="__new">＋ ${tx('Nuovo luogo…')}</option>`;
-  $('#brandSub').textContent = `${a.site.name} · ${it(a.site.lat, 2)}°, ${it(a.site.lon, 2)}°`;
-  $('#sync').querySelector('span').textContent = DESK ? tx('profili salvati su file') : tx('profili nel browser');
+  const a = active();
+  renderTopbar();
   $('#notice').innerHTML = a.site.example ? `<div class="notice"><span>${tx('Luogo e orizzonte sono di esempio (Milano, Bortle 7). Inserisci coordinate, SQM e orizzonte del tuo terrazzo.')}</span><button class="btn sm" id="noticeEdit">${tx('Imposta il mio luogo')}</button></div>` : '';
   const b = $('#noticeEdit'); if (b) b.onclick = () => openLocEditor(state.locId);
   const gs = $('#sortSel option[value="gain"]'); if (gs) gs.hidden = state.locs.length < 2;
@@ -238,6 +236,14 @@ function syncAdv() {
   $('#fillSel').value = f.fill; $('#bandSel').value = f.band; $('#conSel').value = f.con; $('#hideClassic').checked = f.hideClassic; $('#showAll').checked = f.showAll; $('#hideDone').checked = !!f.hideDone;
 }
 
+/* filtri avanzati: pannello sotto la barra sul computer, foglio dal basso sul telefono */
+function setAdv(open) {
+  const a = $('#adv'); if (open === !a.hidden) return;
+  a.hidden = !open; $('#advBack').hidden = !open || !PHONE.matches; $('#advBtn').setAttribute('aria-expanded', String(open));
+  if (open && PHONE.matches) backPush(closeAdv); else if (!open) backDone(closeAdv);
+}
+function closeAdv(fromPop) { if (fromPop === true) { $('#adv').hidden = true; $('#advBack').hidden = true; $('#advBtn').setAttribute('aria-expanded', 'false'); } else setAdv(false); }
+
 /* ============================ tempo ============================ */
 function initTime() {
   const n = state.res.night, now = Date.now();
@@ -250,21 +256,22 @@ function onTime() {
   renderClock(); drawStrip(); updateNightCharts();
   const now = performance.now(); if (now - lastCells > 350) { lastCells = now; refreshNowCells(); }
 }
+function setPlayIcon() { const b = $('#playBtn'); b.setAttribute('aria-pressed', String(!!state.playing)); b.innerHTML = ic(state.playing ? 'pause' : 'play'); }
 function setLive() {
-  state.playing = false; $('#playBtn').setAttribute('aria-pressed', 'false'); Dome.setAnimating(false);
+  state.playing = false; setPlayIcon(); Dome.setAnimating(false);
   if ($('#nightDate').value !== defaultNightStr()) { $('#nightDate').value = defaultNightStr(); state.live = true; refresh(); }
   state.live = true; $('#liveBtn').setAttribute('aria-pressed', 'true'); Dome.setTime(Date.now()); onTime();
 }
 function togglePlay() {
   state.playing = !state.playing; state.live = false;
-  $('#playBtn').setAttribute('aria-pressed', String(state.playing)); $('#liveBtn').setAttribute('aria-pressed', 'false');
+  setPlayIcon(); $('#liveBtn').setAttribute('aria-pressed', 'false');
   Dome.setAnimating(state.playing);
   if (state.playing) { let last = performance.now(); const step = (t) => { if (!state.playing) return; const n = state.res.night, span = n.t[n.w1] - n.t[n.w0]; let x = Dome.time + (t - last) / 18000 * span; last = t; if (x > n.t[n.w1] || x < n.t[n.w0]) x = n.t[n.w0]; Dome.setTime(x); onTime(); requestAnimationFrame(step); }; requestAnimationFrame(step); }
 }
 function wireStrip() {
   const el = $('#strip'); let down = false;
   const set = (e) => { const n = state.res.night, b = el.getBoundingClientRect(), fr = clamp((e.clientX - b.left) / b.width, 0, 1); Dome.setTime(n.t[n.w0] + fr * (n.t[n.w1] - n.t[n.w0])); onTime(); };
-  el.addEventListener('pointerdown', (e) => { down = true; el.setPointerCapture(e.pointerId); state.live = false; state.playing = false; Dome.setAnimating(false); $('#liveBtn').setAttribute('aria-pressed', 'false'); $('#playBtn').setAttribute('aria-pressed', 'false'); set(e); });
+  el.addEventListener('pointerdown', (e) => { down = true; el.setPointerCapture(e.pointerId); state.live = false; state.playing = false; Dome.setAnimating(false); $('#liveBtn').setAttribute('aria-pressed', 'false'); setPlayIcon(); set(e); });
   el.addEventListener('pointermove', (e) => down && set(e));
   ['pointerup', 'pointercancel'].forEach((ev) => el.addEventListener(ev, () => { down = false; if (state.sort === 'now') { applyFilters(); renderList(); } }));
 }
@@ -273,16 +280,12 @@ function wireStrip() {
 function wire() {
   $('#nightDate').value = defaultNightStr();
   $('#nightDate').onchange = () => { if (!$('#nightDate').value) $('#nightDate').value = defaultNightStr(); state.live = $('#nightDate').value === defaultNightStr(); refresh(); };
-  $('#todayBtn').onclick = setLive; $('#liveBtn').onclick = setLive; $('#playBtn').onclick = togglePlay;
+  $('#liveBtn').onclick = setLive; $('#playBtn').onclick = togglePlay;
+  $('#nav').onclick = (e) => { const b = e.target.closest('[data-view]'); if (b) setView(b.dataset.view); };
+  $('#locChip').onclick = openLocSheet; $('#profChip').onclick = openProfSheet; $('#nightChip').onclick = openNightSheet;
   const lp = (v) => { Dome.setLP(v); $('#lpToggle').setAttribute('aria-pressed', String(!!v)); LS.set('sf.lp', !!v); };
   if (window.cielo && window.cielo.onUpdate) window.cielo.onUpdate(showUpdate);
-  const ls = $('#langSel'); ls.innerHTML = Object.entries(LANGS).map(([k, v]) => `<option value="${k}">${v}</option>`).join(''); ls.value = LANG; ls.onchange = () => setLang(ls.value);
-  $('#toList').onclick = () => $('.work').scrollIntoView({ behavior: 'smooth' });
   lp(LS.get('sf.lp', false)); $('#lpToggle').onclick = () => lp($('#lpToggle').getAttribute('aria-pressed') !== 'true');
-  $('#profileSel').onchange = (e) => { if (e.target.value === '__new') { e.target.value = state.activeId; openEditor(state.activeId, true); return; } state.activeId = e.target.value; saveStore(); closeDetail(); state.sel = null; refresh(); };
-  $('#editBtn').onclick = () => openEditor(state.activeId);
-  $('#locSel').onchange = (e) => { if (e.target.value === '__new') { e.target.value = state.locId; openLocEditor(null, true); return; } setLoc(e.target.value); };
-  $('#locBtn').onclick = () => openLocEditor(state.locId);
   $('#locs').onclick = (e) => { const b = e.target.closest('[data-loc]'); if (b) setLoc(b.dataset.loc); };
   $('#typeChips').onclick = (e) => { const b = e.target.closest('[data-type]'); if (!b) return; const t = b.dataset.type, f = state.f; f.types = !t ? [] : f.types.includes(t) ? f.types.filter((x) => x !== t) : f.types.concat(t); state.page = 60; applyFilters(); renderChips(); renderList(); renderSetups(); pushDome(); };
   $('#srcChips').onclick = (e) => { const b = e.target.closest('[data-src]'); if (!b) return; const s = b.dataset.src, f = state.f; f.srcs = f.srcs.includes(s) ? f.srcs.filter((x) => x !== s) : f.srcs.concat(s); state.page = 60; applyFilters(); renderChips(); renderList(); renderSetups(); pushDome(); };
@@ -301,17 +304,19 @@ function wire() {
   setInterval(() => refreshWeather(false), 30 * 60e3);
   $('#showAll').onchange = (e) => { state.f.showAll = e.target.checked; upd(); };
   $('#resetF').onclick = () => { state.f = Object.assign({}, F_DEFAULT); state.cfgFilter = ''; renderChips(); upd(); };
-  $('#advBtn').onclick = () => { const a = $('#adv'); a.hidden = !a.hidden; $('#advBtn').setAttribute('aria-expanded', String(!a.hidden)); };
+  $('#advBtn').onclick = () => setAdv($('#adv').hidden);
+  $('#advDone').onclick = () => setAdv(false); $('#advBack').onclick = () => setAdv(false);
   $('#sortSel').value = state.sort; $('#sortSel').onchange = (e) => { state.sort = e.target.value; LS.set('sf.sort', state.sort); applyFilters(); renderList(); pushDome(); };
   let qt; $('#q').oninput = (e) => { clearTimeout(qt); qt = setTimeout(() => { state.q = e.target.value; state.page = 60; applyFilters(); renderList(); pushDome(); }, 120); };
   $('#list').addEventListener('click', (e) => { const fv = e.target.closest('[data-fav]'); if (fv) { e.stopPropagation(); toggleFav(fv.dataset.fav); return; } const r = e.target.closest('.row[data-id]'); if (r) openDetail(r.dataset.id); });
   $('#list').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { const r = e.target.closest('.row[data-id]'); if (r) { e.preventDefault(); openDetail(r.dataset.id); } } });
   $('#list').addEventListener('mouseover', (e) => { const r = e.target.closest('.row[data-id]'); $$('#list .row.hl').forEach((x) => x !== r && x.classList.remove('hl')); });
-  $('#backdrop').onclick = closeDetail;
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (!$('#editor').hidden) askCloseEditor(); else if (!$('#drawer').hidden) closeDetail(); } });
-  const red = (v) => { $('#veil').hidden = !v; $('#nightBtn').setAttribute('aria-pressed', String(!!v)); LS.set('sf.red', !!v); };
-  red(LS.get('sf.red', false)); $('#nightBtn').onclick = () => red($('#veil').hidden);
+  $('#backdrop').onclick = () => closeDetail();
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (!$('#editor').hidden) askCloseEditor(); else if (!$('#drawer').hidden) closeDetail(); else if (!$('#adv').hidden) setAdv(false); } });
+  setRed(LS.get('sf.red', false)); $('#nightBtn').onclick = () => setRed($('#veil').hidden);
+  wireDrawerDrag();
   window.addEventListener('resize', () => { drawStrip(); if (state.sel && !$('#drawer').hidden) drawPreview(); });
+  setPlayIcon();
   Dome.onPick((id) => openDetail(id));
   wireStrip(); wireEditor(); syncAdv();
   setInterval(() => { if (state.live) { Dome.setTime(Date.now()); onTime(); } }, 1000);
