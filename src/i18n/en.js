@@ -660,4 +660,14 @@ window.I18N.en = {
   "Piano modificato a mano": "Plan edited by hand", "ripristina": "restore", "in": "over", "di posa senza Luna": "of moonless exposure", "di posa senza Luna ancora da fare": "of moonless exposure still to do",
   "filtri e pose · qualità {q} · {cfg} a {f} · ore col cielo senza Luna": "filters and subs · quality {q} · {cfg} at {f} · hours under a moonless sky",
   "Sub = durata indicativa della singola posa per quel filtro: abbastanza lunga da coprire il rumore di lettura col cielo di stanotte, entro i valori pratici del filtro. Stime indicative: da regolare su stelle sature e inseguimento.": "Sub = indicative length of a single exposure for that filter: long enough to bury the read noise under tonight's sky, within the filter's practical range. Indicative: adjust for saturated stars and tracking.",
+  // ---------- 0.10: piano di stagione, calendario dei progetti, stagioni ----------
+  "Preparo il piano di stagione…": "Preparing the season plan…", "stanotte, {h}": "tonight, {h}", "{p}% in {n} giorni": "{p}% in {n} days", "non in questi {n} giorni": "not within these {n} days",
+  "Finisci tutto entro il {d}": "You finish everything by {d}", "Non tutto si chiude nei prossimi {n} giorni": "Not everything finishes within the next {n} days",
+  "Piano di stagione": "Season plan", "tutti i tuoi target insieme, notte per notte · {m}": "all your targets together, night by night · {m}",
+  "{h} di posa in {n} di ripresa.": "{h} of exposure over {n} of shooting.", "Ogni notte va ai target che lì rendono di più; quando più target la vogliono, la si divide.": "Each night goes to the targets that yield most on it; when several want it, it is shared.",
+  "Calendario": "Calendar", "chi riprendere ogni notte": "what to shoot each night", "Settimane prima": "Earlier weeks", "Settimane dopo": "Later weeks",
+  "Tocca una notte per vedere chi riprendere e quanto": "Tap a night to see what to shoot and for how long", "Nessuno dei tuoi target rende abbastanza questa notte.": "None of your targets yields enough on this night.",
+  "{h} di buio sereno": "{h} of clear darkness", "Apri questa notte": "Open this night", "Le stagioni": "Seasons",
+  "quando ogni target rende di più nei prossimi 12 mesi (più acceso = più ore col buio)": "when each target is at its best in the next 12 months (brighter = more dark hours)",
+  "settimana del {d}: {h} col buio": "week of {d}: {h} in the dark",
 };

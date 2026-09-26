@@ -146,24 +146,30 @@ function renderProjects() {
       <div class="pv-stat"><b class="num">${wip.length}</b><span>${tx('in corso')}</span></div>
       <div class="pv-stat"><b class="num">${favs.length}</b><span>${tx('preferiti da iniziare')}</span></div>
       <div class="pv-stat"><b class="num">${done.length}</b><span>${tx('completati')}</span></div>
-      <div class="pv-stat"><b class="num">${fmtH(hours)}</b><span>${tx('di posa in {n}', { n: nNights(nights) })}</span></div></div>` +
-    sec(tx('In corso'), tx('ore raccolte e quanto manca'), wip) + sec(tx('Preferiti'), tx('da iniziare'), favs) + sec(tx('Fatti'), '', done);
+      <div class="pv-stat"><b class="num">${fmtH(hours)}</b><span>${tx('di posa in {n}', { n: nNights(nights) })}</span></div></div>
+    <div id="pvSeason">${wip.length + favs.length ? `<div class="card sk-wait"><div class="spin"></div><p>${tx('Preparo il piano di stagione…')}</p></div>` : ''}</div>` +
+    sec(tx('In corso'), tx('ore raccolte e quanto manca'), wip) + sec(tx('Preferiti'), tx('da iniziare'), favs) + yearHTML(seasonTargets()) + sec(tx('Fatti'), '', done);
   el.onclick = (e) => {
     if (e.target.closest('[data-go]')) { setView('targets'); return; }
     const f = e.target.closest('[data-fav]'); if (f) { e.stopPropagation(); toggleFav(f.dataset.fav); return; }
+    if (e.target.closest('#pvSeason')) return;
     const c = e.target.closest('[data-id]'); if (c) openDetail(c.dataset.id);
   };
   el.onkeydown = (e) => { if (e.key !== 'Enter' && e.key !== ' ') return; const c = e.target.closest('.pc[data-id]'); if (c) { e.preventDefault(); openDetail(c.dataset.id); } };
-  // prossima notte utile, dal calendario di ripresa (a pezzi)
-  const job = ++pvJob, todo = [...wip, ...favs]; let i = 0;
-  const step = () => {
-    if (job !== pvJob) return; const t0 = performance.now();
-    while (i < todo.length && performance.now() - t0 < 14) {
-      const id = todo[i++], r = state.byId.get(id), x = el.querySelector(`[data-nx="${CSS.escape(id)}"]`); if (!r || !x || !r.e.best) continue;
-      const cal = shootCalendar(state.res.C, r, r.e, false), nx = cal && cal.nights.find((q) => q.use);
-      if (nx) x.innerHTML = `${ic('night')}${dateStr(new Date(nx.t0)) === defaultNightStr() ? tx('stanotte {h} utili', { h: fmtDur(nx.h) }) : tx('prossima notte: {d}', { d: fmtDayLong(nx.t0) })}${cal.done ? ' · ' + tx('fine ≈ {d}', { d: fmtDay(cal.done) }) : ''}`;
+  // piano di stagione: calendario del mese, righe dei target, e su ogni scheda la prossima notte e la fine
+  const job = ++pvJob;
+  seasonPlan((P) => {
+    if (job !== pvJob || !$('#pvSeason')) return;
+    $('#pvSeason').innerHTML = monthHTML(P) + seasonHTML(P);
+    for (const t of P.targets) {
+      const x = el.querySelector(`[data-nx="${CSS.escape(t.id)}"]`); if (!x) continue; const nx = t.nights[0];
+      x.innerHTML = nx ? `${ic('night')}${nx.k === 0 ? tx('stanotte, {h}', { h: fmtH(nx.a) }) : tx('prossima notte: {d}', { d: fmtDayLong(P.nights[nx.k].t0) })}${t.done != null ? ' · ' + tx('fine ≈ {d}', { d: fmtDay(P.nights[t.done].t0) }) : ''}` : '';
     }
-    if (i < todo.length) setTimeout(step, 0);
-  };
-  setTimeout(step, 30);
+    $('#pvSeason').onclick = (e) => {
+      const pm = e.target.closest('[data-pm]'); if (pm) { PM.m = Math.max(0, PM.m + +pm.dataset.pm); $('#pvSeason .month-card').outerHTML = monthHTML(P); return; }
+      const c = e.target.closest('.pm[data-k]'); if (c) { openSeasonNight(P, +c.dataset.k); return; }
+      const r = e.target.closest('[data-id]'); if (r) { e.stopPropagation(); openDetail(r.dataset.id); }
+    };
+  });
+  fillYear(seasonTargets());
 }

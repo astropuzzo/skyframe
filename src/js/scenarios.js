@@ -33,11 +33,11 @@ function dayStrip(cal, D) {
 }
 /* asse dei giorni: date ogni settimana e la Luna di ogni notte (più chiara = più luminosa) */
 function dayAxis(C, D) {
-  let moon = '', lab = '';
+  let moon = '', lab = ''; const stp = D > 45 ? 14 : 7;
   for (let k = 0; k < D; k++) {
     const nk = aheadNight(C, k), d = new Date(nk.t0);
     moon += `<i style="opacity:${(0.12 + 0.88 * nk.moon).toFixed(2)}" title="${tx('Luna {p}%', { p: Math.round(nk.moon * 100) })}"></i>`;
-    lab += `<span>${k === 0 ? tx('oggi') : k % 7 === 0 ? d.getDate() + ' ' + d.toLocaleDateString(LOCALE, { month: 'short' }).replace('.', '') : ''}</span>`;
+    lab += `<span>${k === 0 ? tx('oggi') : k % stp === 0 ? d.getDate() + ' ' + d.toLocaleDateString(LOCALE, { month: 'short' }).replace('.', '') : ''}</span>`;
   }
   return `<div class="sc-ax"><span class="sc-tl moon" style="--d:${D}">${moon}</span><span class="sc-tl lab" style="--d:${D}">${lab}</span></div>`;
 }
