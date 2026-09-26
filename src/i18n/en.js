@@ -716,4 +716,5 @@ window.I18N.en = {
   "«Quanto ci vuole»: ore, notti e data di fine per ogni modo di riprendere e ogni luogo": "“How long it takes”: hours, nights and end date for every way of shooting and every location",
   "Calendario di sei settimane per ogni target": "Six-week calendar for every target", "Sezione Cielo: sette modelli meteo, probabilità, seeing, trasparenza": "Sky section: seven weather models, probability, seeing, transparency",
   "Interfaccia nuova a sezioni, le prossime 14 notti, icona nuova": "New section-based interface, the next 14 nights, new icon",
+  "Orario preciso": "Exact timing", "consenti a Skyframe «sveglie e promemoria»: l’avviso della sera arriva all’ora giusta": "allow Skyframe “Alarms & reminders”: the evening alert arrives on time",
 };
