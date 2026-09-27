@@ -43,7 +43,7 @@ const MAIN = { msho: 'Ha', mhoo: 'Ha', 'msho+rgb': 'Ha', 'mhoo+rgb': 'Ha', mharg
 const q = (a, p) => { const v = [...a].sort((x, y) => x - y); return v[Math.round(p * (v.length - 1))]; };
 const r1 = (x) => Math.round(x * 10) / 10;
 const files = fs.readdirSync(RAW).filter((f) => /^skyframe-astrobin-dataset-.*\.json$/.test(f)).map((f) => path.join(RAW, f));
-const seen = new Set(), by = {};
+const seen = new Set(), by = {}, sho = {};
 let first = null;
 for (const file of files) {
   const d = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -65,6 +65,8 @@ for (const file of files) {
     }
     if (bad || !set.size) continue;
     const rec = mono ? recipeM(set) : recipeC(set); if (!rec) continue;
+    // SHO o HOO: chi riprende in mono di solito ha i tre filtri, quindi la scelta dice quanto rende la SII su quel soggetto
+    if (mono && set.has('Ha') && set.has('OIII')) { const k = ALIAS[r.target] || r.target, s = (sho[k] = sho[k] || [0, 0]); s[0]++; if (set.has('SII')) s[1]++; }
     const dt = (a.dates || []).slice(-1)[0]; if (dt && (!first || dt < first)) first = dt;
     const t = ALIAS[r.target] || r.target, k = (mono ? 'm' : 'c') + skyOf(sqm);
     (by[t] = by[t] || []).push({ h, rec, subs, k });
@@ -96,5 +98,6 @@ const head = `// Foto vere: ${n} immagini su AstroBin con telescopio (${tot.c} c
 // "c" e "m" da soli: tutti i cieli. SQM dichiarato dall'autore o, in mancanza, dalla classe di Bortle (mediane fra autori).
 // Ricette a colori: bb banda larga, lp anti-inquinamento, duo Hα+OIII, so SII+OIII, quad quattro righe, sho duo+so, "+rgb" con
 // banda larga. Mono: msho, mhoo (anche "+rgb" per le stelle), mhargb Hα+RGB, mha solo Hα, mlrgb, mrgb.\n`;
-fs.writeFileSync(OUT, head + 'window.REAL = ' + JSON.stringify({ n, nc: tot.c, nm: tot.m, since, likes: 25, o: out }) + ';\n');
+const shoOut = Object.fromEntries(Object.entries(sho).filter(([, v]) => v[0] >= 3));
+fs.writeFileSync(OUT, head + '// sho[id] = [foto mono a banda stretta con Hα e OIII, di cui anche con SII].\n' + 'window.REAL = ' + JSON.stringify({ n, nc: tot.c, nm: tot.m, since, likes: 25, o: out, sho: shoOut }) + ';\n');
 console.log(`${Object.keys(out).length} oggetti, ${n} foto (colori ${tot.c}, mono ${tot.m}) → ${path.relative(process.cwd(), OUT)} (${fs.statSync(OUT).size} byte)`);

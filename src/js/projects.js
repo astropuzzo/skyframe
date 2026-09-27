@@ -66,7 +66,7 @@ function projHTML(r, e, b) {
   const status = done ? `<span class="pst done">${ic('check')}${tx('fatto')}</span>` : hd > 0 ? `<span class="pst wip">${tx('in corso')}</span>` : fav ? `<span class="pst fav">${ic('star-f')}${tx('preferito')}</span>` : '';
   const sess = p && (p.sessions || []).length ? `<ul class="sess">${p.sessions.map((s) => `<li><span class="d">${fmtDate(s.date)}<small>${esc(s.locName || '')}</small></span><span class="s">${esc(s.stratLabel || '')}</span><b class="num">${fmtH(+s.h)}</b><em class="num">${s.frac ? '+' + Math.round(s.frac * 100) + '%' : ''}</em><button type="button" class="icon-btn" data-del="${s.ts}" aria-label="${tx('Elimina la sessione')}" title="${tx('Elimina la sessione')}">${ic('trash', 'sm')}</button></li>`).join('')}</ul>` : '';
   const bar = hd > 0 || done ? `<div class="pbar big"><b style="width:${Math.round(prog * 100)}%"></b></div>
-    <div class="pnum">${done ? tx('Segnato come fatto') : tx('{p}% · {h} fatte', { p: Math.round(prog * 100), h: fmtH(hd) })}${!done && rem != null ? ' · ' + (prog >= 1 ? tx('integrazione stimata completata') : tx('mancano ≈ {h} qui', { h: fmtH(rem) })) : ''}</div>` : `<div class="pnum">${tx('Registra le sessioni: l’integrazione mancante si ricalcola.')}</div>`;
+    <div class="pnum">${done ? tx('Segnato come fatto') : tx('{p}% · {h} fatte', { p: Math.round(prog * 100), h: fmtH(hd) })}${!done && rem != null ? ' · ' + (prog >= 1 ? tx('integrazione raggiunta') : tx('mancano ≈ {h} qui', { h: fmtH(rem) })) : ''}</div>` : `<div class="pnum">${tx('Nessuna sessione')}</div>`;
   const today = $('#nightDate').value || defaultNightStr();
   const strats = e.strat.filter((s) => isFinite(hoursOf(s)));
   const form = `<form class="sform" id="sForm" hidden>
@@ -100,7 +100,7 @@ function wireProj(r, e) {
     const need = needHours(id, e.cfg.key, stratId, locId, date);
     addSession(id, { date, h, loc: locId, locName: l ? l.site.name : '', cfg: e.cfg.key, cfgLabel: e.cfg.label, strat: stratId, stratLabel: s ? s.label : '', need, frac: need ? h / need : 0 });
     toast(need ? tx('Sessione salvata: +{p}% dell’integrazione', { p: Math.round(h / need * 100) }) : tx('Sessione salvata'));
-    if (projProgress(id) >= 1 && !isDone(id)) toast(tx('Integrazione stimata raccolta: segna il progetto come completato quando il risultato ti soddisfa'));
+    if (projProgress(id) >= 1 && !isDone(id)) toast(tx('Integrazione raggiunta'));
   };
   box.onclick = (ev) => { const d = ev.target.closest('[data-del]'); if (d) removeSession(id, +d.dataset.del); };
 }
@@ -111,7 +111,7 @@ function rowProgress(r) {
   const id = r.o.id; if (isDone(id)) return `<span class="rdone">${ic('check')}${tx('fatto')}</span>`;
   const prog = projProgress(id); if (!(prog > 0)) return '';
   const b = r.e.best, rem = b && isFinite(hoursOf(b)) ? hoursOf(b) * (1 - prog) : null;
-  return `<span class="rprog" title="${tx('{p}% del lavoro fatto', { p: Math.round(prog * 100) })}"><i style="width:${Math.round(prog * 100)}%"></i></span><small>${Math.round(prog * 100)}%${prog >= 1 ? ' · ' + tx('integrazione stimata completata') : rem != null ? ' · ' + tx('mancano ≈ {h}', { h: fmtH(rem) }) : ''}</small>`;
+  return `<span class="rprog" title="${tx('{p}% del lavoro fatto', { p: Math.round(prog * 100) })}"><i style="width:${Math.round(prog * 100)}%"></i></span><small>${Math.round(prog * 100)}%${prog >= 1 ? ' · ' + tx('integrazione raggiunta') : rem != null ? ' · ' + tx('mancano ≈ {h}', { h: fmtH(rem) }) : ''}</small>`;
 }
 
 /* ---------- la sezione Progetti ---------- */

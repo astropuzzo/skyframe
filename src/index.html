@@ -195,12 +195,12 @@
         <h3>Telescopi e accessori</h3>
         <div id="optics" class="optics"></div>
         <button class="btn sm" id="opticAdd" type="button"><svg class="ic"><use href="#i-plus"/></svg><span>Aggiungi telescopio</span></button>
-        <p class="hint">Ogni telescopio con correttori e riduttori genera una configurazione (focale e rapporto focale). Per ogni target si usa quella con il tempo più breve.</p>
+        <p class="hint">Ogni telescopio con i suoi accessori è una configurazione.</p>
       </section>
       <section class="fs ed-prof">
         <h3>Filtri che possiedi</h3>
         <div id="filterPick"></div>
-        <p class="hint">Bande passanti e trasmissione dalle schede dei produttori; «stima» indica valori non pubblicati in forma numerica.</p>
+        <p class="hint">«stima»: bande non pubblicate dal produttore.</p>
       </section>
       <section class="fs ed-loc">
         <h3>Luogo e inquinamento luminoso</h3>
@@ -210,7 +210,7 @@
             <div id="geoList" class="geolist" hidden></div>
           </div>
           <div id="geoMap" class="geomap" aria-label="Mappa: clicca o trascina lo spillo"></div>
-          <p class="hint" id="geoHint">Tocca la mappa o trascina lo spillo sul punto di osservazione. Colori dell’atlante: grigio e blu cielo buio, verde e giallo zone rurali e periferiche, rosso e bianco centri urbani.</p>
+          <p class="hint" id="geoHint">Tocca la mappa o trascina lo spillo.</p>
         </div>
         <div class="grid">
           <label class="field w2"><span>Nome del luogo</span><input id="f_site" maxlength="60"></label>
@@ -219,7 +219,7 @@
           <label class="field"><span>Altitudine (m s.l.m.)</span><input id="f_elev" type="number" min="-400" max="6000" step="1"></label>
           <label class="field"><span>Scala di Bortle</span><select id="f_bortle"></select></label>
           <label class="field"><span>SQM allo zenit (mag/″²)</span><input id="f_sqm" type="number" min="16" max="22.2" step="0.01"></label>
-          <label class="chk w2"><input type="checkbox" id="f_sqmMeas"> Valore misurato con un fotometro (SQM-L o simile), non stimato</label>
+          <label class="chk w2"><input type="checkbox" id="f_sqmMeas"> Misurato con un fotometro</label>
         </div>
         <div class="lpbox">
           <canvas id="lpSky" width="340" height="340" aria-label="Luminosità del cielo per direzione"></canvas>
@@ -248,7 +248,7 @@
               <p class="hint" id="skyMsg"></p>
               <button class="btn sm ghost" id="skyRemove" type="button" hidden>Rimuovi la mappa importata</button>
             </div>
-            <p class="hint" data-t>Senza mappa all-sky, l’SQM è una stima dall’<a href="https://djlorenz.github.io/astronomy/lp/" target="_blank" rel="noopener">atlante di David Lorenz</a> (dati satellitari VIIRS 2025; incertezza tipica ±0,3 mag). Una misura con fotometro, se indicata, prevale.</p>
+            <p class="hint" data-t>Senza mappa all-sky: SQM dall’<a href="https://djlorenz.github.io/astronomy/lp/" target="_blank" rel="noopener">atlante di David Lorenz</a> (VIIRS 2025).</p>
           </div>
         </div>
       </section>
@@ -259,16 +259,16 @@
           <label class="field"><span>Dalle (facoltativo)</span><input id="f_from" type="time"></label>
           <label class="field"><span>Alle (facoltativo)</span><input id="f_to" type="time"></label>
           <label class="field"><span>Qualità</span><select id="f_quality"><option value="quick">Rapida</option><option value="good">Buona</option><option value="great">Eccellente</option><option value="deep">Profonda</option></select></label>
-          <label class="field"><span>Obiettivo della ripresa</span><select id="f_goal"><option value="snr">Minor tempo per il SNR richiesto</option><option value="lines">Tutte le righe dell’oggetto (SHO)</option><option value="natural">Colori naturali (banda larga)</option></select></label>
+          <label class="field"><span>Obiettivo della ripresa</span><select id="f_goal"><option value="lines">SHO sui soggetti adatti</option><option value="snr">Minor tempo</option><option value="natural">Colori naturali (banda larga)</option></select></label>
         </div>
-        <p class="hint">Livello «buona»: il SNR della foto mediana apprezzata su AstroBin di quell’oggetto, riportato al tuo setup. «Rapida» richiede circa metà del tempo (25° percentile delle foto), «eccellente» il doppio (75°), «profonda» 3,3 volte (90°).</p>
+        <p class="hint">Rapida ×0,5 · Buona ×1 · Eccellente ×2 · Profonda ×3,3</p>
       </section>
       <section class="fs ed-loc">
         <h3>Orizzonte</h3>
         <div class="grid"><label class="field"><span>Altezza minima (°)</span><input id="f_minalt" type="number" min="0" max="80" step="1"></label></div>
         <div class="hz"><svg id="hzSvg" viewBox="0 0 720 204" aria-label="Editor dell'orizzonte"></svg></div>
         <div class="hzbar" style="margin-top:4px"><span id="hzSrc" class="hint" style="margin:0"></span><button class="btn sm" id="hzUseMap" type="button" hidden>Usa il terreno della mappa</button></div>
-        <p class="hint" data-t>Clic o trascinamento per disegnare l’orizzonte. <b>Maiusc+clic</b> o clic destro rimuove il punto più vicino. La linea tratteggiata è l’altezza minima.</p>
+        <p class="hint" data-t>Clic o trascina per disegnare · <b>Maiusc+clic</b> o clic destro: togli un punto · tratteggio: altezza minima</p>
         <div class="hzbar">
           <label class="btn sm" for="hzFile">Importa .hrz (N.I.N.A.) o Stellarium</label><input id="hzFile" type="file" accept=".hrz,.txt,.csv,.ini,.dat" hidden>
           <button class="btn sm ghost" id="hzPasteBtn">Incolla testo</button>
@@ -277,7 +277,7 @@
           <button class="btn sm ghost" id="hzCopyStel">Copia per Stellarium</button>
         </div>
         <div id="hzPaste" hidden style="margin-top:10px">
-          <label class="field wide"><span>Una riga per punto: azimut altezza, in gradi. Le righe che iniziano con # o ; sono ignorate.</span><textarea id="hzText" spellcheck="false"></textarea></label>
+          <label class="field wide"><span>Una riga per punto: azimut altezza (gradi).</span><textarea id="hzText" spellcheck="false"></textarea></label>
           <div class="hzbar"><button class="btn sm" id="hzApply">Applica</button><span id="hzMsg" class="hint"></span></div>
         </div>
       </section>

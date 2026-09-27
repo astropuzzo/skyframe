@@ -7,7 +7,7 @@
    gli id restano in sf.extra per ritrovarli al prossimo avvio. */
 const IDX = { rows: null, loading: null, byName: null };
 const TYPE_OF = { G: 'Gx', E: 'EN', P: 'PN', S: 'SNR', R: 'RN', D: 'DN', O: 'OC', C: 'GC' };
-const SBQ_TXT = { m: 'luminosità superficiale dalla magnitudine misurata', c: 'luminosità superficiale stimata dalla classe Sharpless: tempo indicativo', o: 'luminosità superficiale stimata dall’opacità Lynds: tempo indicativo', t: 'luminosità superficiale non misurata (valore tipico del tipo): tempo indicativo' };
+const SBQ_TXT = { m: 'LS dalla magnitudine', c: 'LS dalla classe Sharpless', o: 'LS dall’opacità Lynds', t: 'LS tipica del tipo' };
 const norm = (s) => String(s).toLowerCase().replace(/\s+/g, '');
 function loadIndex() {
   if (IDX.rows) return Promise.resolve(IDX.rows);
@@ -51,7 +51,7 @@ async function openIndexEntry(name) {
     if (!x) { toast(tx('{t} non sale mai sopra l’altezza minima da questo luogo', { t: o.id })); return; }
     state.res.results.push(x); state.byId.set(o.id, x); openDetail(o.id); return;
   }
-  openSheet({ title: r[0], body: `<p class="info-txt">${esc(tx('Presente nel catalogo, ma senza dati sufficienti per stimare i tempi: {w}.', { w: tx(r[3]) }))}</p>${r[1] ? `<p class="hint">${tx('Altri nomi')}: ${esc(r[1].split('|').join(', '))}</p>` : ''}${r[4] != null ? `<p class="hint">RA ${raStr(r[4])} · Dec ${decStr(r[5])}</p>` : ''}` });
+  openSheet({ title: r[0], body: `<p class="info-txt">${esc(tx('Nel catalogo, senza dati per i tempi: {w}.', { w: tx(r[3]) }))}</p>${r[1] ? `<p class="hint">${tx('Altri nomi')}: ${esc(r[1].split('|').join(', '))}</p>` : ''}${r[4] != null ? `<p class="hint">RA ${raStr(r[4])} · Dec ${decStr(r[5])}</p>` : ''}` });
 }
 /* ricerca nell'indice: voci che non sono già nei risultati della lista (massimo 30) */
 function indexHits(q, shown) {

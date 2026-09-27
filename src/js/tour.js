@@ -9,24 +9,25 @@
    Parte da sola al primo avvio; chi aveva già Skyframe riceve la proposta; dopo un aggiornamento le «Novità» e i passi
    nuovi. Si riprende da Setup → Guida. v = versione in cui il passo è comparso. */
 const TOUR_STEPS = [
-  { id: 'benvenuto', v: '0.13.0', view: 'tonight', hero: true, t: 'Skyframe', d: 'Pianifica le riprese del cielo profondo: quali oggetti sono osservabili dal tuo luogo, quale integrazione serve con la tua attrezzatura e in quali notti ottenerla.' },
-  { id: 'luogo', v: '0.13.0', view: 'tonight', sel: ['#locChip', '#nightChip', '#profChip'], t: 'Luogo, notte, attrezzatura', d: 'I calcoli usano il cielo del luogo attivo (SQM e orizzonte), la notte scelta e il profilo attivo (ottica, camera, filtri). Qui si cambiano.',
+  { id: 'benvenuto', v: '0.13.0', view: 'tonight', hero: true, t: 'Skyframe', d: 'Cosa riprendere, quante ore servono e in quali notti.' },
+  { id: 'luogo', v: '0.13.0', view: 'tonight', sel: ['#locChip', '#nightChip', '#profChip'], t: 'Luogo, notte, attrezzatura', d: 'Luogo, notte e attrezzatura attivi.',
     cta: () => (activeLoc().site.example ? ['Imposta il luogo', () => openLocEditor(state.locId)] : activeProfile().unsaved ? ['Imposta l’attrezzatura', () => openEditor(state.activeId)] : null) },
-  { id: 'notti', v: '0.13.0', view: 'tonight', sel: '#nightBar', hint: ['#nightBar > :nth-child(2)', 'tap'], t: 'Le prossime notti', d: 'Per ogni notte: buio astronomico, fase lunare e copertura nuvolosa prevista. Tocca una notte per calcolarla.' },
-  { id: 'cielo', v: '0.13.0', view: 'tonight', sel: '.skycard', anchor: 'bottom', hint: ['.skycard .clock', 'drag'], t: 'Il cielo del luogo', d: 'Posizione dei target migliori all’ora indicata, con il tuo orizzonte. Trascina la barra dell’ora per vedere un altro momento della notte.' },
-  { id: 'piano', v: '0.13.0', view: 'tonight', sel: '#tonight', t: 'Il piano della notte', d: 'I target in ordine di ripresa, ciascuno quando è più alto, nelle ore buie e serene previste.' },
-  { id: 'catalogo', v: '0.19.0', view: 'targets', sel: '.searchbox', t: 'Catalogo completo', d: 'La ricerca copre tutte le voci Messier, NGC, IC, Sharpless e Lynds. Gli oggetti fuori dalla lista si calcolano quando li apri; per quelli senza dati sufficienti è indicato il motivo.' },
-  { id: 'quanto', v: '0.13.0', detail: 'piano', sel: '#scen', t: 'Integrazione necessaria', d: 'Ore e notti per raggiungere il livello di qualità scelto, per ogni modo di gestire la Luna e per ogni luogo salvato.' },
-  { id: 'fotovere', v: '0.16.0', detail: 'piano', sel: '.real-card', hint: ['.real-card .rbar .me', 'ping'], when: () => !!(window.REAL && REAL.o[(tourSample() || {}).id]), t: 'Foto di riferimento', d: 'Integrazione delle foto di questo oggetto pubblicate su AstroBin con una camera e un cielo simili ai tuoi. Il punto verde è la stima per il tuo setup.' },
-  { id: 'meteo', v: '0.13.0', view: 'sky', sel: '#skyView .sk-nights', t: 'Meteo', d: 'Copertura nuvolosa da sette modelli, probabilità di sereno, seeing, trasparenza e rischio di condensa, ora per ora.' },
-  { id: 'progetti', v: '0.13.0', view: 'projects', sel: '#projView', t: 'Progetti', d: 'I target segnati come preferiti: il piano di stagione distribuisce fra loro le notti disponibili.' },
-  { id: 'autoguida', v: '0.19.0', view: 'setup', sel: '#stGuiding', t: 'Precisione di autoguida', d: 'Per ogni configurazione: scala d’immagine, dimensione attesa delle stelle ed errore di autoguida consigliato, con il criterio e le ipotesi usate. La guida si riapre da Setup.' },
+  { id: 'notti', v: '0.13.0', view: 'tonight', sel: '#nightBar', hint: ['#nightBar > :nth-child(2)', 'tap'], t: 'Le prossime notti', d: 'Buio, Luna e nuvole di ogni notte. Tocca per sceglierla.' },
+  { id: 'cielo', v: '0.13.0', view: 'tonight', sel: '.skycard', anchor: 'bottom', hint: ['.skycard .clock', 'drag'], t: 'Il cielo del luogo', d: 'I target migliori in cielo. Trascina per cambiare ora.' },
+  { id: 'piano', v: '0.13.0', view: 'tonight', sel: '#tonight', t: 'Il piano della notte', d: 'I target della notte, in ordine di ripresa.' },
+  { id: 'catalogo', v: '0.19.0', view: 'targets', sel: '.searchbox', t: 'Catalogo completo', d: 'Messier, NGC, IC, Sharpless e Lynds.' },
+  { id: 'quanto', v: '0.13.0', detail: 'piano', sel: '#scen', t: 'Integrazione necessaria', d: 'Ore e notti necessarie, per modo e per luogo.' },
+  { id: 'fotovere', v: '0.16.0', detail: 'piano', sel: '.real-card', hint: ['.real-card .rbar .me', 'ping'], when: () => !!(window.REAL && REAL.o[(tourSample() || {}).id]), t: 'Foto di riferimento', d: 'Ore delle foto su AstroBin con camera e cielo come i tuoi. Punto verde: la tua stima.' },
+  { id: 'meteo', v: '0.13.0', view: 'sky', sel: '#skyView .sk-nights', t: 'Meteo', d: 'Nuvole, seeing e trasparenza ora per ora.' },
+  { id: 'progetti', v: '0.13.0', view: 'projects', sel: '#projView', t: 'Progetti', d: 'I tuoi preferiti e il piano di stagione.' },
+  { id: 'autoguida', v: '0.19.0', view: 'setup', sel: '#stGuiding', t: 'Autoguida', d: 'Scala, stelle ed errore di autoguida per ogni configurazione.' },
 ];
 /* novità per versione (le più recenti in cima) */
 const NEWS = [
-  { v: '0.21.0', items: ['Taratura su 6918 foto di 311 oggetti, anche con camere mono e da cieli bui: il livello di ogni oggetto è più preciso (errore sugli oggetti mai usati da ×2,4 a ×2,0)', 'Classe di Bortle convertita in SQM con i valori dichiarati da chi riprende: le classi 6–8 corrispondono a cieli 0,25–0,37 mag più bui della tabella usata prima', 'Foto di riferimento divise per camera (a colori o mono) e cielo: nel dettaglio compaiono quelle più simili al tuo setup', 'Con camera mono, reflex o cielo buio il piano indica a che livello arrivano di solito le foto fatte così', 'Riconosciute molte più camere (per sensore), telescopi e filtri per camere mono: 7286 foto utilizzabili su 8074'] },
-  { v: '0.20.0', items: ['Sensori e filtri: risposta spettrale del sensore misurata in laboratorio (Hα e SII rendono circa il 55% dell’OIII); 16 filtri, 2 camere e 6 telescopi nuovi', 'Luna: con la Luna della notte si ricalcola la combinazione più rapida e il piano della notte la usa', 'Taratura rifatta su 2054 foto; verifica su 161 oggetti esclusi: due su tre entro un fattore 2', 'Testi rivisti: orizzonte e nuvole distinti, avvisi e consigli con nomi descrittivi'] },
-  { v: '0.19.0', items: ['Tempi: fisica del rumore per filtri, cieli e strumenti; livello di qualità per oggetto tarato su 1990 foto e verificato su 160 oggetti esclusi dalla taratura', 'Filtri: scelta con un criterio esplicito (tempo minimo per il SNR) e un obiettivo nel profilo; colore delle stelle con una ripresa a banda larga separata', 'Cielo: SQM con origine e incertezza, Bortle come intervallo; il piano mostra l’intervallo di ore che ne deriva', 'Catalogo completo Messier, NGC, IC, Sharpless e Lynds nella ricerca; precisione di autoguida per ogni configurazione', 'Testi riscritti in forma più precisa, in italiano e in inglese'] },
+  { v: '0.22.0', items: ['SHO consigliato sui soggetti adatti, se hai i filtri', 'Testi più brevi: solo i dati'] },
+  { v: '0.21.0', items: ['Tempi tarati su 6918 foto, anche mono e da cieli bui', 'Bortle → SQM dai valori reali degli astrofotografi', 'Foto di riferimento con camera e cielo come i tuoi', 'Più camere, telescopi e filtri mono'] },
+  { v: '0.20.0', items: ['Sensibilità del sensore per colore; 16 filtri, 2 camere, 6 telescopi', 'Filtri consigliati anche con la Luna'] },
+  { v: '0.19.0', items: ['Tempi tarati per ogni oggetto su foto reali', 'Obiettivo della ripresa nel profilo', 'Catalogo completo nella ricerca; autoguida in Setup'] },
   { v: '0.18.0', items: ['Il dettaglio si apre dal target toccato e vi ritorna alla chiusura', 'Sezioni e notti: l’indicatore si sposta con continuità; la cupola ruota fino all’ora scelta', 'Fogli e dettaglio si chiudono trascinandoli verso il basso'] },
   { v: '0.17.0', items: ['Guida rifatta: nove passi, un solo spostamento per passo, i gesti mostrati sullo schermo'] },
   { v: '0.16.0', items: ['Tempi ritarati su 1205 foto reali da cieli Bortle 6–8', 'Foto di riferimento: per 93 target, integrazione, filtri e pose singole delle foto riprese da Bortle 6–8', '20 camere, 30 telescopi e 13 filtri aggiunti al catalogo; livello di qualità «profonda»'] },
@@ -238,7 +239,7 @@ function tourBoot() {
   if (!seen) {
     if (!known) { setTimeout(() => tourStart(TOUR_STEPS), 700); return; }
     openSheet({
-      title: tx('Skyframe è stato aggiornato'), body: `<p class="info-txt">${tx('Livelli di qualità tarati su foto reali, scelta dei filtri con un criterio esplicito, catalogo completo, precisione di guida. Vuoi vedere la guida (nove passi)?')}</p>`,
+      title: tx('Skyframe è stato aggiornato'), body: `<p class="info-txt">${tx('Vuoi vedere la guida?')}</p>`,
       foot: `<button type="button" class="btn" data-later>${tx('Più tardi')}</button><button type="button" class="btn primary" data-go>${tx('Apri la guida')}</button>`,
       onMount: (el, close) => el.addEventListener('click', (e) => {
         if (e.target.closest('[data-go]')) { close(); setTimeout(() => tourStart(TOUR_STEPS), 300); }

@@ -105,7 +105,7 @@ async function planNotifications() {
       if (tg.last < 0 || tg.last > 10 || tg.rem < 0.2) continue;
       const d = new Date(), key = tg.id + '|s|' + d.getFullYear() + '-' + d.getMonth(); if (sent[key]) continue;
       const at6 = new Date(); at6.setHours(18, 0, 0, 0); const at = at6.getTime() > now ? at6.getTime() : now + 3000;
-      once(key, { id: 100 + (hash(tg.id) % 800), at, title: tx('{t}: ultime settimane', { t: tg.id }), body: tx('Periodo favorevole fino al {d}, manca il {p}% dell’integrazione: ha la precedenza.', { d: fmtDay(aheadNight(state.res.C, tg.last).t0), p: Math.round(tg.rem * 100) }) });
+      once(key, { id: 100 + (hash(tg.id) % 800), at, title: tx('{t}: ultime settimane', { t: tg.id }), body: tx('Periodo favorevole fino al {d}, manca il {p}%.', { d: fmtDay(aheadNight(state.res.C, tg.last).t0), p: Math.round(tg.rem * 100) }) });
     }
   }
   for (const k of Object.keys(sch)) if (now - sch[k] > 10 * 864e5) delete sch[k];

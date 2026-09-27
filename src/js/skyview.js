@@ -97,7 +97,7 @@ function renderSky() {
   el.innerHTML = head + `
     <div class="sk-nights">${L.map(skyNightCard).join('')}</div>
     <div class="card"><div class="card-h"><h3>${esc(title)}</h3></div>${skyGrid(x)}
-      <div class="sk-legend"><span>${ic('info')}${tx('Seeing: FWHM stimata in secondi d’arco, allo zenit (sotto 1,2″ buono). Trasparenza: profondità ottica degli aerosol (sotto 0,15 buona). Giallo: rischio di condensa.')}</span></div></div>
+      <div class="sk-legend"><span>${ic('info')}${tx('Seeing: FWHM allo zenit (buono < 1,2″) · Trasparenza: AOD (buona < 0,15) · Giallo: condensa')}</span></div></div>
     ${skyModels(x)}
     <div class="card" id="skOther"${state.locs.length > 1 ? '' : ' hidden'}></div>
     <p class="st-foot sk-src">${tx('Fonti')}: Open-Meteo.com (${Object.keys(WX.d.models).length} ${tx('modelli')}${p.ens ? ', ECMWF ensemble' : ''}${p.aq ? ', CAMS' : ''}) · ItaliaMeteo-ARPAE, DWD, Météo-France, ECMWF, UK Met Office, NOAA · Copernicus Atmosphere Monitoring Service</p>`;

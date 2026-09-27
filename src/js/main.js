@@ -228,7 +228,7 @@ function refresh(force) {
 function renderHeader() {
   const a = active();
   renderTopbar();
-  $('#notice').innerHTML = a.site.example ? `<div class="notice"><span>${tx('Luogo di esempio (Milano): imposta il tuo punto di osservazione per calcoli validi.')}</span><button class="btn sm" id="noticeEdit">${tx('Imposta il mio luogo')}</button></div>` : '';
+  $('#notice').innerHTML = a.site.example ? `<div class="notice"><span>${tx('Luogo di esempio (Milano): imposta il tuo.')}</span><button class="btn sm" id="noticeEdit">${tx('Imposta il mio luogo')}</button></div>` : '';
   const b = $('#noticeEdit'); if (b) b.onclick = () => openLocEditor(state.locId);
   const gs = $('#sortSel option[value="gain"]'); if (gs) gs.hidden = state.locs.length < 2;
   if (state.sort === 'gain' && state.locs.length < 2) { state.sort = 'score'; $('#sortSel').value = 'score'; }

@@ -26,7 +26,7 @@ function renderFacts() {
   const sl = w && seeLvl(w.see), tl = w && traLvl(w.aod);
   const wxS = w ? [tx('{p}% del buio sereno', { p: Math.round(w.clear * 100) }), w.prob != null ? tx('probabilità {p}%', { p: Math.round(w.prob * 100) }) : '', sl ? tx('seeing {s}', { s: tx(sl.t).toLowerCase() }) : '', tl ? tx('trasparenza {s}', { s: tx(tl.t).toLowerCase() }) : ''].filter(Boolean).join(' · ') : WX.busy ? tx('previsioni in caricamento') : WX.err ? tx('senza connessione: si assume cielo sereno') : tx('oltre l’orizzonte delle previsioni (si assume cielo sereno)');
   const warn = w ? [w.dew != null && w.dew <= 2 ? ic('drop') + tx('rischio di condensa: riscalda l’ottica') : '', w.gust != null && w.gust >= 30 ? ic('wind') + tx('raffiche fino a {v} km/h', { v: w.gust }) : '', w.dust != null && w.dust >= 60 ? ic('cloud') + tx('polvere del deserto') : ''].filter(Boolean) : [];
-  $('#facts').innerHTML = `<div class="vd-top"><div><h2>${esc(title.charAt(0).toUpperCase() + title.slice(1))}</h2><div class="sub">${esc(sub)}</div></div><span class="rate r${q.r}" title="${tx('Voto: ore di buio serene e senza Luna; le ore con la Luna contano un terzo')}"><i></i>${tx(q.label)}</span></div>
+  $('#facts').innerHTML = `<div class="vd-top"><div><h2>${esc(title.charAt(0).toUpperCase() + title.slice(1))}</h2><div class="sub">${esc(sub)}</div></div><span class="rate r${q.r}" title="${tx('Voto: ore buie, serene, senza Luna')}"><i></i>${tx(q.label)}</span></div>
     <div class="vd-stats">
       <div class="fact"><div class="lbl">${ic('night')}${tx('Buio')}</div><div class="v num">${dark}</div><div class="s">${fmtDur(n.darkH)} · ${tx('sole sotto {d}°', { d: n.thr })}</div></div>
       <div class="fact"><div class="lbl">${ic('moon')}${tx('Luna')}</div><div class="v">${moonSvg(n.moonIll, n.waxing)}<span class="num">${Math.round(n.moonIll * 100)}%</span></div><div class="s">${moonS}</div></div>
@@ -216,7 +216,7 @@ function nightsTag(r, e, C) {
   const b = e.best; if (!b) return ''; C = C || state.res.C;
   const A = C.ahead, md = calMode(C); let cal = A && (A.cache.get(calKey(r, e, false, md)) || A.cache.get(calKey(r, e, true, md)));
   if (!cal && md !== 'dark' && r.usableH >= CAL_MIN_H && b.tonight <= r.usableH) cal = shootCalendar(C, r, e, false);
-  if (!cal) return isFinite(b.nights) ? `<span class="nights est" title="${tx('Stima provvisoria: il calcolo notte per notte è in corso')}">≈ ${Math.max(1, Math.ceil(b.nights))}</span>` : '';
+  if (!cal) return isFinite(b.nights) ? `<span class="nights est" title="${tx('Calcolo in corso')}">≈ ${Math.max(1, Math.ceil(b.nights))}</span>` : '';
   return calBadge(cal);
 }
 function calBadge(cal) {
@@ -322,37 +322,11 @@ function closeDetail(fromPop, how) {
   d.classList.remove('on');
   setTimeout(done, 300);
 }
-/* da dove viene il livello di qualità di questo oggetto (model.js, objQualOf) */
-function qualTxt(o) {
-  const [, src] = objQualOf(o), e = window.QUALITY_OBJ && QUALITY_OBJ.o[o.id], n = e ? e[2] : 0;
-  if (src === 'foto') return tx('Livello «buona»: il SNR della foto mediana di questo oggetto su AstroBin ({n} foto, ognuna riportata a una camera a colori sotto un cielo SQM 19), ottenuto con il tuo setup.', { n });
-  if (src === 'stima') return tx('Livello «buona»: stimato dalla difficoltà dell’oggetto (nessuna foto di riferimento; su oggetti simili l’errore tipico è un fattore 1,5).');
-  return tx('Livello «buona»: SNR di riferimento del modello, senza taratura.');
-}
-/* Le ore dichiarate cambiano poco con camera e cielo: chi ha un setup più efficiente arriva a un SNR più alto
-   (quality.js, grp). Per la configurazione attiva: di quanto è più alto il SNR² tipico delle foto fatte così, e il livello
-   dell'app più vicino. Solo un'informazione: il tempo mostrato resta quello del livello scelto. */
-const LEVEL_K = [['quick', 0.47], ['good', 1], ['great', 2], ['deep', 3.3]];
-function peerTxt(p, sqm, o) {
-  const G = window.QUALITY_OBJ && QUALITY_OBJ.grp; if (!G) return '';
-  const t = p.camera.type, cam = t === 'mono' ? (LINES[o.lk] ? 'monoRighe' : 'monoContinuo') : t === 'dslr' ? 'reflex' : t === 'dslrmod' ? 'reflexMod' : null;
-  const F = Math.pow(10, (cam ? G[cam] : 0) + G.sky * (sqm - ((QUALITY_OBJ.ref || {}).sqm || 19))); if (Math.abs(Math.log10(F)) < 0.15) return '';
-  const near = LEVEL_K.reduce((a, x) => (Math.abs(Math.log(x[1] / F)) < Math.abs(Math.log(a[1] / F)) ? x : a)), over = F > 3.3 * 1.5;
-  const what = tx(t === 'mono' ? 'camera mono' : cam ? 'reflex' : 'camera a colori');
-  return tx('Con {c} e un cielo SQM {s}, le foto di riferimento arrivano in media a un SNR² {f} volte quello del livello «buona», con ore simili: chi riprende tende a usare lo stesso tempo con qualsiasi setup.', { c: what, s: it(sqm, 1), f: it(F, F < 1 ? 2 : 1) }) + ' ' + (over ? tx('È oltre il livello più alto, «profonda» (×3,3).') : tx('Il livello più vicino è «{l}».', { l: tx(QLABEL[near[0]]) }));
-}
-/* obiettivo del profilo e criterio con cui è stata scelta la strada (model.js, eligible e pickBest) */
-const GOAL_TXT = {
-  snr: 'Scelta: il tempo più breve per il SNR richiesto, fra le combinazioni a colori che raccolgono Hα e OIII (se l’oggetto le emette).',
-  lines: 'Scelta: il tempo più breve fra le combinazioni che raccolgono tutte le righe importanti dell’oggetto.',
-  natural: 'Scelta: il tempo più breve fra le combinazioni a banda larga (colori naturali).',
-};
 /* con la Luna della notte scelta può convenire un'altra combinazione (model.js, pickMoon): la si mostra con i suoi passi */
 function moonHTML(e, b, n) {
   const m = e.moonBest; if (!m) return '';
   const rows = planOf(m, e.cfg, 'moon').filter((s) => !s.optional);
-  return `<div class="moonalt"><div class="ma-h">${ic('moon', 'sm')}<span>${tx('Con la Luna di questa notte ({p}%)', { p: Math.round(n.moonIll * 100) })}</span><b>${esc(m.label)} ≈ ${fmtH(moonHoursOf(m))}</b></div>
-    <p>${tx('Con {s} servirebbero {h} con notti come questa. La luce lunare ha spettro continuo: ogni filtro ne lascia passare una quota proporzionale all’ampiezza della sua banda, quindi con la Luna le bande strette perdono meno. Si propone un cambio solo se riduce il tempo di almeno il 15%.', { s: esc(b.label), h: fmtH(moonHoursOf(b)) })}</p>
+  return `<div class="moonalt"><div class="ma-h">${ic('moon', 'sm')}<span>${tx('Con la Luna di stanotte ({p}%)', { p: Math.round(n.moonIll * 100) })}</span><b>${esc(m.label)} ≈ ${fmtH(moonHoursOf(m))}</b></div>
     <div class="ma-s">${rows.map((s) => `<span>${esc(s.filter)} · ${esc(s.what)} <b>${fmtH(s.h)}</b></span>`).join('')}</div></div>`;
 }
 /* incertezza del cielo sulle ore: la parte artificiale del fondo cambia come 10^(0,4·ΔSQM); si rifà il conto della
@@ -513,8 +487,7 @@ function realHTML(o, mine, anim, camType, sqm) {
   return `<div class="real-card${anim ? ' in' : ''}"><div class="head"><span class="t">${tx('Foto di riferimento')}</span><span class="n">${tx('{n} foto', { n })}</span></div><div class="grp">${esc(who)} · ${esc(sky)}</div>
     <div class="rbar" role="img" aria-label="${esc(aria)}" style="--a:${x(q1)}%;--b:${x(q3)}%;--m:${x(md)}%${me ? `;--u:${x(mine)}%` : ''}"><span class="iqr"></span><span class="md"></span>${me ? '<span class="me"></span>' : ''}${[1, 3, 10, 30].map((h) => `<span class="tk" style="left:${x(h)}%">${h} h</span>`).join('')}</div>
     <div class="rleg"><span><i class="k-md"></i>${tx('mediana {h}', { h: fmtH(md) })}</span><span><i class="k-iqr"></i>${tx('metà centrale fra {a} e {b}', { a: fmtH(q1), b: fmtH(q3) })}</span>${me ? `<span><i class="k-me"></i>${tx('stima per te {h}', { h: fmtH(mine) })}</span>` : ''}</div>
-    ${rows.length ? `<div class="recs"><div class="rec hd"><span>${tx('filtri')}</span><span></span><span>${tx('foto')}</span><span>${tx('ore')}</span><span>sub</span></div>${rows.map(([k, c, h, s], i) => `<div class="rec" style="--i:${i}"><span class="l">${esc(tx(REAL_REC[k] || k))}</span><span class="c"><i style="width:${Math.round((c / max) * 100)}%"></i></span><span class="v">${c}</span><span class="v">${fmtH(h)}</span><span class="v">${s ? s + ' s' : '—'}</span></div>`).join('')}</div>` : ''}
-    <p class="note">${tx('Foto su AstroBin con {c}, {s}: almeno 25 apprezzamenti, riprese dal {y}. Cielo dichiarato dagli autori (SQM o classe di Bortle), integrazione dichiarata dagli autori; esclusi i telescopi automatici. Le ore delle foto sono un’abitudine più che un fabbisogno: variano poco con camera e cielo.', { c: who, s: sky, y: window.REAL.since || 2020 })}</p></div>`;
+    ${rows.length ? `<div class="recs"><div class="rec hd"><span>${tx('filtri')}</span><span></span><span>${tx('foto')}</span><span>${tx('ore')}</span><span>sub</span></div>${rows.map(([k, c, h, s], i) => `<div class="rec" style="--i:${i}"><span class="l">${esc(tx(REAL_REC[k] || k))}</span><span class="c"><i style="width:${Math.round((c / max) * 100)}%"></i></span><span class="v">${c}</span><span class="v">${fmtH(h)}</span><span class="v">${s ? s + ' s' : '—'}</span></div>`).join('')}</div>` : ''}</div>`;
 }
 const D_TABS = [['piano', 'Piano'], ['quando', 'Quando'], ['campo', 'Campo'], ['consigli', 'Consigli']];
 /* le animazioni d'ingresso del dettaglio (strisce, calendario) solo all'apertura o al cambio di scheda, non a ogni aggiornamento */
@@ -564,8 +537,8 @@ function renderDetail() {
   // riassunto sempre visibile: ore senza Luna, notti e fine, strategia
   // riassunto: nel modo scelto quante ore, quante notti e fino a quando; poi il minimo senza Luna
   const prog = projProgress(o.id), mc = b ? shootCalendar(state.res.C, r, e, false) : null, md = tx(MODE_TXT[moonMode()][0]).toLowerCase();
-  const summary = !b ? `<span class="strat">${tx('Con i filtri del profilo non c’è una combinazione adatta per {t}.', { t: tx(TYPES_PL[o.type]).toLowerCase() })}</span>`
-    : mc && mc.complete ? `<b>${tx('integrazione stimata completata')}</b>`
+  const summary = !b ? `<span class="strat">${tx('Nessun filtro del profilo adatto a {t}.', { t: tx(TYPES_PL[o.type]).toLowerCase() })}</span>`
+    : mc && mc.complete ? `<b>${tx('integrazione raggiunta')}</b>`
     : mc && mc.done ? `<b>≈ ${fmtH(mc.hours)}</b> ${tx('in')} <b>${nNights(mc.sessions)}</b>, ${endTxt(mc)} <span class="strat">· ${md} · ${tx('senza Luna {h}', { h: fmtH(needNow(r, e)) })}</span>`
     : `<b>≈ ${fmtH(needNow(r, e))}</b> ${tx('di integrazione senza Luna')} · <b>${tx('oltre un anno')}</b>`;
   const scoreTip = `${tx('Punteggio')} ${e.score}/100 · ${tx('Inquadratura')} ${Math.round(e.fill.score * 100)} · ${tx('Visibilità')} ${Math.round(r.vis * 100)} · ${tx('Impegno (notti necessarie)')} ${Math.round(e.effort * 100)} · ${tx('Interesse fotografico')} ${Math.round(interestOf(o) * 100)}`;
@@ -584,19 +557,15 @@ function renderDetail() {
   // setup del profilo: scelta compatta
   const cfgs = r.evals.length > 1 ? `<div class="cfgs" role="radiogroup" aria-label="${tx('Setup')}">${r.evals.map((x) => `<button class="cfg" role="radio" data-cfg="${esc(x.cfg.key)}" aria-checked="${x.cfg.key === e.cfg.key}"><span class="t">${esc(x.cfg.tag)}</span><span class="d">${x.cfg.short} · ${x.best ? fmtH(hoursOf(x.best)) : '—'}</span><span class="sc" style="color:${scoreColor(x.score)}">${x.score}</span></button>`).join('')}</div>` : '';
 
-  const planHTML = plan ? `<div class="plan-card"><div class="head"><span class="t">${esc(b.label)}</span><span class="h">≈ ${fmtH(planTot)}</span></div>
+  const planHTML = plan ? `<div class="plan-card"><div class="head"><span class="t">${esc(b.label)}</span><span class="h">≈ ${fmtH(planTot)}<small>${tx('senza Luna')}</small></span></div>
       <div class="pc-sub">${tx('livello {q} · {cfg}, {f}', { q: tx(QLABEL[p.session.quality] || 'buona'), cfg: esc(e.cfg.label), f: e.cfg.short })}</div>
-      <div class="pc-sub">${qualTxt(o)}</div>
-      ${peerTxt(p, +p.site.sqm, o) ? `<div class="pc-sub">${peerTxt(p, +p.site.sqm, o)}</div>` : ''}
-      <div class="pc-sub">${tx(GOAL_TXT[p.session.goal] || GOAL_TXT.snr)}</div>
-      ${skyR && skyR[0] && skyR[1] ? `<div class="pc-sub">${tx('{a}–{b} con SQM ± {s} ({src})', { a: fmtH(skyR[0]), b: fmtH(skyR[1]), s: it(skyS.sigma, 1), src: tx(SKY_SRC[skyS.k]) })}</div>` : ''}
-      ${b.deep ? `<div class="deep">${tx('Includendo l’Hα diffuso attorno all’oggetto ({r} R, mappa di Finkbeiner): <b>{h}</b> in totale.', { r: it(o.ha, 1), h: fmtH(planDeep) })}</div>` : ''}
+      ${skyR && skyR[0] && skyR[1] ? `<div class="pc-sub">${tx('SQM ± {s}: {a}–{b}', { a: fmtH(skyR[0]), b: fmtH(skyR[1]), s: it(skyS.sigma, 1), src: tx(SKY_SRC[skyS.k]) })}</div>` : ''}
+      ${b.deep ? `<div class="deep">${tx('Con l’Hα diffuso attorno ({r} R): <b>{h}</b>', { r: it(o.ha, 1), h: fmtH(planDeep) })}</div>` : ''}
       <div class="steps">${plan.map((s) => `<div class="step${s.optional ? ' opt' : ''}"><div class="f">${esc(s.filter)}<small>${s.optional ? `${esc(s.what)} · ${tx('facoltativo')}` : tx('raccoglie {w}', { w: esc(s.what) }) + (s.why ? ' · ' + esc(s.why) : '')}</small></div><div class="h">${fmtH(s.h)}${s.hDeep > s.h * 1.15 ? `<small title="${esc(s.whyDeep)}">${fmtH(s.hDeep)} ${tx('profondo')}</small>` : ''}</div><div class="sb" title="${tx('Posa singola (sub) consigliata')}">sub ≈ ${s.sub} s</div></div>`).join('')}</div>
       ${moonHTML(e, b, n)}
-      ${b.panels > 1 ? `<div class="note">${tx('Tempi totali per un mosaico di {n} pannelli.', { n: b.panels })}</div>` : ''}
-      <div class="note">${tx('Posa singola: abbastanza lunga perché il rumore del fondo cielo superi quello di lettura; il valore proposto è quello più usato nelle foto di riferimento. Va accorciata se le stelle saturano o se l’inseguimento non è stabile per quella durata.')}</div>
-      ${alts.length ? `<details class="alts"><summary>${tx('Altre combinazioni di filtri (alternative, non da sommare)')} <span class="num">(${alts.length})</span></summary>${alts.map((s) => { const c = shootCalendar(state.res.C, r, { ...e, best: s }, false); return `<div class="a"><span>${esc(s.label)}</span><b>${fmtH(hoursOf(s))}${c ? ` · ${c.done ? nNights(c.sessions) : tx('oltre un anno')}` : ''}</b></div>`; }).join('')}</details>` : ''}</div>`
-    : `<p class="hint">${tx('Con i filtri del profilo non c’è una combinazione adatta per {t}.', { t: tx(TYPES_PL[o.type]).toLowerCase() })}</p>`;
+      ${b.panels > 1 ? `<div class="note">${tx('Mosaico di {n} pannelli', { n: b.panels })}</div>` : ''}
+      ${alts.length ? `<details class="alts"><summary>${tx('Altre combinazioni')} <span class="num">(${alts.length})</span></summary>${alts.map((s) => { const c = shootCalendar(state.res.C, r, { ...e, best: s }, false); return `<div class="a"><span>${esc(s.label)}</span><b>${fmtH(hoursOf(s))}${c ? ` · ${c.done ? nNights(c.sessions) : tx('oltre un anno')}` : ''}</b></div>`; }).join('')}</details>` : ''}</div>`
+    : `<p class="hint">${tx('Nessun filtro del profilo adatto a {t}.', { t: tx(TYPES_PL[o.type]).toLowerCase() })}</p>`;
 
   $('#drawer').innerHTML = `
   <div class="d-top"><div class="d-grab" aria-hidden="true"></div>
@@ -611,7 +580,7 @@ function renderDetail() {
   <nav class="dtabs" role="tablist">${D_TABS.map(([k, l]) => `<button class="dtab" role="tab" data-tab="${k}" aria-selected="${k === tab}">${tx(l)}</button>`).join('')}</nav>
 
   <section class="tabp" data-tab="piano" ${tab === 'piano' ? '' : 'hidden'}>
-    ${o.extra ? `<div class="d-extra">${tx('Fuori dalla lista di stanotte: calcolato a richiesta dal catalogo completo')} · ${tx(SBQ_TXT[o.sbq] || '')}</div>` : ''}
+    ${o.extra ? `<div class="d-extra">${tx('Dal catalogo completo')} · ${tx(SBQ_TXT[o.sbq] || '')}</div>` : ''}
     <div class="d-meta">${tx('{type} in {con}', { type: tx(TYPES[o.type]), con: esc(CONST_NAMES[o.con] || o.con) })} · ${size}${o.mag != null ? ' · mag ' + it(o.mag, 1) : ''} · ${tx('LS')} ${it(o.sb, 1)} mag/″²${o.alias.length ? ' · ' + esc(o.alias.slice(0, 4).join(', ')) : ''}</div>
     <div class="hchips">${chips}</div>
     ${cfgs}
@@ -625,7 +594,7 @@ function renderDetail() {
     ${targetCalHTML(r, e)}
     <div class="period" id="period"><span class="lbl">${tx('Periodo giusto')}</span><span class="pt">${tx('Calcolo quando conviene…')}</span></div>
     <div class="sec"><h3>${tx('La notte')} <small>${tx('in rosso: sotto l’orizzonte locale o sotto {a}°', { a: p.session.minAlt })}</small></h3><div class="charts"><div class="chartbox draw ia" id="altBox">${altChart(r)}</div><div class="chartbox draw ia" id="polBox">${polar(r)}</div></div><p class="note">${tx('Trascina sul grafico per scegliere un’altra ora.')}</p></div>
-    <div class="sec"><h3>${tx('Nei prossimi 12 mesi')} <small>${tx('ore di buio astronomico sopra l’orizzonte, Luna non considerata')}</small></h3><div class="chartbox season" id="season"></div></div>
+    <div class="sec"><h3>${tx('Nei prossimi 12 mesi')} <small>${tx('ore di buio sopra l’orizzonte')}</small></h3><div class="chartbox season" id="season"></div></div>
   </section>
 
   <section class="tabp" data-tab="campo" ${tab === 'campo' ? '' : 'hidden'}>
@@ -635,23 +604,13 @@ function renderDetail() {
         <button class="btn sm ghost" id="rotBest">${tx('Allinea')} (${bestRot}°)</button>
         ${e.fill.nx * e.fill.ny > 1 ? `<label class="chk"><input type="checkbox" id="mos" ${state.mosaic ? 'checked' : ''}> ${tx('Mosaico')} ${e.fill.nx}×${e.fill.ny}</label>` : ''}
         <label class="chk"><input type="checkbox" id="realSky" ${state.realSky ? 'checked' : ''}> ${tx('Foto reale')}</label></div></div>
-      <p class="note"><span id="skyNote"></span>. ${tx('Il riquadro rappresenta il sensore con la configurazione scelta.')}</p></div>
+      <p class="note"><span id="skyNote"></span></p></div>
     <div class="d-actions"><button class="btn sm" id="copyCoord">${ic('copy')}${tx('Copia coordinate J2000')}</button>${Math.hypot(fr.dx, fr.dy) > 2 ? `<button class="btn sm" id="copyFrame">${ic('copy')}${tx('Copia centro inquadratura')}</button>` : ''}<a class="btn sm ghost" href="${aladin}" target="_blank" rel="noopener">Aladin${ic('ext')}</a><a class="btn sm ghost" href="${stel}" target="_blank" rel="noopener">Stellarium Web${ic('ext')}</a></div>
   </section>
 
   <section class="tabp" data-tab="consigli" ${tab === 'consigli' ? '' : 'hidden'}>
     <div class="tips first">${tips.map((q) => `<div class="tip k-${esc(q.k.replace(/[^\w]/g, ''))}"><div class="k">${esc(tx(q.k))}</div><div>${esc(q.t)}</div></div>`).join('')}</div>
-    <details class="how"><summary>${tx('Come si stimano i tempi')}</summary>
-      <p>${tx('HOW1')}</p>
-      <p>${tx('HOW2')}</p>
-      <p>${tx('HOW3')}</p>
-      <p>${tx('HOW4')}</p></details>
   </section>`;
-  const HOW_IT = `<p>Per ogni filtro si usano le bande passanti e la trasmissione pubblicate dai produttori (i dati stimati sono segnalati nel catalogo dei filtri). In ogni banda si calcolano il segnale dell’oggetto (continuo e righe Hα, [NII], Hβ, OIII, [SII]) e il fondo cielo: SQM del luogo per direzione (continuo di tipo LED più righe di mercurio e sodio), luminescenza naturale, Luna a passi di 5 minuti, estinzione atmosferica ridotta con l’altitudine. Il segnale raccolto dipende dalla risposta spettrale del sensore (efficienza misurata su sensori Sony retroilluminati: 58% del picco a Hα, 54% a SII, 100% a OIII) e, nelle camere a colori, dalla trasmissione dei filtri rossi, verdi e blu dei pixel. Il target si segue lungo il suo percorso nella notte scelta. Il tempo mostrato è quello senza Luna lungo quel percorso; con la Luna della notte il tempo si ricalcola e, se un’altra combinazione è più rapida di almeno il 15%, la si indica a parte.</p>
-    <p>Il rapporto segnale/rumore (SNR) si calcola per elemento di risoluzione, proporzionale al diametro (2,3″ a 200 mm, 4,7″ a 100 mm, oppure il pixel se è più grande), su tre strutture: il corpo dell’oggetto (per le nebulose a emissione dall’Hα misurato nelle survey NSNS e SHASSA), le parti deboli (aloni, bracci esterni) e le polveri circostanti. Il tempo segue il rumore fotonico: t ∝ SNR² × (segnale + fondo + rumore di lettura) / segnale². Filtri, cielo, telescopio e Luna cambiano il tempo solo attraverso questa relazione.</p>
-    <p>Il livello «buona» è il SNR raggiunto dalla foto mediana apprezzata su AstroBin di quell’oggetto, calcolato con l’attrezzatura e il cielo di ciascuna foto (SQM dichiarato, oppure classe di Bortle convertita con i valori che gli autori stessi dichiarano) e riportato a una camera a colori sotto un cielo SQM 19. Il riporto usa effetti misurati sulle foto: a parità di oggetto, con una camera mono il SNR² raggiunto è 4 volte più alto, e 1,7 volte più alto per ogni magnitudine di cielo più buio, perché le ore cambiano poco con il setup. Per gli oggetti senza foto il livello si prevede dalla difficoltà fisica dell’oggetto. Taratura su 6918 foto di 311 oggetti (camere a colori, reflex e mono, cieli da Bortle 1 a 9); verifica su oggetti mai usati per tarare: errore tipico sull’oggetto di un fattore 1,6 per le foto a colori da città, 2 per tutte le foto. La stessa foto ripresa da persone diverse varia già di un fattore 2,7 in ore.</p>
-    <p>Scelta dei filtri: fra le combinazioni ammesse dall’obiettivo del profilo (minor tempo per il SNR, tutte le righe, colori naturali) si sceglie quella con il tempo più breve, senza pesi aggiuntivi. Limiti: il modello non conosce qualità ottica, messa a fuoco, trasparenza reale ed elaborazione, che possono cambiare il risultato di un fattore 2; l’SQM del luogo è spesso una stima (±0,3 mag o più) e il piano mostra l’intervallo di ore che ne deriva. I tempi servono a pianificare, non sono garanzie.</p>`;
-  if (LANG === 'it') $('#drawer details.how').innerHTML = `<summary>${tx('Come si stimano i tempi')}</summary>` + HOW_IT;
   $('#dClose').onclick = closeDetail;
   wireProj(r, e); wireScen(r); wireTargetCal(); if (!renderDetail.same) countUp($('#scen')); $$('#drawer .d-title [data-fav]').forEach((x) => (x.onclick = () => toggleFav(o.id)));
   $$('#drawer .dtab').forEach((t) => (t.onclick = () => setDTab(t.dataset.tab)));
@@ -690,12 +649,12 @@ function renderPeriod(r) {
   const p = active(), ds = state.res.night.ds, key = [r.o.id, siteKey(p.site), ds, p.session.minAlt, p.session.sunThr, JSON.stringify(p.horizon)].join('|');
   let bp = periodCache.get(key); if (!bp) { bp = bestPeriod(r.o, p, state.res.lut, ds); periodCache.set(key, bp); }
   let msg, go = null;
-  if (bp.none) msg = tx('Da questo luogo, con il buio, non supera mai {a}° di altezza.', { a: p.session.minAlt });
+  if (bp.none) msg = tx('Con il buio non supera {a}°.', { a: p.session.minAlt });
   else if (bp.inNow) {
-    msg = tx('<b>Periodo favorevole:</b> stanotte {now} (al massimo {max}), fino al {to}.', { now: fmtDur(bp.now), max: fmtDur(bp.max), to: fmtDayLong(bp.to) });
+    msg = tx('<b>Periodo favorevole</b> fino al {to} · stanotte {now} (max {max})', { now: fmtDur(bp.now), max: fmtDur(bp.max), to: fmtDayLong(bp.to) });
     if (bp.dark) { msg += ' ' + tx('Prima notte senza Luna: <b>{d}</b> ({h}).', { d: fmtDayLong(bp.dark), h: fmtDur(bp.darkH) }); go = bp.dark; }
   } else {
-    msg = tx('<b>Periodo non ancora iniziato:</b> stanotte {now}. Il periodo favorevole va dal <b>{from}</b> al {to}, con un massimo di {peak} per notte verso il {pk}.', { now: bp.now > 0.05 ? tx('{d} utili', { d: fmtDur(bp.now) }) : tx('non è sopra l’orizzonte con il buio'), from: fmtDayLong(bp.from), to: fmtDayLong(bp.to), peak: fmtDur(bp.peakH), pk: fmtDayLong(bp.peak) });
+    msg = tx('<b>Periodo favorevole</b> dal {from} al {to} · max {peak} verso il {pk} · stanotte {now}', { now: bp.now > 0.05 ? tx('{d} utili', { d: fmtDur(bp.now) }) : tx('non è sopra l’orizzonte con il buio'), from: fmtDayLong(bp.from), to: fmtDayLong(bp.to), peak: fmtDur(bp.peakH), pk: fmtDayLong(bp.peak) });
     if (bp.dark) { msg += ' ' + tx('Prima notte senza Luna nel periodo favorevole: <b>{d}</b>.', { d: fmtDayLong(bp.dark) }); go = bp.dark; }
   }
   el.dataset.state = bp.none ? 'none' : bp.inNow ? 'now' : 'later';

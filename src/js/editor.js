@@ -40,7 +40,7 @@ function renderOptics() {
         <label class="field"><span>${tx('Focale nativa (mm)')}</span><input data-k="fl" type="number" min="10" step="1" value="${o.fl}"></label>
         <label class="field"><span>${tx('Ostruzione centrale (% del diametro)')}</span><input data-k="obs" type="number" min="0" max="60" step="1" value="${o.obs || 0}"></label>
         <div class="field"><span>${tx('Nativo')}</span><div class="res">${Math.round(o.fl)} mm · f/${it(o.fl / o.ap, 1)}</div></div>
-        <label class="field w2" title="${tx('Durata oltre la quale le stelle brillanti saturano, in banda larga e senza accessori. Con riduttori e Barlow viene scalata con il quadrato del fattore.')}"><span>${tx('Posa singola massima in banda larga (s)')}</span><input data-k="subMax" type="number" min="5" max="1800" step="5" value="${+o.subMax > 0 ? o.subMax : ''}" placeholder="${tx('automatica')}"></label>
+        <label class="field w2" title="${tx('Posa massima in banda larga senza stelle sature.')}"><span>${tx('Posa singola massima in banda larga (s)')}</span><input data-k="subMax" type="number" min="5" max="1800" step="5" value="${+o.subMax > 0 ? o.subMax : ''}" placeholder="${tx('automatica')}"></label>
       </div>
       <label class="chk"><input type="checkbox" data-k="native" ${o.useNative !== false ? 'checked' : ''}> ${tx('Considera anche questo telescopio senza accessori')}</label>
       <div class="accs">${accs || `<p class="hint" style="margin:0">${tx('Nessun accessorio: si usa la focale nativa.')}</p>`}</div>
@@ -102,7 +102,7 @@ function openEditor(id, asNew) {
   const d = draft;
   F('f_name').value = d.name; F('f_cam').value = CAMERAS.some((c) => c.id === d.camera.preset) ? d.camera.preset : 'custom'; F('f_ctype').value = d.camera.type; F('f_bin').value = String(d.bin || 1);
   F('f_cw').value = d.camera.w; F('f_ch').value = d.camera.h; F('f_pix').value = d.camera.pix; F('f_qe').value = d.camera.qe; F('f_rn').value = d.camera.rn;
-  F('f_thr').value = String(d.session.sunThr); F('f_from').value = d.session.from || ''; F('f_to').value = d.session.to || ''; F('f_quality').value = d.session.quality || 'good'; F('f_goal').value = GOALS.includes(d.session.goal) ? d.session.goal : 'snr';
+  F('f_thr').value = String(d.session.sunThr); F('f_from').value = d.session.from || ''; F('f_to').value = d.session.to || ''; F('f_quality').value = d.session.quality || 'good'; F('f_goal').value = GOALS.includes(d.session.goal) ? d.session.goal : 'lines';
   F('edDelete').hidden = !!asNew || !!(src && src.unsaved);
   renderOptics(); renderFilterPick();
   showEditor(asNew); F('f_name').focus();
@@ -121,7 +121,7 @@ function openLocEditor(id, asNew) {
   F('f_site').value = d.site.name; F('f_lat').value = d.site.lat; F('f_lon').value = d.site.lon; F('f_bortle').value = String(d.site.bortle || sqmToBortle(d.site.sqm)); F('f_sqm').value = d.site.sqm; F('f_sqmMeas').checked = !!d.site.sqmMeas;
   F('f_elev').value = d.site.elev != null ? d.site.elev : ''; F('f_minalt').value = d.minAlt;
   F('edDelete').hidden = !!asNew || !!(src && src.unsaved);
-  F('hzPaste').hidden = true; F('hzMsg').textContent = ''; F('skyImp').hidden = true; F('skyMsg').textContent = asNew ? tx('Cerca il luogo o tocca la mappa: coordinate, altitudine, SQM stimato e orizzonte si compilano da soli.') : '';
+  F('hzPaste').hidden = true; F('hzMsg').textContent = ''; F('skyImp').hidden = true; F('skyMsg').textContent = asNew ? tx('Cerca il luogo o tocca la mappa.') : '';
   F('lpBtn').hidden = !(window.cielo && window.cielo.lpLookup);
   lpStatus(); drawHz(); drawLpPreview(F('lpSky'), d.site, d.horizon);
   showEditor(asNew);
@@ -150,7 +150,7 @@ function readProfForm() {
   const owned = $$('#filterPick input[data-fid]').filter((x) => x.checked).map((x) => x.dataset.fid);
   const type = d.camera.type; d.filters = { owned: owned.filter((id) => { const f = FDB_BY_ID.get(id); return f && (type === 'mono' ? f.for !== 'osc' : f.for !== 'mono'); }) };
   // l'altezza minima ora sta nel luogo; nel profilo resta quella di prima per le versioni vecchie
-  d.session = { minAlt: d.session && isFinite(+d.session.minAlt) ? +d.session.minAlt : 25, sunThr: +F('f_thr').value, from: F('f_from').value, to: F('f_to').value, quality: F('f_quality').value, goal: F('f_goal').value, moon: d.session && d.session.moon === 'dark' ? 'dark' : 'any' };
+  d.session = { minAlt: d.session && isFinite(+d.session.minAlt) ? +d.session.minAlt : 25, sunThr: +F('f_thr').value, from: F('f_from').value, to: F('f_to').value, quality: F('f_quality').value, goal: F('f_goal').value, goalV: 2, moon: d.session && d.session.moon === 'dark' ? 'dark' : 'any' };
   return d;
 }
 function readLocForm() {
@@ -388,9 +388,9 @@ function drawHz() {
   // da dove viene l'orizzonte e cosa succede quando arriva una mappa all-sky nuova
   const terr = draft.site && draft.site.skyMap && draft.site.skyMap.terr;
   F('hzSrc').textContent = tx({
-    map: 'Orizzonte ricavato dal terreno: si aggiorna con la mappa. Se lo modifichi, resta il tuo.',
-    user: 'Orizzonte tuo: una nuova mappa lo alza solo dove il terreno è più alto.',
-    example: 'Orizzonte di esempio: disegnalo, importalo o ricavalo dalla mappa all-sky.',
+    map: 'Orizzonte dal terreno',
+    user: 'Orizzonte tuo',
+    example: 'Orizzonte di esempio',
     none: 'Nessun orizzonte: vale solo l’altezza minima.',
   }[draft.hzSrc] || '');
   F('hzUseMap').hidden = !(terr && draft.hzSrc !== 'map');
