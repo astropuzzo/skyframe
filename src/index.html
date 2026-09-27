@@ -219,6 +219,7 @@
           <label class="field"><span>Altitudine (m s.l.m.)</span><input id="f_elev" type="number" min="-400" max="6000" step="1"></label>
           <label class="field"><span>Scala di Bortle</span><select id="f_bortle"></select></label>
           <label class="field"><span>SQM allo zenit (mag/″²)</span><input id="f_sqm" type="number" min="16" max="22.2" step="0.01"></label>
+          <label class="chk w2"><input type="checkbox" id="f_sqmMeas"> Valore misurato con un fotometro (SQM-L o simile), non stimato</label>
         </div>
         <div class="lpbox">
           <canvas id="lpSky" width="340" height="340" aria-label="Luminosità del cielo per direzione"></canvas>
@@ -258,6 +259,7 @@
           <label class="field"><span>Dalle (facoltativo)</span><input id="f_from" type="time"></label>
           <label class="field"><span>Alle (facoltativo)</span><input id="f_to" type="time"></label>
           <label class="field"><span>Qualità</span><select id="f_quality"><option value="quick">Rapida</option><option value="good">Buona</option><option value="great">Eccellente</option><option value="deep">Profonda</option></select></label>
+          <label class="field"><span>Obiettivo della ripresa</span><select id="f_goal"><option value="snr">Minor tempo per il SNR richiesto</option><option value="lines">Tutte le righe dell’oggetto (SHO)</option><option value="natural">Colori naturali (banda larga)</option></select></label>
         </div>
         <p class="hint">«Buona» è la mediana delle foto vere; «rapida» chiede metà tempo, «eccellente» il doppio, «profonda» come i progetti più lunghi.</p>
       </section>

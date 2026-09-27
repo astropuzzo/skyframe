@@ -1,16 +1,18 @@
 // Dal file dello script di raccolta per Firefox (skyframe-astrobin-dataset-*.json, formato v5, locale in scripts/raw)
 // alle righe per calibrate.cjs, con l'attrezzatura vera di ogni foto: telescopio, camera e ogni filtro con le sue ore.
 //   node scripts/astrobin-dataset.cjs          → scripts/raw/astrobin-calib3.jsonl e, a schermo, cosa non si è riconosciuto
-// Una riga: { t, id, likes, ap, fl, obs, pix, cw, ch, qe, rn, cam: osc | dslr | dslrmod, own: [id filtri], split: { id: ore },
+// Una riga: { t, ds: raccolta, id, likes, ap, fl, obs, pix, cw, ch, qe, rn, cam: osc | dslr | dslrmod, own: [id filtri], split: { id: ore },
 //   h: ore totali, bortle, scope, camera, filters }
 const fs = require('fs'), path = require('path');
 const { scopeOf, camOf, filterOf } = require('./gear.cjs');
 const RAW = path.join(__dirname, 'raw'), OUT = path.join(RAW, 'astrobin-calib3.jsonl');
-const files = fs.readdirSync(RAW).filter((f) => /^skyframe-astrobin-dataset-.*\.json$/.test(f)).map((f) => path.join(RAW, f));
+// in ordine di data: ogni foto porta l'etichetta della prima raccolta in cui compare (ds), per separare taratura e verifica
+const files = fs.readdirSync(RAW).filter((f) => /^skyframe-astrobin-dataset-.*\.json$/.test(f)).sort().map((f) => path.join(RAW, f));
 const ALIAS = { 'Barnard 150': 'B 150', 'Barnard 142': 'B 142', 'Barnard 33': 'B 33' };
 const seen = new Set(), out = [], miss = { scope: {}, cam: {}, filter: {} }, drop = {};
 const count = (m, k) => (m[k] = (m[k] || 0) + 1);
 for (const file of files) {
+  const ds = path.basename(file).replace(/^skyframe-astrobin-dataset-|\.json$/g, '').slice(0, 16);
   for (const r of JSON.parse(fs.readFileSync(file, 'utf8')).rows) {
     if (seen.has(r.id)) continue; seen.add(r.id);
     const q = r.acquisition || {}, e = r.equipment || {};
@@ -32,7 +34,7 @@ for (const file of files) {
     const h = (q.integration_s || 0) / 3600;
     if (!(h > 0.2)) { why('integrazione mancante'); continue; }
     const bortle = +q.bortle || null;
-    out.push({ t: ALIAS[r.target] || r.target, id: r.id, likes: r.likes, ap: sc.ap, fl: fr ? Math.round(fr * sc.ap) : sc.fl, obs: sc.obs, pix: cam.pix, cw: cam.w, ch: cam.h, qe: cam.qe, rn: cam.rn, cam: cam.type,
+    out.push({ t: ALIAS[r.target] || r.target, ds, id: r.id, likes: r.likes, ap: sc.ap, fl: fr ? Math.round(fr * sc.ap) : sc.fl, obs: sc.obs, pix: cam.pix, cw: cam.w, ch: cam.h, qe: cam.qe, rn: cam.rn, cam: cam.type,
       own: Object.keys(split), split: Object.fromEntries(Object.entries(split).map(([k, v]) => [k, +v.toFixed(2)])), h: +h.toFixed(2), bortle,
       date: (q.dates || []).slice(-1)[0] || null, scope: e.telescopes[0], camera: e.cameras[0].name, filters: (q.frames || []).map((f) => f.filter).join(' | ') });
   }

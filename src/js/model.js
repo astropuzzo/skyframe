@@ -211,8 +211,28 @@ function opticKind(o) {
   return (+o.obs || 0) > 0 ? 'newton' : 'refr';
 }
 const presetsFor = (o) => { const k = opticKind(o); return ACCESSORY_PRESETS.filter((x) => x[2] === 'any' || x[2] === k); };
-const BORTLE_SQM = { 1: 21.95, 2: 21.7, 3: 21.45, 4: 20.8, 5: 20.0, 6: 19.2, 7: 18.6, 8: 18.1, 9: 17.6 };
-const sqmToBortle = (s) => (s >= 21.9 ? 1 : s >= 21.6 ? 2 : s >= 21.3 ? 3 : s >= 20.4 ? 4 : s >= 19.5 ? 5 : s >= 18.9 ? 6 : s >= 18.4 ? 7 : s >= 17.8 ? 8 : 9);
+/* Scala di Bortle e SQM. La scala di Bortle è una classificazione visuale (magnitudine limite, Via Lattea, luci): non ha
+   una conversione esatta in SQM. Intervalli di riferimento: Dark Skies Awareness (riportati in «Bortle scale»,
+   Wikipedia), con la classe 4,5 unita alla 4; altre tabelle pubblicate differiscono fino a ~0,5 mag. Per le classi 8 e 9
+   la fonte non dà l'estremo inferiore: quello qui è un'ipotesi. BORTLE_SQM è il centro dell'intervallo e si usa solo se
+   non c'è un valore SQM. */
+const BORTLE_RANGE = { 1: [21.76, 22.0], 2: [21.6, 21.76], 3: [21.3, 21.6], 4: [20.3, 21.3], 5: [19.25, 20.3], 6: [18.5, 19.25], 7: [18.0, 18.5], 8: [17.5, 18.0], 9: [16.8, 17.5] };
+const BORTLE_SQM = Object.fromEntries(Object.entries(BORTLE_RANGE).map(([k, [a, b]]) => [k, Math.round(((a + b) / 2) * 100) / 100]));
+const sqmToBortle = (s) => { for (let b = 1; b <= 8; b++) if (s >= BORTLE_RANGE[b][0]) return b; return 9; };
+/* Da dove viene l'SQM di un luogo e quanto è incerto (σ, mag/″²): una misura con fotometro (σ 0,1: ripetibilità e
+   variazioni da una notte all'altra), una stima da modello satellitare (mappa all-sky di lightpollutionmap o atlante di
+   Lorenz: σ 0,3, ordine di grandezza dello scarto fra atlanti e misure a terra, da verificare), la classe di Bortle
+   (mezzo intervallo più lo scarto fra tabelle, 0,25), un valore inserito senza indicarne l'origine (σ 0,3). */
+const SKY_SRC = { misura: 'misurato con un fotometro', mappa: 'stima dalla mappa all-sky', atlante: 'stima dall’atlante di Lorenz', bortle: 'stima dalla classe di Bortle', inserito: 'valore inserito, origine non indicata' };
+function skySource(site) {
+  const s = +site.sqm;
+  if (site.sqmMeas) return { k: 'misura', sigma: 0.1 };
+  if (site.skyMap && Math.abs(s - site.skyMap.zenith) < 0.01) return { k: 'mappa', sigma: 0.3 };
+  if (site.lpZen != null && Math.abs(s - site.lpZen) < 0.01) return { k: 'atlante', sigma: 0.3 };
+  const r = BORTLE_RANGE[site.bortle];
+  if (r && Math.abs(s - BORTLE_SQM[site.bortle]) < 0.01) return { k: 'bortle', sigma: Math.round(Math.hypot((r[1] - r[0]) / 2, 0.25) * 100) / 100 };
+  return { k: 'inserito', sigma: 0.3 };
+}
 const QLABEL = { quick: 'rapida', good: 'buona', great: 'eccellente', deep: 'profonda' };
 const accId = () => 'a' + Math.random().toString(36).slice(2, 8);
 
@@ -223,7 +243,7 @@ function templateProfile() {
     optics: [{ id: 'o1', preset: 'redcat51', name: 'William Optics RedCat 51', ap: 51, fl: 250, obs: 0, useNative: true, accessories: [] }],
     filters: { owned: ['uvir', 'lextreme'] },
     site: { name: 'Milano (esempio)', lat: 45.4642, lon: 9.19, bortle: 7, sqm: 18.6, example: true },
-    session: { minAlt: 25, sunThr: -18, from: '', to: '', sub: 180, quality: 'good', moon: 'any' },
+    session: { minAlt: 25, sunThr: -18, from: '', to: '', sub: 180, quality: 'good', moon: 'any', goal: 'snr' },
     horizon: [[0, 18], [30, 24], [60, 32], [90, 28], [110, 14], [150, 10], [180, 8], [210, 9], [240, 16], [270, 22], [300, 35], [330, 26]],
   };
 }
@@ -376,17 +396,17 @@ function buildStrategies(camType, ownedIds) {
     const bbs = owned.filter((f) => (f.kind === 'bb' || f.kind === 'lp') && f.for !== 'mono');
     if (!bbs.length) bbs.push(FDB_BY_ID.get('uvir'));
     const multis = owned.filter((f) => f.kind === 'multi' && f.for !== 'mono');
-    for (const f of bbs) S.push({ id: 'bb-' + f.id, label: fname(f), short: f.kind === 'lp' ? f.name : 'RGB', suits: 'all', pal: 'natural', penalty: 1, steps: [{ f, ch: [channelSpec(f, 'all', 'all', { key: 'all' })] }] });
+    for (const f of bbs) S.push({ id: 'bb-' + f.id, label: fname(f), short: f.kind === 'lp' ? f.name : 'RGB', suits: 'all', pal: 'natural', steps: [{ f, ch: [channelSpec(f, 'all', 'all', { key: 'all' })] }] });
     const stepOf = (f) => { const g = groupsIn(f), ch = [];
       if (g.has('Ha')) ch.push(channelSpec(f, 'R', ['Ha'], { key: 'Ha' }));
       if (g.has('SII')) ch.push(channelSpec(f, 'R', ['SII'], { key: 'SII' }));
       if (g.has('OIII')) ch.push(channelSpec(f, 'GB', ['OIII', 'Hb'], { key: 'OIII' }));
       return { f, ch }; };
-    for (const f of multis) { const st = stepOf(f); if (st.ch.length) S.push({ id: 'nb-' + f.id, label: fname(f), short: f.name, suits: 'line', pal: groupsIn(f).has('SII') ? 'sho' : 'hoo', penalty: groupsIn(f).has('Ha') ? 1 : 1.5, steps: [st] }); }
+    for (const f of multis) { const st = stepOf(f); if (st.ch.length) S.push({ id: 'nb-' + f.id, label: fname(f), short: f.name, suits: 'line', pal: groupsIn(f).has('SII') ? 'sho' : 'hoo', steps: [st] }); }
     const withHa = multis.filter((f) => groupsIn(f).has('Ha')), withS = multis.filter((f) => groupsIn(f).has('SII'));
     for (const a of withHa) for (const b of withS) if (a !== b) {
       const sa = stepOf(a), sb = stepOf(b); sb.ch = sb.ch.filter((c) => c.key !== 'Ha'); // l'OIII arriva con tutti e due i filtri e si somma
-      S.push({ id: `sho-${a.id}-${b.id}`, label: `${fname(a)} + ${fname(b)}`, short: 'SHO', suits: 'line', pal: 'sho', penalty: 0.95, steps: [sa, sb] });
+      S.push({ id: `sho-${a.id}-${b.id}`, label: `${fname(a)} + ${fname(b)}`, short: 'SHO', suits: 'line', pal: 'sho', steps: [sa, sb] });
     }
     S.starFilter = bbs[0];
   } else {
@@ -394,16 +414,16 @@ function buildStrategies(camType, ownedIds) {
     const L = pick('L'), R = pick('R'), G = pick('G'), B = pick('B'), Ha = pick('Ha'), O = pick('OIII'), Si = pick('SII');
     const one = (f, key, target, snr) => ({ f, ch: [channelSpec(f, 'mono', target, { key, snr })] });
     const rgb = R && G && B ? [one(R, 'R', 'all', 0.6 / Math.sqrt(3)), one(G, 'G', 'all', 0.6 / Math.sqrt(3)), one(B, 'B', 'all', 0.6 / Math.sqrt(3))] : null;
-    if (L && rgb) S.push({ id: 'lrgb', label: 'LRGB', short: 'LRGB', suits: 'all', pal: 'natural', penalty: 1, steps: [one(L, 'L', 'all', 1), ...rgb] });
-    else if (rgb) S.push({ id: 'rgb', label: 'RGB', short: 'RGB', suits: 'all', pal: 'natural', penalty: 1, steps: [R, G, B].map((f, i) => one(f, 'RGB'[i], 'all', 1 / Math.sqrt(3))) });
-    else if (L) S.push({ id: 'lum', label: tx('Solo L'), short: 'L', suits: 'all', pal: 'mono', penalty: 1.35, steps: [one(L, 'L', 'all', 1)] });
-    if (Ha) S.push({ id: 'ha', label: tx('Solo Hα'), short: 'Hα', suits: 'line', pal: 'ha', penalty: O ? 10 : 1.35, steps: [one(Ha, 'Ha', ['Ha'], 1)] }); // con OIII disponibile resta un'alternativa: si preferisce il colore
-    if (Ha && rgb) S.push({ id: 'hargb', label: L ? 'HaLRGB' : 'HaRGB', short: L ? 'HaLRGB' : 'HaRGB', suits: 'line', pal: 'natural', penalty: 1.05, steps: [one(Ha, 'Ha', ['Ha'], 1), ...(L ? [one(L, 'L', 'all', 0.7)] : []), ...rgb] });
-    if (Ha && O) S.push({ id: 'hoo', label: 'HOO', short: 'HOO', suits: 'line', pal: 'hoo', penalty: 1, steps: [one(Ha, 'Ha', ['Ha']), one(O, 'OIII', ['OIII'])] });
-    if (Ha && O && Si) S.push({ id: 'sho', label: 'SHO', short: 'SHO', suits: 'line', pal: 'sho', penalty: 0.95, steps: [one(Si, 'SII', ['SII']), one(Ha, 'Ha', ['Ha']), one(O, 'OIII', ['OIII'])] });
+    if (L && rgb) S.push({ id: 'lrgb', label: 'LRGB', short: 'LRGB', suits: 'all', pal: 'natural', steps: [one(L, 'L', 'all', 1), ...rgb] });
+    else if (rgb) S.push({ id: 'rgb', label: 'RGB', short: 'RGB', suits: 'all', pal: 'natural', steps: [R, G, B].map((f, i) => one(f, 'RGB'[i], 'all', 1 / Math.sqrt(3))) });
+    else if (L) S.push({ id: 'lum', label: tx('Solo L'), short: 'L', suits: 'all', pal: 'mono', steps: [one(L, 'L', 'all', 1)] });
+    if (Ha) S.push({ id: 'ha', label: tx('Solo Hα'), short: 'Hα', suits: 'line', pal: 'ha', steps: [one(Ha, 'Ha', ['Ha'], 1)] }); // con OIII disponibile resta un'alternativa: si preferisce il colore
+    if (Ha && rgb) S.push({ id: 'hargb', label: L ? 'HaLRGB' : 'HaRGB', short: L ? 'HaLRGB' : 'HaRGB', suits: 'line', pal: 'natural', steps: [one(Ha, 'Ha', ['Ha'], 1), ...(L ? [one(L, 'L', 'all', 0.7)] : []), ...rgb] });
+    if (Ha && O) S.push({ id: 'hoo', label: 'HOO', short: 'HOO', suits: 'line', pal: 'hoo', steps: [one(Ha, 'Ha', ['Ha']), one(O, 'OIII', ['OIII'])] });
+    if (Ha && O && Si) S.push({ id: 'sho', label: 'SHO', short: 'SHO', suits: 'line', pal: 'sho', steps: [one(Si, 'SII', ['SII']), one(Ha, 'Ha', ['Ha']), one(O, 'OIII', ['OIII'])] });
     const duo = owned.find((f) => f.kind === 'multi' && f.for === 'both');
-    if (duo) S.push({ id: 'duo-mono', label: `${fname(duo)} (${tx('Hα+OIII insieme')})`, short: 'HO', suits: 'line', pal: 'ha', penalty: 1.3, steps: [{ f: duo, ch: [channelSpec(duo, 'mono', ['Ha', 'OIII', 'Hb'], { key: 'HaO' })] }] });
-    if (!S.length) { const f = { id: 'nofilter', name: tx('senza filtri'), brand: 'Generico', bands: [[400, 700, 1]] }; S.push({ id: 'none', label: tx('Senza filtri'), short: 'L', suits: 'all', pal: 'mono', penalty: 1.35, steps: [one(f, 'L', 'all', 1)] }); }
+    if (duo) S.push({ id: 'duo-mono', label: `${fname(duo)} (${tx('Hα+OIII insieme')})`, short: 'HO', suits: 'line', pal: 'ha', steps: [{ f: duo, ch: [channelSpec(duo, 'mono', ['Ha', 'OIII', 'Hb'], { key: 'HaO' })] }] });
+    if (!S.length) { const f = { id: 'nofilter', name: tx('senza filtri'), brand: 'Generico', bands: [[400, 700, 1]] }; S.push({ id: 'none', label: tx('Senza filtri'), short: 'L', suits: 'all', pal: 'mono', steps: [one(f, 'L', 'all', 1)] }); }
     S.starFilter = R && G && B ? { id: 'rgb-stars', brand: 'Generico', name: 'R + G + B', kind: 'bb', bands: [[400, 700, 1]] } : null;
   }
   S.forEach((s) => { s.chs = s.steps.flatMap((st) => st.ch); });
@@ -557,18 +577,48 @@ const F0 = 1000, MOON0 = Math.pow(10, -0.4 * 17.8);
      dettaglio, su quelli deboli si accetta più rumore. Fuori campione (lasciando fuori un oggetto alla volta) l'errore
      sull'oggetto scende da ×4,6 a ×2,7. Dipende solo dall'oggetto: cielo, Luna, filtri e camera restano pura fisica;
    - i livelli si danno sulle ore vere, sotto (realHours). */
+/* Livelli di qualità. Il tempo è sempre fisico: per raggiungere un SNR dato, t ∝ SNR² × (segnale + fondo + rumore di
+   lettura) / segnale². Cambiare filtro, cielo, telescopio o Luna cambia il tempo solo per fisica.
+   Quale SNR chiedere si ricava invece dalle foto vere (scripts/quality-fit.cjs → src/data/quality.js): per ogni oggetto il
+   livello "buona" è il SNR che raggiunge la foto mediana apprezzata su AstroBin da cieli Bortle 6–8 con camera a colori.
+   Dove ci sono almeno alcune foto dell'oggetto si usa quel valore (unito alla previsione, peso 6 foto); altrimenti lo si
+   prevede dalla difficoltà fisica dell'oggetto con un setup di riferimento, perché le foto mostrano che sugli oggetti
+   difficili si accetta un SNR più basso (log g = a + b·log D, b ≈ −0,7). k: i livelli sono i quantili delle foto dello
+   stesso oggetto (tempo ×0,47 = 25°, ×2 = 75°, ×3,3 = 90° percentile). */
 const QUALITY = { quick: { main: 75, faint: 9.5, k: 0.47 }, good: { main: 75, faint: 9.5, k: 1 }, great: { main: 75, faint: 9.5, k: 2 }, deep: { main: 75, faint: 9.5, k: 3.3 } };
-/* Ore vere. Seconda taratura (2026): 1205 foto a colori da cieli Bortle 6–8 su 101 oggetti (almeno 30 like, dal 2024) più
-   le 222 della prima, ognuna rifatta con il suo telescopio, la sua camera, i suoi filtri e il suo cielo. Chi riprende
-   non allunga le pose quanto chiederebbe un SNR fisso: sotto un cielo 10 volte più chiaro, o con un filtro 10 volte più
-   largo, ci mette circa 3 volte tanto, non 10. Le ore di una foto come quelle vere crescono come la radice di quelle a
-   SNR fisso (TIME_B): lasciando fuori un oggetto alla volta l'errore sull'oggetto scende da ×2,2 a ×1,6. TIME_C porta
-   "buona" sulla mediana delle foto a colori; "rapida" ed "eccellente" sono i quartili (×0,47 e ×2), "profonda" il 90°
-   percentile (×3,3: i progetti più lunghi). Chi riprende in SHO con due duo-band ci mette il doppio (SHO_TIME). Globulari e
-   planetarie si riprendono più a lungo del previsto (si cercano stelle al centro e aloni): TYPE_TIME. Le polveri
-   attorno a un oggetto contano la metà (DUST_CTX). */
-const TIME_C = 1.29, TIME_B = 0.5, TYPE_TIME = { GC: 1.9, PN: 1.5 }, SHO_TIME = 2;
-const realHours = (t, o, Q, s) => TIME_C * Math.pow(t, TIME_B) * (TYPE_TIME[o.type] || 1) * (Q.k || 1) * (/^sho-/.test(s.id) ? SHO_TIME : 1);
+const QOBJ = window.QUALITY_OBJ || null;
+/* Difficoltà di riferimento di un oggetto (log10 delle ore a SNR di riferimento con il setup di riferimento), la stessa
+   usata da scripts/quality-fit.cjs: rifrattore 100 mm f/5,5, camera a colori IMX571, UV/IR e L-eXtreme, SQM 19,0,
+   latitudine 45°, la notte in cui l'oggetto passa al meridiano verso mezzanotte. Per gli oggetti fuori dal file dei
+   livelli (catalogo completo) si calcola qui, una volta. */
+function qualRefProfile() {
+  const p = templateProfile();
+  p.camera = { preset: 'x', name: 'rif', w: 6248, h: 4176, pix: 3.76, type: 'osc', qe: 80, rn: 1.5 };
+  p.optics = [{ id: 'o1', name: 'rif', ap: 100, fl: 550, obs: 0, useNative: true, accessories: [] }];
+  p.filters.owned = ['uvir', 'lextreme']; p.site = { name: 'rif', lat: 45, lon: 10, bortle: 6, sqm: 19.0 }; p.horizon = []; p.session.minAlt = 20; p.session.quality = 'good'; p.session.goal = 'snr';
+  return p;
+}
+const QREF = { prep: {}, busy: false };
+function refDifficulty(o) {
+  const mon = ((Math.round(3 + (o.ra / 15 - 12) / 2) % 12) + 12) % 12, ds = `2026-${String(mon + 1).padStart(2, '0')}-10`;
+  QREF.busy = true;
+  try {
+    const p = QREF.p || (QREF.p = qualRefProfile()), C = QREF.prep[ds] || (QREF.prep[ds] = computePrep(profileConfigs(p), p, ds, Date.now()));
+    const x = computeObj(C, o), b = x && x.evals[0].best; if (!b) return null;
+    const h = hoursOf(b) / (b.panels || 1); return isFinite(h) && h > 0 ? Math.log10(h) : null;
+  } finally { QREF.busy = false; }
+}
+/* fattore sul tempo a SNR di riferimento per questo oggetto: [valore, fonte] (fonte: 'foto' = misurato sulle foto
+   dell'oggetto, 'stima' = previsto dalla difficoltà, 'nessuna' = senza taratura) */
+function objQualOf(o) {
+  if (!QOBJ || QREF.busy) return [1, 'nessuna'];
+  const e = QOBJ.o[o.id];
+  if (e) return [Math.pow(10, e[1] / 100), e[2] > 0 ? 'foto' : 'stima'];
+  if (o.qd === undefined) o.qd = refDifficulty(o);
+  const d = o.qd != null ? o.qd : QOBJ.typeD[o.type] != null ? QOBJ.typeD[o.type] : QOBJ.d0;
+  return [Math.pow(10, QOBJ.a + QOBJ.b * d), 'stima'];
+}
+const realHours = (t, o, Q) => t * objQualOf(o)[0] * (Q.k || 1);
 const RES_DL = 468; // ″·mm: 4× il limite di diffrazione (1,03 λ/D a 550 nm)
 const SNR_B = { main: 0.45, faint: 0.4 }, SNR_SB0 = 22;
 const snrK = (sb, b) => Math.pow(10, -0.4 * b * (sb - SNR_SB0));
@@ -769,7 +819,7 @@ function evalStrategies(o, S, K, U, Q, T, field) {
     let ideal = 0, tonight = 0, dark = 0, idealDeep = 0, tonightDeep = 0, darkDeep = 0;
     // dalle ore a SNR fisso a quelle di una foto vera (realHours): un solo fattore per strada, uguale per passi e Luna
     const base = X.reduce((a, x) => a + x.hD, 0), baseI = X.reduce((a, x) => a + x.hI, 0), b0 = isFinite(base) && base > 0 ? base : baseI;
-    const k = b0 > 0 && isFinite(b0) ? realHours(b0, o, Q, s) / b0 : 1;
+    const k = b0 > 0 && isFinite(b0) ? realHours(b0, o, Q) / b0 : 1;
     const steps = X.map((x) => {
       x.hID = Math.max(x.hID, x.hI); x.hTD = Math.max(x.hTD, x.hT); x.hDD = Math.max(x.hDD, x.hD);
       for (const f of ['hI', 'hT', 'hD', 'hID', 'hTD', 'hDD']) x[f] *= k;
@@ -777,7 +827,9 @@ function evalStrategies(o, S, K, U, Q, T, field) {
       return { f: x.st.f, keys: x.st.ch.map((c) => c.key), hI: x.hI, hT: x.hT, hD: x.hD, hID: x.hID, hTD: x.hTD, hDD: x.hDD, subs: x.chs.map((ch) => ({ key: ch.c.key, s: ch.sub, min: Math.round(ch.minSub) })), purpose: x.st.purpose || '', drive: x.drive, driveDeep: x.driveDeep };
     });
     const nights = U.h > 0 ? tonight / U.h : Infinity;
-    return { id: s.id, label: s.label, short: s.short, pal: s.pal, penalty: s.penalty, steps, ideal, tonight, dark, nights, idealDeep, tonightDeep, darkDeep, deep: idealDeep > ideal * 1.15, alt: s0.alt, lineOnly: s0.suits === 'line', hybrid: s !== s0 };
+    // banda stretta: il colore delle stelle viene da una ripresa a banda larga a parte (vedi starStep)
+    const star = s0.suits === 'line' && !s.steps.some((st) => st.purpose === 'dust') ? starStep(S.starFilter, K, T) : null;
+    return { id: s.id, label: s.label, short: s.short, pal: s.pal, star, steps, ideal, tonight, dark, nights, idealDeep, tonightDeep, darkDeep, deep: idealDeep > ideal * 1.15, alt: s0.alt, lineOnly: s0.suits === 'line', hybrid: s !== s0 };
   });
 }
 /* Sotto un cielo non buio l'emissione si riprende in banda stretta (la banda larga resta per stelle e polveri):
@@ -789,19 +841,64 @@ function evalStrategies(o, S, K, U, Q, T, field) {
    dell'oggetto (SHO dove c'è SII, HOO nelle planetarie), purché non costi più di 6 volte la più rapida (su una camera a
    colori l'SII passa solo dai pixel rossi ed è debole: costa, ma è la combinazione giusta). Il resto: tempo
    senza Luna × penalità. */
-const LINE_KEYS = { Ha: ['Ha'], OIII: ['OIII'], SII: ['SII'], HaO: ['Ha', 'OIII'] };
+const LINE_KEYS = { Ha: ['Ha'], OIII: ['OIII'], SII: ['SII'], HaO: ['Ha', 'OIII'], all: ['Ha', 'OIII', 'SII'], L: ['Ha', 'OIII', 'SII'], R: ['Ha', 'SII'], G: [], B: ['OIII'] };
+/* righe importanti di un oggetto: almeno il 12% della più forte (la SII di una regione HII tipica è ~17% dell'Hα) */
 function linesOf(lk) { const L = LINES[lk]; if (!L) return []; const m = Math.max(L.Ha, L.OIII, L.SII); return ['Ha', 'OIII', 'SII'].filter((g) => L[g] >= 0.12 * m); }
-function pickBest(strat, o) {
-  const cost = (s) => hoursOf(s) * s.penalty;
-  const need = linesOf(o.lk), line = need.length ? strat.filter((s) => s.lineOnly) : [];
-  const pool = line.length ? line : strat;
-  let best = null; for (const s of pool) if (!best || cost(s) < cost(best)) best = s;
-  if (line.length && best && need.length > 1) {
-    const covers = (s) => { const got = new Set(s.steps.flatMap((st) => st.keys.flatMap((k) => LINE_KEYS[k] || []))); return need.every((g) => got.has(g)); };
-    let full = null; for (const s of pool) if (covers(s) && (!full || cost(s) < cost(full))) full = s;
-    if (full && cost(full) <= 6 * cost(best)) best = full;
-  }
+const covers = (s, need) => { const got = new Set(s.steps.flatMap((st) => st.keys.flatMap((k) => LINE_KEYS[k] || []))); return need.every((g) => got.has(g)); };
+/* Obiettivi della ripresa (nel profilo):
+     snr      il minor tempo per il SNR richiesto sulle strutture dell'oggetto (predefinito)
+     lines    come snr, ma raccogliendo tutte le righe importanti (SHO dove c'è SII)
+     natural  colori naturali: solo banda larga (in mono anche RGB + Hα, che si somma al rosso)
+   Criterio, senza pesi: fra le strade ammesse dall'obiettivo vince quella con il tempo senza Luna più corto. Regole
+   di ammissione: il risultato dev'essere a colori se si può (una sola immagine in bianco e nero, solo L o solo Hα, resta
+   un'alternativa); su un oggetto a righe la strada deve raccogliere Hα e OIII quando sono importanti (le due righe della
+   palette HOO): altrimenti il SNR richiesto si misurerebbe su meno segnale e una strada incompleta sembrerebbe più rapida.
+   La SII entra con l'obiettivo "lines". */
+const GOALS = ['snr', 'lines', 'natural'];
+function eligible(strat, o, goal) {
+  let pool = strat.filter((s) => isFinite(hoursOf(s)) || s.ideal > 0);
+  const col = pool.filter((s) => s.pal !== 'mono' && s.pal !== 'ha'); if (col.length) pool = col;
+  const need = linesOf(o.lk);
+  if (!need.length) return pool;
+  if (goal === 'natural') { const nat = pool.filter((s) => s.pal === 'natural'); if (nat.length) return nat; }
+  const base = need.filter((g) => g !== 'SII'), withBase = pool.filter((s) => covers(s, base)); if (withBase.length) pool = withBase;
+  if (goal === 'lines') { const full = pool.filter((s) => s.lineOnly && covers(s, need)); if (full.length) pool = full; }
+  return pool;
+}
+function pickBest(strat, o, goal = 'snr') {
+  let best = null; for (const s of eligible(strat, o, goal)) if (!best || hoursOf(s) < hoursOf(best)) best = s;
   return best;
+}
+/* Precisione di guida consigliata per una configurazione.
+   Grandezze (tutte in secondi d'arco): scala d'immagine p = 206,265 · pixel µm · binning / focale mm; seeing = FWHM
+   atmosferica allo zenit (previsione della notte o, se manca, un valore tipico dichiarato come ipotesi); diffrazione =
+   1,03 λ/D a 550 nm; il pixel allarga la stella come una finestra larga p (FWHM equivalente 0,68 p). La FWHM attesa
+   delle stelle è la somma in quadratura: F = √(seeing² + diffrazione² + (0,68 p)²).
+   Errore di guida: jitter gaussiano con RMS σ per asse, che aggiunge (2,355 σ)² al quadrato della FWHM.
+   Criterio: la guida non deve allargare le stelle più del 10% (σ ≤ 0,195 F per asse, √2 volte tanto come RMS totale
+   RA+Dec); fino al 20% l'allargamento resta modesto (σ ≤ 0,282 F). Ipotesi: profili gaussiani, ottica limitata dalla
+   diffrazione (aberrazioni, fuoco e inseguimento fra una correzione e l'altra peggiorano il risultato), errore uguale sui
+   due assi. Il campionamento (F senza pixel / p) dice quanti pixel copre una stella: sotto 1,5 le stelle sono squadrate
+   e la guida pesa meno; sopra 3,5 l'immagine è sovracampionata: si guadagna segnale per pixel con binning o riduttore,
+   e migliorare la guida non cambia questo. */
+const GUIDE = { see0: 2.5, lam: 550e-9, widen: 0.1, widenOk: 0.2 };
+function guideAdvice(cfg, seeing) {
+  const g = cfg.geom, p = g.px, see = seeing > 0 ? seeing : GUIDE.see0, diff = (1.03 * GUIDE.lam / (g.D / 1000)) * 206265;
+  const f0 = Math.hypot(see, diff), F = Math.hypot(f0, 0.68 * p), k = (w) => Math.sqrt((1 + w) * (1 + w) - 1) / 2.355;
+  const samp = f0 / p;
+  return { p, see, seeSrc: seeing > 0 ? 'forecast' : 'assumed', diff, f0, F, samp, cls: samp < 1.5 ? 'under' : samp > 3.5 ? 'over' : 'ok', axis: k(GUIDE.widen) * F, total: k(GUIDE.widen) * F * Math.SQRT2, axisOk: k(GUIDE.widenOk) * F, totalOk: k(GUIDE.widenOk) * F * Math.SQRT2 };
+}
+/* Colore delle stelle in una ripresa a banda stretta: una ripresa a banda larga a parte. Il segnale non è il limite: una
+   stella di magnitudine 16 arriva a SNR 10 in secondi o minuti. Il limite pratico sono le pose: ne servono almeno
+   STAR_SUBS per scartare pixel anomali, satelliti e raggi cosmici (clipping statistico), con sub brevi per non saturare. */
+const STAR_SUBS = 20, STAR_MAG = 16, STAR_SNR = 10, STAR_FWHM = 3;
+function starStep(f, K, T) {
+  if (!f) return null;
+  const mono = f.id === 'rgb-stars', c = channelSpec(f, mono ? 'mono' : 'all', 'all', {}), [lo] = subLimits(f, K.fr), sub = K.subMax ? Math.min(K.subMax, lo) : lo;
+  const S = F0 * Math.pow(10, -0.4 * STAR_MAG) * c.I * K.Aeff0, area = Math.PI * STAR_FWHM * STAR_FWHM;
+  const B = F0 * K.Aeff0 * ((0.75 * c.I + 44 * c.skyL) * T.art + c.I * T.nat) * area + (K.rn * K.rn / sub) * area / K.pxArea;
+  const tSnr = (STAR_SNR * STAR_SNR * (S + B)) / (S * S) / 3600 * (mono ? 3 : 1);
+  return { f, sub, h: Math.max(tSnr, (STAR_SUBS * sub * (mono ? 3 : 1)) / 3600), tSnr };
 }
 /* mosaico: ogni pannello richiede lo stesso tempo */
 function scalePanels(strat, n) {
@@ -852,7 +949,7 @@ function computeObj(C, o) {
   const evals = cfgs.map((cfg, ci) => {
     const fill = fillInfo(o, cfg.geom, field);
     const strat = scalePanels(evalStrategies(o, cfg.strategies, consts[ci], U, Q, T, field), fill.nx * fill.ny);
-    const best = pickBest(strat, o);
+    const best = pickBest(strat, o, active.session.goal);
     let effort = 0.05; if (best) { const n = isFinite(best.nights) ? best.nights : 99; effort = n <= 1 ? 1 : 1 / Math.sqrt(n); }
     const score = vis > 0 ? Math.round(100 * Math.pow(fill.score, 0.45) * Math.pow(vis, 0.35) * Math.pow(effort, 0.3) * interestOf(o)) : 0;
     return { cfg, ci, strat, best, fill, effort, score, K: consts[ci] };
@@ -1114,11 +1211,7 @@ function planOf(s, cfg, mode = 'dark') {
     h: pick(st[k], st.hI), hDeep: pick(st[kd], st.hID),
     sub: st.subs.map((x) => x.s).reduce((a, b) => Math.max(a, b), 0), drive: tx(DRIVE_LABEL[st.drive] || ''), driveDeep: tx(DRIVE_LABEL[st.driveDeep] || ''), why: tx(DRIVE_WHY[st.drive] || ''), whyDeep: tx(DRIVE_WHY[st.driveDeep] || ''),
   }));
-  const star = cfg.strategies.starFilter;
-  if (s.lineOnly && !s.hybrid && star) {
-    const tot = rows.reduce((a, r) => a + r.h, 0);
-    const h = clamp(tot * 0.1, 1, 4); rows.push({ filter: fname(star), what: tx('per il colore delle stelle'), h, hDeep: h, sub: 60, optional: true, drive: '' });
-  }
+  if (s.star) rows.push({ filter: fname(s.star.f), what: tx('colore delle stelle'), h: s.star.h, hDeep: s.star.h, sub: s.star.sub, optional: true, drive: '', why: tx('{n} pose: servono per scartare i pixel anomali; il segnale delle stelle arriva prima', { n: STAR_SUBS }) });
   return rows;
 }
 function adviceFor(r, e, ctx) {

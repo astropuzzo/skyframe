@@ -55,9 +55,14 @@ const SCOPES = [
   [/Tecnosky 90\/540|90\/540 FPL55/i, 90, 540, 0], [/EDT 80\/480/i, 80, 480, 0], [/AG70 70\/350/i, 70, 350, 0], [/Series 5000 80mm/i, 80, 480, 0],
   [/SVR90T/i, 90, 495, 0], [/SV125/i, 125, 975, 0], [/Stowaway 92/i, 92, 612, 0], [/StarFire GTX 110/i, 110, 660, 0],
   [/Apertura 75Q/i, 75, 405, 0], [/Apertura 90mm Triplet/i, 90, 540, 0], [/61\/335/i, 61, 335, 0],
+  // comparsi nella seconda raccolta
+  [/SVX90T/i, 90, 495, 0], [/SVX102T/i, 102, 714, 0], [/SV70T/i, 70, 420, 0], [/Vixen VMC200L/i, 200, 1950, 33], [/ZWO FF80/i, 80, 600, 0], [/71SDQ/i, 71, 450, 0],
+  [/SQA85/i, 85, 382, 0], [/Askar 65PHQ/i, 65, 416, 0], [/Photoline 70mm f\/6|TSAPO704/i, 70, 420, 0], [/Evostar 120ED|Black Diamond 120ED/i, 120, 900, 0],
+  [/16" F\/4/i, 406, 1624, 25], [/13028HNT/i, 130, 364, 48], [/Planewave CDK14/i, 356, 2563, 48], [/PHOTON 300mm\/12" f\/4/i, 305, 1200, 30], [/BKP 150/i, 150, 750, 30],
+  [/Askar 160 APO|160mm f\/7 Triplet/i, 160, 1120, 0], [/SV545/i, 80, 480, 0], [/FS-60/i, 60, 355, 0], [/StellaMira 90/i, 90, 540, 0], [/Askar 50P/i, 50, 250, 0],
   // obiettivi fotografici: apertura = focale / f (tutta aperta)
   [/Samyang 135|Rokinon 135/i, 67.5, 135, 0], [/Sigma 135mm F1\.8/i, 75, 135, 0], [/Sigma 105mm F2\.8/i, 37.5, 105, 0], [/Sigma 40mm F1\.4/i, 28.6, 40, 0],
-  [/Sigma 150-600/i, 95, 600, 0], [/Sigma 400mm F\/5\.6/i, 71.4, 400, 0], [/EF 400mm f\/5\.6/i, 71.4, 400, 0], [/EF 600mm f\/4/i, 150, 600, 0],
+  [/Sigma 150-600/i, 95, 600, 0], [/EF 100-400mm/i, 71, 400, 0], [/75-300mm|70-300mm/i, 53.6, 300, 0], [/Sigma 400mm F\/5\.6/i, 71.4, 400, 0], [/EF 400mm f\/5\.6/i, 71.4, 400, 0], [/EF 600mm f\/4/i, 150, 600, 0],
   [/EF 200mm f\/2\.8/i, 71.4, 200, 0], [/70-200mm f\/2\.8/i, 71.4, 200, 0], [/300mm f\/2\.8/i, 107, 300, 0], [/Sonnar 180 mm f\/2\.8/i, 64, 180, 0], [/55-250mm/i, 44.6, 250, 0],
 ];
 function scopeOf(name) {
@@ -77,9 +82,11 @@ const CAMS = [
   [/294MC|Hypercam 294C|Artemis-C|SV405CC|10300 ?KPA/i, 4.63, 4144, 2822, 75, 1.8, 'osc'],
   [/585MC|ATR585C|TS585CP|Uranus-C|SV705C/i, 2.9, 3840, 2160, 80, 1.0, 'osc'],
   [/183MC/i, 2.4, 5496, 3672, 80, 1.6, 'osc'], [/071MC/i, 4.78, 4944, 3284, 50, 2.3, 'osc'], [/1600MC/i, 3.8, 4656, 3520, 60, 1.2, 'osc'],
+  [/ATR2600C/i, 3.76, 6248, 4176, 80, 1.5, 'osc'], [/485MC/i, 2.9, 3840, 2160, 80, 1.0, 'osc'], [/462MC/i, 2.9, 1920, 1080, 80, 1.0, 'osc'], [/DWARF ?3/i, 2.0, 3840, 2160, 80, 1.0, 'osc'],
   [/715MC|715C/i, 1.45, 3840, 2160, 80, 0.9, 'osc'], [/676MC/i, 2.0, 3552, 3552, 80, 0.9, 'osc'], [/662MC/i, 2.9, 1920, 1080, 80, 0.9, 'osc'], [/678MC/i, 2.0, 3840, 2160, 80, 0.9, 'osc'],
   // reflex: con «modificata» il filtro davanti al sensore lascia passare l'Hα
   [/EOS 6D/i, 6.55, 5472, 3648, 50, 3, 'dslr'], [/EOS (2000D|250D|200D|800D|850D|R10)/i, 3.72, 6000, 4000, 45, 2.5, 'dslr'],
+  [/EOS 450D/i, 5.2, 4272, 2848, 35, 4, 'dslr'],
   [/EOS (100D|550D|600D|650D|700D|1100D|60D)/i, 4.3, 5184, 3456, 40, 3.5, 'dslr'], [/EOS R6/i, 6.56, 5472, 3648, 55, 2, 'dslr'], [/EOS Ra\b/i, 5.36, 6720, 4480, 50, 2.5, 'dslrmod'],
   [/Nikon D5300|Nikon D5[56]00|Nikon D7500/i, 3.9, 6000, 4000, 45, 2.5, 'dslr'], [/Nikon Z ?6/i, 5.9, 6048, 4024, 50, 2, 'dslr'], [/Nikon D810A/i, 4.9, 7360, 4912, 50, 2.5, 'dslrmod'],
   [/Sony .*(α|a)7 ?I?I?I|ILCE-7M3/i, 5.9, 6000, 4000, 50, 2.5, 'dslr'],
@@ -109,7 +116,8 @@ const FILTERS = [
   [/Seestar S(30|50).*LP Filter/i, 'seestar'],
   [/Anti-Halo Pro Dual-Band/i, 'poahpro'], [/ZWO Duo-Band/i, 'zwoduo'], [/STC.*Duo/i, 'stcduo'],
   // anti-inquinamento a banda larga senza bande pubblicate: ≈ L-Pro
-  [/IDAS LPS-(D1|D2|P1|P2|P3)|LoGlow|Light Pollution for RASA|Neodymium|Moon (&|and) Skyglow|CLS/i, 'lpro'],
+  [/IDAS LPS-(D1|D2|D3|P1|P2|P3)|IDAS GNB|LoGlow|Light Pollution for RASA|Neodymium|Moon (&|and) Skyglow|CLS/i, 'lpro'],
+  [/Altair Ha\+OIII ULTRA DualBand 6nm/i, 'askard1'],
 ];
 function filterOf(name) {
   const n = String(name || '').trim();

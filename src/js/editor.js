@@ -9,7 +9,7 @@ function fillEditorSelects() {
   const brandOf = (n) => (n.match(/^(William Optics|Sky-Watcher|Explore Scientific|TS-Optics|TS-Photon|GSO \/ TS|Obiettivo)/) || [n.split(' ')[0]])[0].replace(/^TS-Photon|^GSO \/ TS/, 'TS-Optics');
   const groups = new Map(); OPTICS.filter((c) => c.id !== 'custom').forEach((c) => { const b = brandOf(c.name); if (!groups.has(b)) groups.set(b, []); groups.get(b).push(c); });
   OPTIC_OPTIONS = [...groups.keys()].sort((a, b) => a.localeCompare(b)).map((b) => `<optgroup label="${esc(b === 'Obiettivo' ? tx('Obiettivi fotografici') : b)}">${groups.get(b).map((c) => `<option value="${c.id}">${esc(txName(c.name))}</option>`).join('')}</optgroup>`).join('') + `<option value="custom">${tx('Personalizzato')}</option>`;
-  F('f_bortle').innerHTML = Object.keys(BORTLE_SQM).map((b) => `<option value="${b}">${b} · SQM ≈ ${it(BORTLE_SQM[b], 1)}</option>`).join('');
+  F('f_bortle').innerHTML = Object.keys(BORTLE_RANGE).map((b) => `<option value="${b}">${b} · SQM ${it(BORTLE_RANGE[b][0], 2)}–${it(BORTLE_RANGE[b][1], 2)}</option>`).join('');
 }
 function bandTxt(f) {
   const C = { Ha: 656.3, OIII: 500.7, SII: 672.4 };
@@ -102,7 +102,7 @@ function openEditor(id, asNew) {
   const d = draft;
   F('f_name').value = d.name; F('f_cam').value = CAMERAS.some((c) => c.id === d.camera.preset) ? d.camera.preset : 'custom'; F('f_ctype').value = d.camera.type; F('f_bin').value = String(d.bin || 1);
   F('f_cw').value = d.camera.w; F('f_ch').value = d.camera.h; F('f_pix').value = d.camera.pix; F('f_qe').value = d.camera.qe; F('f_rn').value = d.camera.rn;
-  F('f_thr').value = String(d.session.sunThr); F('f_from').value = d.session.from || ''; F('f_to').value = d.session.to || ''; F('f_quality').value = d.session.quality || 'good';
+  F('f_thr').value = String(d.session.sunThr); F('f_from').value = d.session.from || ''; F('f_to').value = d.session.to || ''; F('f_quality').value = d.session.quality || 'good'; F('f_goal').value = GOALS.includes(d.session.goal) ? d.session.goal : 'snr';
   F('edDelete').hidden = !!asNew || !!(src && src.unsaved);
   renderOptics(); renderFilterPick();
   showEditor(asNew); F('f_name').focus();
@@ -118,7 +118,7 @@ function openLocEditor(id, asNew) {
   draft = asNew ? newLocDraft() : migrateLoc(clone(src || activeLoc()));
   F('edTitle').textContent = asNew ? tx('Nuovo luogo') : tx('Luogo');
   const d = draft;
-  F('f_site').value = d.site.name; F('f_lat').value = d.site.lat; F('f_lon').value = d.site.lon; F('f_bortle').value = String(d.site.bortle || sqmToBortle(d.site.sqm)); F('f_sqm').value = d.site.sqm;
+  F('f_site').value = d.site.name; F('f_lat').value = d.site.lat; F('f_lon').value = d.site.lon; F('f_bortle').value = String(d.site.bortle || sqmToBortle(d.site.sqm)); F('f_sqm').value = d.site.sqm; F('f_sqmMeas').checked = !!d.site.sqmMeas;
   F('f_elev').value = d.site.elev != null ? d.site.elev : ''; F('f_minalt').value = d.minAlt;
   F('edDelete').hidden = !!asNew || !!(src && src.unsaved);
   F('hzPaste').hidden = true; F('hzMsg').textContent = ''; F('skyImp').hidden = true; F('skyMsg').textContent = asNew ? tx('Cerca il luogo o tocca la mappa: il resto arriva da solo.') : '';
@@ -150,13 +150,13 @@ function readProfForm() {
   const owned = $$('#filterPick input[data-fid]').filter((x) => x.checked).map((x) => x.dataset.fid);
   const type = d.camera.type; d.filters = { owned: owned.filter((id) => { const f = FDB_BY_ID.get(id); return f && (type === 'mono' ? f.for !== 'osc' : f.for !== 'mono'); }) };
   // l'altezza minima ora sta nel luogo; nel profilo resta quella di prima per le versioni vecchie
-  d.session = { minAlt: d.session && isFinite(+d.session.minAlt) ? +d.session.minAlt : 25, sunThr: +F('f_thr').value, from: F('f_from').value, to: F('f_to').value, quality: F('f_quality').value, moon: d.session && d.session.moon === 'dark' ? 'dark' : 'any' };
+  d.session = { minAlt: d.session && isFinite(+d.session.minAlt) ? +d.session.minAlt : 25, sunThr: +F('f_thr').value, from: F('f_from').value, to: F('f_to').value, quality: F('f_quality').value, goal: F('f_goal').value, moon: d.session && d.session.moon === 'dark' ? 'dark' : 'any' };
   return d;
 }
 function readLocForm() {
   const d = draft, n = (id) => parseFloat(F(id).value);
   const sqm = n('f_sqm'), lat = n('f_lat'), lon = n('f_lon'), prev = d.site;
-  d.site = { name: F('f_site').value.trim() || tx('Il mio terrazzo'), lat: isFinite(lat) ? clamp(lat, -89.9, 89.9) : 45, lon: isFinite(lon) ? clamp(lon, -180, 180) : 9, bortle: +F('f_bortle').value, sqm: isFinite(sqm) ? clamp(sqm, 16, 22.2) : BORTLE_SQM[F('f_bortle').value] };
+  d.site = { name: F('f_site').value.trim() || tx('Il mio terrazzo'), lat: isFinite(lat) ? clamp(lat, -89.9, 89.9) : 45, lon: isFinite(lon) ? clamp(lon, -180, 180) : 9, bortle: +F('f_bortle').value, sqm: isFinite(sqm) ? clamp(sqm, 16, 22.2) : BORTLE_SQM[F('f_bortle').value], sqmMeas: F('f_sqmMeas').checked };
   if (prev.example && prev.lat === d.site.lat && prev.lon === d.site.lon && prev.name === d.site.name) d.site.example = true;
   const elev = n('f_elev'); if (isFinite(elev)) d.site.elev = Math.round(elev);
   // dati della luce: validi solo per le coordinate con cui sono stati ottenuti (entro ~1 km)
@@ -321,7 +321,7 @@ function wireEditor() {
   ['f_cw', 'f_ch', 'f_pix', 'f_qe', 'f_rn'].forEach((id) => F(id).addEventListener('input', () => { F('f_cam').value = 'custom'; }));
   wireOptics();
   F('f_minalt').addEventListener('input', drawHz);
-  F('f_bortle').onchange = () => { F('f_sqm').value = BORTLE_SQM[F('f_bortle').value]; lpRedraw(); };
+  F('f_bortle').onchange = () => { F('f_sqm').value = BORTLE_SQM[F('f_bortle').value]; F('f_sqmMeas').checked = false; lpRedraw(); };
   F('f_sqm').addEventListener('input', () => { const s = parseFloat(F('f_sqm').value); if (isFinite(s)) F('f_bortle').value = String(sqmToBortle(s)); lpRedraw(); });
   ['f_lat', 'f_lon'].forEach((id) => F(id).addEventListener('change', () => { const la = parseFloat(F('f_lat').value), lo = parseFloat(F('f_lon').value); if (isFinite(la) && isFinite(lo)) setGeo(la, lo, null, geoMap ? geoMap.getZoom() : 0); }));
   F('lpBtn').onclick = lpFetch;

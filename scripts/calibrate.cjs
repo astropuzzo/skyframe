@@ -10,8 +10,13 @@ const path = require('path'), fs = require('fs'), vm = require('vm');
 const root = path.join(__dirname, '..'), src = (f) => path.join(root, 'src', f);
 global.window = {};
 ['data/filters.js', 'data/dso.js', 'data/sky.js'].forEach((f) => require(src(f)));
+// il livello di qualità per oggetto (src/data/quality.js); CAL_NOQ=1: senza, cioè il tempo fisico a SNR di riferimento
+if (!process.env.CAL_NOQ && fs.existsSync(src('data/quality.js'))) require(src('data/quality.js'));
 const I18N_STUB = "const LANG = 'it', LOCALE = 'it-IT', txName = (n) => n, tx = (s, p) => (p ? s.replace(/[{](\\w+)[}]/g, (m, k) => (k in p ? p[k] : m)) : s);";
-vm.runInThisContext(I18N_STUB + ';' + fs.readFileSync(src('js/astro.js'), 'utf8') + '\n' + fs.readFileSync(src('js/model.js'), 'utf8') +
+// CAL_PATCH='[["da","a"],…]': sostituzioni nel testo del modello, per provare costanti diverse senza toccarlo
+function calPatch(t) { for (const [x, y] of JSON.parse(process.env.CAL_PATCH || '[]')) { if (!t.includes(x)) throw new Error('CAL_PATCH: non trovo ' + x); t = t.split(x).join(y); } return t; }
+// CAL_MODEL=percorso: un altro model.js (per esempio quello di una versione precedente) per confrontare
+vm.runInThisContext(I18N_STUB + ';' + fs.readFileSync(src('js/astro.js'), 'utf8') + '\n' + calPatch(fs.readFileSync(process.env.CAL_MODEL || src('js/model.js'), 'utf8')) +
   '\n;globalThis.__m={templateProfile,profileConfigs,computePrep,computeObj,hoursOf,BORTLE_SQM,CAT_BY_ID,FDB_BY_ID,LINES};');
 const M = globalThis.__m;
 const OWN = {
@@ -27,6 +32,10 @@ const PICK = {
 // senza argomento: le foto della prima raccolta e quelle convertite da scripts/astrobin-convert.cjs
 const files = process.argv[2] ? [process.argv[2]] : ['astrobin-calib.jsonl', 'astrobin-calib2.jsonl', 'astrobin-calib3.jsonl'].map((n) => path.join(root, 'scripts', 'raw', n)).filter((p) => fs.existsSync(p));
 const recs = files.flatMap((p) => fs.readFileSync(p, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)));
+/* CAL_SET: quali foto usare. «taratura» = prima raccolta (e le schede lette a mano), «verifica» = foto della seconda raccolta
+   sui target che la prima non aveva (mai usate per scegliere le costanti), «tutte» (predefinito). */
+const FIRST_DS = '2026-09-26T19-21', firstT = new Set(recs.filter((r) => r.ds === FIRST_DS).map((r) => r.t));
+const inSet = (r) => { const S = process.env.CAL_SET || 'tutte'; if (S === 'tutte') return true; const test = !!r.ds && r.ds !== FIRST_DS && !firstT.has(r.t); return S === 'verifica' ? test : !test && (!r.ds || r.ds === FIRST_DS); };
 const L = Math.log10, rows = [];
 // Bortle con decimali (6,87): interpolato fra i valori interi
 const sqmOf = (b) => { const lo = Math.floor(b), hi = Math.ceil(b), a = M.BORTLE_SQM[lo], z = M.BORTLE_SQM[hi]; return a + (z - a) * (b - lo); };
@@ -50,6 +59,7 @@ function ownRow(r, o) {
   return { p, pick, real, kind };
 }
 for (const r of recs) {
+  if (!inSet(r)) continue;
   const o = M.CAT_BY_ID.get(r.t); if (!o || (!OWN[r.kind] && !r.own)) continue;
   if (r.own) {
     const w = ownRow(r, o); if (!w) continue;
@@ -57,7 +67,7 @@ for (const r of recs) {
     p.site = { name: 'x', lat: 45, lon: 10, bortle: Math.round(r.bortle || 4), sqm }; p.horizon = []; p.session.minAlt = 20; p.session.quality = 'good';
     const mon = ((Math.round(3 + (o.ra / 15 - 12) / 2) % 12) + 12) % 12, ds = `2026-${String(mon + 1).padStart(2, '0')}-10`;
     const x = M.computeObj(M.computePrep(M.profileConfigs(p), p, ds, Date.now()), o); if (!x) continue;
-    const st = x.evals[0].strat.find((z) => z.id === w.pick); if (!st) continue; // SHO: già ×2 nel modello (SHO_TIME)
+    const st = x.evals[0].strat.find((z) => z.id === w.pick); if (!st) continue;
     const model = M.hoursOf(st) / (st.panels || 1); if (!isFinite(model)) continue;
     r.kind = w.kind; r.scale = +(206.265 * r.pix / r.fl).toFixed(2); r.drive = st.steps.map((z) => z.drive).join('+');
     rows.push({ r, o, sqm, model, lr: L(w.real / model), mono: false, sky: !!r.bortle, own: true, skip: false });

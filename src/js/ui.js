@@ -234,6 +234,19 @@ function renderTopList() {
 }
 
 /* ---------- Setup ---------- */
+/* precisione di guida consigliata per ogni configurazione del profilo attivo (model.js, guideAdvice) */
+const SAMP_TXT = { under: 'sottocampionato: ogni stella copre pochi pixel e appare squadrata; la guida pesa meno sul risultato', ok: 'campionamento adeguato (1,5–3,5 pixel per FWHM)', over: 'sovracampionato: con binning 2×2 o un riduttore si raccoglie più segnale per pixel; una guida migliore non cambia il campionamento' };
+function guideHTML() {
+  if (!state.cfgs || !state.cfgs.length) return '';
+  const w = state.res && typeof wxNight === 'function' ? wxNight(state.res.night) : null, see = w && w.see > 0 ? w.see : null;
+  const rows = state.cfgs.map((c) => { const a = guideAdvice(c, see);
+    return `<div class="st-item gd"><span class="tx"><b>${esc(c.label)} · ${c.short}</b>
+      <small>${tx('Scala {p}″/pixel · stelle attese {f}″ FWHM (seeing {s}″, diffrazione {d}″, pixel)', { p: it(a.p, 2), f: it(a.F, 1), s: it(a.see, 1), d: it(a.diff, 1) })}</small>
+      <small>${tx('{n} pixel per FWHM: {c}', { n: it(a.samp, 1), c: tx(SAMP_TXT[a.cls]) })}</small>
+      <small class="gd-v">${tx('Guida consigliata: errore RMS totale ≤ {t}″ ({a}″ per asse). Fino a {t2}″ le stelle si allargano meno del 20%.', { t: it(a.total, 2), a: it(a.axis, 2), t2: it(a.totalOk, 2) })}</small></span></div>`; }).join('');
+  return `<div class="st-sec" id="stGuiding"><h3>${tx('Precisione di guida')}</h3><div class="st-list">${rows}</div>
+    <p class="st-foot">${tx(see ? 'Seeing: mediana della previsione per le ore di buio di stanotte, allo zenit.' : 'Seeing: nessuna previsione disponibile, si assume 2,5″ (valore tipico, ipotesi).')} ${tx('Criterio: l’errore di guida, sommato in quadratura a seeing, diffrazione e pixel, non deve allargare le stelle più del 10%. Ipotesi: profili gaussiani, ottica limitata dalla diffrazione, errore uguale sui due assi. Con seeing migliore serve una guida più precisa; lontano dallo zenit il seeing peggiora.')}</p></div>`;
+}
 function renderSetup() {
   const el = $('#setupView'); if (!el) return;
   const prof = state.profiles.map((p) => `<div class="st-item"><button type="button" class="st-main" data-prof="${esc(p.id)}"><span class="radio${p.id === state.activeId ? ' on' : ''}"></span><span class="tx"><b>${esc(exName(p.name, p.unsaved))}</b><small>${esc(profLine(p))}</small></span></button><button type="button" class="icon-btn" data-editp="${esc(p.id)}" aria-label="${tx('Modifica')}" title="${tx('Modifica')}">${ic('edit')}</button></div>`).join('');
@@ -241,6 +254,7 @@ function renderSetup() {
   const red = !$('#veil').hidden, on = notifyOn(), nc = ncfg(), v = window.SKYFRAME_VERSION || '';
   el.innerHTML = `<div class="view-h"><h2>${tx('Setup')}</h2></div>
     <div class="st-sec"><h3>${tx('Attrezzatura')}</h3><div class="st-list">${prof}<button type="button" class="st-item" data-newp>${ic('plus')}<span class="tx"><b>${tx('Nuovo profilo')}</b><small>${tx('altra ottica, camera o filtri')}</small></span></button></div></div>
+    ${guideHTML()}
     <div class="st-sec"><h3>${tx('Luoghi')}</h3><div class="st-list">${locs}<button type="button" class="st-item" data-newl>${ic('plus')}<span class="tx"><b>${tx('Nuovo luogo')}</b><small>${tx('cielo e orizzonte arrivano da soli')}</small></span></button></div></div>
     <div class="st-sec"><h3>${tx('Preferenze')}</h3><div class="st-list">
       <div class="st-item wrap">${ic('moon')}<span class="tx"><b>${tx('Con la Luna')}</b><small>${tx(MODE_TXT[moonMode()][1])}</small></span><div class="seg" id="moonSeg">${MOON_MODES.map((m) => `<button type="button" data-mode="${m}" aria-pressed="${m === moonMode()}">${tx(MODE_TXT[m][0])}</button>`).join('')}</div></div>

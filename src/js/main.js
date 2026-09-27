@@ -191,6 +191,9 @@ function applyFilters() {
   if (f.maxNights < 11) L = L.filter((r) => r.e.best && nightsOf(r) <= f.maxNights);
   if (state.cfgFilter) L = L.filter((r) => r.e.cfg.key === state.cfgFilter);
   if (q) L = L.filter((r) => r.o.search.includes(q));
+  // ricerca anche nell'indice completo (caricato alla prima ricerca)
+  state.idxHits = q.length >= 2 ? indexHits(q, L.map((r) => r.o.id)) : [];
+  if (q.length >= 2 && !IDX.rows) loadIndex().then(() => { if (state.q.trim()) { applyFilters(); renderList(); } }).catch(() => {});
   const hrs = (r) => (r.e.best ? hoursOf(r.e.best) : 1e9); // ore senza Luna lungo il percorso della notte
   // conviene andare altrove: target buoni nell'altro luogo e con molto tempo risparmiato (o che qui non si riprendono)
   const gain = (r) => { const b = betterLoc(r); return b ? b.s.score * (0.5 + (b.gain == null ? 1 : b.gain)) : -1; };
@@ -341,6 +344,7 @@ async function boot() {
   if (DESK) { try { applyStore(await window.cielo.loadProfiles()); } catch (e) { applyStore(null); } }
   // fino alla 0.5.0 qui si rileggevano solo i profili: i luoghi si ricostruivano da quello attivo e gli altri si perdevano
   else applyStore(LS.get('sf.store', null) || { profiles: LS.get('sf.profiles', []), active: LS.get('sf.active', null), locations: LS.get('sf.locs', undefined), activeLoc: LS.get('sf.loc', null) });
+  await restoreExtras(state.projects); // oggetti fuori lista salvati: prima del primo calcolo
   wire(); refresh(true);
   window.__bootMs = Math.round(performance.now());
   // guida al primo avvio e novità dopo un aggiornamento: quando il logo è arrivato al suo posto

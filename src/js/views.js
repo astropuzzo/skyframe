@@ -31,7 +31,7 @@ function renderFacts() {
       <div class="fact"><div class="lbl">${ic('night')}${tx('Buio')}</div><div class="v num">${dark}</div><div class="s">${fmtDur(n.darkH)} · ${tx('sole sotto {d}°', { d: n.thr })}</div></div>
       <div class="fact"><div class="lbl">${ic('moon')}${tx('Luna')}</div><div class="v">${moonSvg(n.moonIll, n.waxing)}<span class="num">${Math.round(n.moonIll * 100)}%</span></div><div class="s">${moonS}</div></div>
       <button type="button" class="fact go" data-go="sky" title="${tx('Apri il meteo ora per ora')}"><div class="lbl">${ic('cloud')}${tx('Meteo')}${ic('chev-r', 'go-i')}</div><div class="v">${wxV}</div><div class="s">${wxS}</div>${warn.map((x) => `<div class="s warn">${x}</div>`).join('')}</button>
-      <div class="fact"><div class="lbl">${ic('lights')}${tx('Cielo')}</div><div class="v num">SQM ${it(sqm, 2)}</div><div class="s">Bortle ${sqmToBortle(sqm)} · ${p.site.lpSrc ? esc(tx(p.site.lpSrc)) : tx('valore inserito a mano')}</div></div>
+      <div class="fact"><div class="lbl">${ic('lights')}${tx('Cielo')}</div><div class="v num">SQM ${it(sqm, 2)} <small>± ${it(skySource(p.site).sigma, 1)}</small></div><div class="s">${tx(SKY_SRC[skySource(p.site).k])} · Bortle ≈ ${sqmToBortle(sqm)}</div></div>
       <div class="fact wide"><div class="lbl">${ic('cal')}${tx('Prossime notti senza Luna')}</div><div class="v">${nextDark}</div></div>
     </div>`;
   $('#facts').onclick = (e) => { if (e.target.closest('[data-go="sky"]')) setView('sky'); };
@@ -252,7 +252,8 @@ function renderList() {
   const L = state.filtered, shown = L.slice(0, state.page);
   const visN = state.res.results.filter((r) => r.usableH >= 0.25).length;
   $('#count').innerHTML = tx('{n} di {v} target la notte del {d}', { n: `<span class="num">${L.length}</span>`, v: visN, d: new Date(state.res.night.t0).toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' }) });
-  $('#list').innerHTML = shown.length ? shown.map(rowHTML).join('') + (L.length > shown.length ? `<button class="btn more" id="moreBtn">${tx('Mostra altri {n}', { n: Math.min(60, L.length - shown.length) })}</button>` : '') : `<div class="empty">${tx('Nessun target con questi filtri.')}</div>`;
+  $('#list').innerHTML = (shown.length ? shown.map(rowHTML).join('') + (L.length > shown.length ? `<button class="btn more" id="moreBtn">${tx('Mostra altri {n}', { n: Math.min(60, L.length - shown.length) })}</button>` : '') : `<div class="empty">${tx('Nessun target con questi filtri.')}</div>`) + indexHitsHTML(state.idxHits || []);
+  $$('#list .idx-row').forEach((b) => (b.onclick = () => openIndexEntry(b.dataset.idx)));
   requestAnimationFrame(() => $$('#list .score').forEach((el) => el.style.setProperty('--v', el.dataset.v)));
   const mb = $('#moreBtn'); if (mb) mb.onclick = () => { state.page += 60; renderList(); };
   fillNights();
@@ -320,6 +321,27 @@ function closeDetail(fromPop, how) {
   }
   d.classList.remove('on');
   setTimeout(done, 300);
+}
+/* da dove viene il livello di qualità di questo oggetto (model.js, objQualOf) */
+function qualTxt(o) {
+  const [, src] = objQualOf(o), e = window.QUALITY_OBJ && QUALITY_OBJ.o[o.id], n = e ? e[2] : 0;
+  if (src === 'foto') return tx('Livello «buona»: il SNR della foto mediana di questo oggetto su AstroBin ({n} foto da cieli Bortle 6–8, camera a colori), riportato al tuo setup.', { n });
+  if (src === 'stima') return tx('Livello «buona»: stimato dalla difficoltà dell’oggetto (nessuna foto di riferimento; su oggetti simili l’errore tipico è un fattore 1,6).');
+  return tx('Livello «buona»: SNR di riferimento del modello, senza taratura.');
+}
+/* obiettivo del profilo e criterio con cui è stata scelta la strada (model.js, eligible e pickBest) */
+const GOAL_TXT = {
+  snr: 'Scelta: il tempo più breve per il SNR richiesto, fra le combinazioni a colori che raccolgono Hα e OIII (se l’oggetto le emette).',
+  lines: 'Scelta: il tempo più breve fra le combinazioni che raccolgono tutte le righe importanti dell’oggetto.',
+  natural: 'Scelta: il tempo più breve fra le combinazioni a banda larga (colori naturali).',
+};
+/* incertezza del cielo sulle ore: la parte artificiale del fondo cambia come 10^(0,4·ΔSQM); si rifà il conto della
+   strada scelta con il cielo più scuro e più chiaro di σ */
+function skyHoursRange(r, e, b, U, sigma) {
+  if (!(sigma > 0) || !U || !U.n) return null;
+  const run = (d) => { const f = Math.pow(10, 0.4 * d), U2 = { ...U, art: U.art.map((x) => x * f) }, T2 = { ...r.T, art: r.T.art * f };
+    const s = evalStrategies(r.o, e.cfg.strategies, e.K, U2, state.res.Q, T2, r.field).find((x) => x.id === b.id); return s ? hoursOf(s) * (b.panels || 1) : null; };
+  return [run(-sigma), run(sigma)];
 }
 function curEval(r) { return r.evals.find((e) => e.cfg.key === state.selCfg) || r.e; }
 /* Dettaglio di un target: in alto (fisso) nome, punteggio, riassunto e quattro schede; sotto solo la scheda scelta.
@@ -486,7 +508,7 @@ function renderDetail() {
   const altS = alternativeStrategies(e.cfg.profile.camera.type, ownedFilters(e.cfg.profile));
   const altEval = evalStrategies(o, altS, e.K, U, state.res.Q, r.T, r.field).filter((s) => isFinite(s.dark) || s.ideal);
   const cur = hoursOf(b);
-  const bestAlt = altEval.map((s) => ({ name: (s.alt.brand ? s.alt.brand + ' ' : '') + s.alt.name, h: hoursOf(s) * (b ? b.panels || 1 : 1), pen: s.penalty })).filter((x) => x.h < cur * 0.7).sort((x, y) => x.h * x.pen - y.h * y.pen)[0];
+  const bestAlt = altEval.filter((s) => eligible([s], o, p.session.goal).length).map((s) => ({ name: (s.alt.brand ? s.alt.brand + ' ' : '') + s.alt.name, h: hoursOf(s) * (b ? b.panels || 1 : 1) })).filter((x) => x.h < cur * 0.7).sort((x, y) => x.h - y.h)[0];
   // con le polveri attorno: quanto basterebbe per la sola parte luminosa (stessa strategia, senza il requisito delle polveri)
   let coreH = null;
   if (b && dustOf(o, r.field)) {
@@ -496,8 +518,9 @@ function renderDetail() {
   const tips = adviceFor(r, e, { night: n, nextDark: state.nextDarkTxt, alt: bestAlt, sky: state.res.sky, framing: framingFor(o, r.field, e.cfg.geom), coreH });
   const plan = planOf(b, e.cfg, 'dark'), cal = b ? shootCalendar(state.res.C, r, e, true) : null;
   const planTot = plan ? plan.filter((x) => !x.optional).reduce((a, x) => a + x.h, 0) : 0;
+  const skyS = skySource(p.site), skyR = b ? skyHoursRange(r, e, b, U, skyS.sigma) : null;
   const planDeep = plan ? plan.filter((x) => !x.optional).reduce((a, x) => a + x.hDeep, 0) : 0;
-  const alts = e.strat.filter((s) => s !== b).sort((x, y) => hoursOf(x) * x.penalty - hoursOf(y) * y.penalty).slice(0, 3);
+  const alts = e.strat.filter((s) => s !== b).sort((x, y) => hoursOf(x) - hoursOf(y)).slice(0, 3);
   const aladin = `https://aladin.cds.unistra.fr/AladinLite/?target=${encodeURIComponent((o.ra / 15).toFixed(5) + ' ' + (o.dec >= 0 ? '+' : '') + o.dec.toFixed(5))}&fov=${(Math.max(g.W, o.a) * 1.4 / 60).toFixed(2)}`;
   const stel = `https://stellarium-web.org/skysource/${encodeURIComponent(o.id.replace(/\s+/g, ''))}`;
   const size = `${o.a}′${o.b !== o.a ? ' × ' + o.b + '′' : ''}`;
@@ -531,6 +554,9 @@ function renderDetail() {
 
   const planHTML = plan ? `<div class="plan-card"><div class="head"><span class="t">${esc(b.label)}</span><span class="h">≈ ${fmtH(planTot)}</span></div>
       <div class="pc-sub">${tx('qualità {q} · {cfg} a {f}', { q: tx(QLABEL[p.session.quality] || 'buona'), cfg: esc(e.cfg.label), f: e.cfg.short })}</div>
+      <div class="pc-sub">${qualTxt(o)}</div>
+      <div class="pc-sub">${tx(GOAL_TXT[p.session.goal] || GOAL_TXT.snr)}</div>
+      ${skyR && skyR[0] && skyR[1] ? `<div class="pc-sub">${tx('{a}–{b} con SQM ± {s} ({src})', { a: fmtH(skyR[0]), b: fmtH(skyR[1]), s: it(skyS.sigma, 1), src: tx(SKY_SRC[skyS.k]) })}</div>` : ''}
       ${b.deep ? `<div class="deep">${tx('Con l’Hα diffuso attorno ({r} R): <b>{h}</b> in tutto.', { r: it(o.ha, 1), h: fmtH(planDeep) })}</div>` : ''}
       <div class="steps">${plan.map((s) => `<div class="step${s.optional ? ' opt' : ''}"><div class="f">${esc(s.filter)}<small>${s.optional ? `${esc(s.what)} · ${tx('facoltativo')}` : tx('raccoglie {w}', { w: esc(s.what) }) + (s.why ? ' · ' + esc(s.why) : '')}</small></div><div class="h">${fmtH(s.h)}${s.hDeep > s.h * 1.15 ? `<small title="${esc(s.whyDeep)}">${fmtH(s.hDeep)} ${tx('profondo')}</small>` : ''}</div><div class="sb" title="${tx('Posa singola consigliata')}">sub ≈ ${s.sub} s</div></div>`).join('')}</div>
       ${b.panels > 1 ? `<div class="note">${tx('Tempi per {n} pannelli.', { n: b.panels })}</div>` : ''}
@@ -551,6 +577,7 @@ function renderDetail() {
   <nav class="dtabs" role="tablist">${D_TABS.map(([k, l]) => `<button class="dtab" role="tab" data-tab="${k}" aria-selected="${k === tab}">${tx(l)}</button>`).join('')}</nav>
 
   <section class="tabp" data-tab="piano" ${tab === 'piano' ? '' : 'hidden'}>
+    ${o.extra ? `<div class="d-extra">${tx('Fuori dalla lista di stanotte: calcolato a richiesta dal catalogo completo')} · ${tx(SBQ_TXT[o.sbq] || '')}</div>` : ''}
     <div class="d-meta">${tx('{type} in {con}', { type: tx(TYPES[o.type]), con: esc(CONST_NAMES[o.con] || o.con) })} · ${size}${o.mag != null ? ' · mag ' + it(o.mag, 1) : ''} · ${tx('LS')} ${it(o.sb, 1)} mag/″²${o.alias.length ? ' · ' + esc(o.alias.slice(0, 4).join(', ')) : ''}</div>
     <div class="hchips">${chips}</div>
     ${cfgs}
