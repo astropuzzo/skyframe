@@ -8,7 +8,7 @@
    - una frase che spiega la differenza.
    Nella scheda Quando lo stesso calendario si vede a mese, notte per notte. */
 const MODE_TXT = {
-  smart: ['Consigliato', 'salta le notti con troppa Luna'],
+  smart: ['Consigliato', 'esclude le notti in cui la Luna riduce troppo il rendimento'],
   all: ['Tutte le sere', 'ogni notte, anche con la Luna piena'],
   dark: ['Solo senza Luna', 'solo senza Luna o con Luna sottile'],
 };
@@ -62,7 +62,7 @@ function scenHTML(r, e) {
     return `<button type="button" class="sc-row" data-mode="${m}" aria-pressed="${m === mode}"><span class="sc-h"><span class="radio${m === mode ? ' on' : ''}"></span><span class="sc-t"><b>${tx(t)}</b><small>${tx(sub)}</small></span><span class="sc-v"><b class="num">${c && isFinite(c.hours) && c.done ? fmtH(c.hours) : c && c.complete ? '—' : '—'}</b><small>${nightsTxt2(c)}${c && !c.complete ? ' · ' + endTxt(c) : ''}</small></span></span>${dayStrip(c, D)}</button>`;
   }).join('');
   return `<div class="scen" id="scen" data-d="${D}">
-    <div class="sc-top"><div class="sc-need"><span>${tx(prog > 0 && prog < 1 ? 'Ti mancano' : 'Ti servono')}</span><b class="num" data-to="${needNow(r, e)}" data-fmt="h">≈ ${fmtH(needNow(r, e))}</b><small>${tx('senza Luna, da {l}', { l: esc(activeLoc().site.name) })}</small></div>
+    <div class="sc-top"><div class="sc-need"><span>${tx(prog > 0 && prog < 1 ? 'Integrazione mancante' : 'Integrazione necessaria')}</span><b class="num" data-to="${needNow(r, e)}" data-fmt="h">≈ ${fmtH(needNow(r, e))}</b><small>${tx('senza Luna, da {l}', { l: esc(activeLoc().site.name) })}</small></div>
       <button type="button" class="icon-btn" data-scinfo title="${tx('Come leggere i tempi')}" aria-label="${tx('Come leggere i tempi')}">${ic('info')}</button></div>
     ${dayAxis(state.res.C, D)}
     <div class="sc-rows">${rows}<div id="scLocs"></div></div>
@@ -72,13 +72,13 @@ function scenHTML(r, e) {
 /* la frase: quanto costa la Luna, e se un altro luogo conviene lo dice la riga del luogo */
 function scenSay(c, loc) {
   const a = c.all, d = c.dark, s = c.smart, out = [];
-  if (s && s.complete) return tx('Tempo stimato raccolto.');
+  if (s && s.complete) return tx('Integrazione stimata completata.');
   if (a && d && a.done && d.done) {
-    if (d.hours < a.hours * 0.8 && d.done > a.done) out.push(tx('Tutte le sere: {ha} in {na}. Aspettando il buio: {hd} in {nd}, ma finisci il {dd} invece del {da}.', { ha: fmtH(a.hours), na: nNights(a.sessions), hd: fmtH(d.hours), nd: nNights(d.sessions), dd: fmtDay(d.done), da: fmtDay(a.done) }));
-    else if (d.hours < a.hours * 0.8) out.push(tx('Aspettare il buio conviene: {hd} invece di {ha}, e finisci prima.', { hd: fmtH(d.hours), ha: fmtH(a.hours) }));
-    else out.push(tx('La Luna pesa poco: {ha} in {na}.', { ha: fmtH(a.hours), na: nNights(a.sessions) }));
-  } else if (a && a.done && d && !d.done) out.push(tx('Solo senza Luna non basta un anno: serve anche la Luna.'));
-  if (s && s.cloudy) out.push(tx('Nuvole previste in {n}: le salto.', { n: nNights(s.cloudy) }));
+    if (d.hours < a.hours * 0.8 && d.done > a.done) out.push(tx('Tutte le notti: {ha} in {na}. Solo senza Luna: {hd} in {nd}, con fine il {dd} invece del {da}.', { ha: fmtH(a.hours), na: nNights(a.sessions), hd: fmtH(d.hours), nd: nNights(d.sessions), dd: fmtDay(d.done), da: fmtDay(a.done) }));
+    else if (d.hours < a.hours * 0.8) out.push(tx('Conviene aspettare le notti senza Luna: {hd} invece di {ha}, e si finisce prima.', { hd: fmtH(d.hours), ha: fmtH(a.hours) }));
+    else out.push(tx('La Luna incide poco: {ha} in {na}.', { ha: fmtH(a.hours), na: nNights(a.sessions) }));
+  } else if (a && a.done && d && !d.done) out.push(tx('Usando solo le notti senza Luna non basta un anno: servono anche notti con la Luna.'));
+  if (s && s.cloudy) out.push(tx('Nuvole previste in {n}: escluse.', { n: nNights(s.cloudy) }));
   if (loc) out.push(loc);
   return out.join(' ');
 }
@@ -90,7 +90,7 @@ function renderScenLocs(r) {
   box.innerHTML = state.locs.filter((l) => l.id !== state.locId).map((l) => {
     const x = cmpFull(l, r.o), C = x && cmpCtx(l), c = x && x.e.best ? shootCalendar(C, x, x.e, false, mode) : null;
     if (c && c.done && here && (!here.done || c.hours < here.hours * 0.6) && (!best || c.hours < best.c.hours)) best = { l, c };
-    return `<div class="sc-row loc"><span class="sc-h">${ic('pin')}<span class="sc-t" title="${x && x.skyMag != null ? tx('cielo sul target {m}', { m: it(x.skyMag, 2) }) : ''}"><b>${esc(l.site.name)}</b><small>SQM ${it(+l.site.sqm, 2)} · ${Math.round(kmBetween(activeLoc().site, l.site))} km</small></span><span class="sc-v"><b class="num">${c && c.done ? fmtH(c.hours) : '—'}</b><small>${c ? nightsTxt2(c) + (c.complete ? '' : ' · ' + endTxt(c)) : tx('non si vede')}</small></span><button type="button" class="btn sm" data-loc="${esc(l.id)}">${tx('Passa qui')}</button></span>${dayStrip(c, D)}</div>`;
+    return `<div class="sc-row loc"><span class="sc-h">${ic('pin')}<span class="sc-t" title="${x && x.skyMag != null ? tx('cielo in direzione del target {m}', { m: it(x.skyMag, 2) }) : ''}"><b>${esc(l.site.name)}</b><small>SQM ${it(+l.site.sqm, 2)} · ${Math.round(kmBetween(activeLoc().site, l.site))} km</small></span><span class="sc-v"><b class="num">${c && c.done ? fmtH(c.hours) : '—'}</b><small>${c ? nightsTxt2(c) + (c.complete ? '' : ' · ' + endTxt(c)) : tx('non si vede')}</small></span><button type="button" class="btn sm" data-loc="${esc(l.id)}">${tx('Passa qui')}</button></span>${dayStrip(c, D)}</div>`;
   }).join('');
   if (best) { const say = $('#scen .sc-say'); if (say) say.textContent = scenSay(scenCals(r, r.e), tx('Da {l}: {h} ({n}), {x} volte meno.', { l: best.l.site.name, h: fmtH(best.c.hours), n: nNights(best.c.sessions), x: it(here.done ? here.hours / best.c.hours : 99, 1) })); }
 }
@@ -99,7 +99,7 @@ function wireScen(r) {
   sc.onclick = (e) => {
     if (e.target.closest('[data-scinfo]')) { openScenInfo(); return; }
     const l = e.target.closest('[data-loc]'); if (l) { setLoc(l.dataset.loc); return; }
-    const m = e.target.closest('[data-mode]'); if (m) { setMoonMode(m.dataset.mode); toast(tx('Modo di riprendere: {m}', { m: tx(MODE_TXT[m.dataset.mode][0]).toLowerCase() })); }
+    const m = e.target.closest('[data-mode]'); if (m) { setMoonMode(m.dataset.mode); toast(tx('Gestione della Luna: {m}', { m: tx(MODE_TXT[m.dataset.mode][0]).toLowerCase() })); }
   };
   // meteo degli altri luoghi (solo nuvole), poi i loro calendari
   setTimeout(() => {
@@ -115,11 +115,11 @@ function openScenInfo() {
   openSheet({
     title: tx('Come leggere i tempi'),
     body: `<div class="info-txt">
-      <p><b>${tx('Ore di posa')}</b>: ${tx('la posa totale per un risultato «buono» (la mediana delle foto su AstroBin con strumenti e cieli simili). In alto: col cielo senza Luna del luogo attivo.')}</p>
-      <p><b>${tx('Con la Luna')}</b> ${tx('il cielo è più chiaro e ogni ora rende meno: per questo i tre modi danno ore diverse.')}</p>
-      <p><b>${tx('Consigliato')}</b>: ${tx('tutte le notti utili, tranne quelle che rendono 2,5 volte meno della migliore del mese (di solito per la Luna piena).')} <b>${tx('Tutte le sere')}</b>: ${tx('ogni notte, anche con la Luna piena: finisci prima, con più ore.')} <b>${tx('Solo senza Luna')}</b>: ${tx('meno ore in tutto, ma aspetti le notti buie.')}</p>
-      <p><b>${tx('Notti e date')}</b>: ${tx('per ogni notte: ore col buio sopra il tuo orizzonte, la sua Luna e, per 7 giorni, solo le ore serene previste. Oltre, sereno ipotetico.')}</p>
-      <p><b>${tx('Stime indicative')}</b>: ${tx('seeing, trasparenza ed elaborazione possono raddoppiarle: servono per scegliere, non sono promesse.')}</p></div>`,
+      <p><b>${tx('Integrazione')}</b>: ${tx('Integrazione totale per il livello di qualità scelto: il SNR della foto mediana apprezzata su AstroBin di questo oggetto (o di oggetti di difficoltà simile), riportato al tuo setup. In alto: con il cielo senza Luna del luogo attivo.')}</p>
+      <p><b>${tx('Con la Luna')}</b> ${tx('con la Luna il fondo cielo è più luminoso e ogni ora raccoglie meno SNR: per questo i tre modi danno integrazioni diverse.')}</p>
+      <p><b>${tx('Consigliato')}</b>: ${tx('tutte le notti utili, tranne quelle con un rendimento inferiore di 2,5 volte a quello della migliore del mese (di solito per la Luna piena).')} <b>${tx('Tutte le sere')}</b>: ${tx('ogni notte, anche con la Luna piena: si finisce prima, con più ore.')} <b>${tx('Solo senza Luna')}</b>: ${tx('meno ore in totale, ma bisogna attendere le notti buie.')}</p>
+      <p><b>${tx('Notti e date')}</b>: ${tx('per ogni notte: ore di buio sopra il tuo orizzonte, con la Luna di quella notte e, per 7 giorni, solo le ore serene previste. Oltre, si assume cielo sereno.')}</p>
+      <p><b>${tx('Stime indicative')}</b>: ${tx('seeing, trasparenza ed elaborazione possono cambiarle di un fattore 2: sono stime per pianificare, non garanzie.')}</p></div>`,
   });
 }
 
@@ -135,7 +135,7 @@ function targetCalHTML(r, e) {
     const x = nightRec(C, r, e, k, darkOnly), u = byK.get(k), d = new Date(x.t0), mi = moonIllum(jd(x.t0 + 11 * 3600e3)), ds = dateStr(d);
     let cls = x.hGeo < CAL_MIN_H ? 'no' : x.h < CAL_MIN_H ? 'cloud' : 'ok', f = 0;
     if (u && u.use && !u.deepOnly) { cls = 'use'; f = clamp((u.frac || 0) * 2.5, 0, 1); } else if (u && !u.use && x.h >= CAL_MIN_H) cls = 'skip';
-    const tip = [d.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' }), x.hGeo >= CAL_MIN_H ? tx('{d} utili', { d: fmtDur(x.h) }) : tx('non si vede col buio'), tx('Luna {p}%', { p: Math.round(x.moon * 100) }), x.clear != null ? tx('meteo: {p}% sereno', { p: Math.round(x.clear * 100) }) : '', cls === 'use' ? tx('fa il {p}% del lavoro', { p: Math.max(1, Math.round((u.frac || 0) * 100)) }) : cls === 'skip' ? tx('saltata: rende troppo poco') : ''].filter(Boolean).join(' · ');
+    const tip = [d.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' }), x.hGeo >= CAL_MIN_H ? tx('{d} utili', { d: fmtDur(x.h) }) : tx('non visibile con il buio'), tx('Luna {p}%', { p: Math.round(x.moon * 100) }), x.clear != null ? tx('meteo: {p}% sereno', { p: Math.round(x.clear * 100) }) : '', cls === 'use' ? tx('raccoglie il {p}% dell’integrazione', { p: Math.max(1, Math.round((u.frac || 0) * 100)) }) : cls === 'skip' ? tx('esclusa: rendimento troppo basso') : ''].filter(Boolean).join(' · ');
     cells += `<button type="button" style="--k:${k + lead}" class="tc ${cls}${k === lastK ? ' end' : ''}${ds === sel ? ' sel' : ''}${k === 0 && ds === defaultNightStr() ? ' today' : ''}" data-t0="${x.t0}" style="--f:${(0.25 + 0.75 * f).toFixed(2)}" title="${esc(tip)}" aria-label="${esc(tip)}">
       <span class="d">${d.getDate()}${d.getDate() === 1 || k === 0 ? `<small>${d.toLocaleDateString(LOCALE, { month: 'short' }).replace('.', '')}</small>` : ''}</span><span class="mo">${moonSvg(mi.k, mi.waxing, 5)}</span>
       <span class="hh">${x.hGeo < CAL_MIN_H ? '—' : cls === 'cloud' ? ic('cloud') : fmtH(x.h)}</span>${k === lastK ? `<span class="ok">${ic('check')}</span>` : ''}</button>`;
@@ -144,15 +144,15 @@ function targetCalHTML(r, e) {
   return `<div class="sec first"><h3>${tx('Le notti di {t}', { t: esc(r.o.id) })} <small>${tx('tocca per aprire')}</small></h3>${seg}
     <p class="calsum">${calSay(cal)}</p>
     <div class="tcal">${head}${cells}</div>
-    <div class="sc-leg"><span><i class="use"></i>${tx('si riprende · più pieno, più lavoro')}</span><span><i class="skip"></i>${tx('saltata per la Luna')}</span><span>${ic('cloud')}${tx('nuvole previste')}</span><span>${ic('check')}${tx('ultima notte')}</span></div></div>`;
+    <div class="sc-leg"><span><i class="use"></i>${tx('notte utilizzata · più piena, più integrazione raccolta')}</span><span><i class="skip"></i>${tx('saltata per la Luna')}</span><span>${ic('cloud')}${tx('nuvole previste')}</span><span>${ic('check')}${tx('ultima notte')}</span></div></div>`;
 }
 function calSay(cal) {
-  if (cal.complete) return tx('Fatto: hai raccolto tutto il tempo stimato.');
+  if (cal.complete) return tx('Completato: l’integrazione stimata è stata raccolta.');
   let t = cal.start > 0 ? tx('Già fatto: {p}%.', { p: Math.round(cal.start * 100) }) + ' ' : '';
-  if (!cal.done) t += tx('In un anno: {p}%. Progetto da più stagioni.', { p: Math.round(cal.prog * 100) });
-  else t += tx('<b>{h}</b> in <b>{n}</b>: finisci <b>{d}</b>.', { h: fmtH(cal.hours), n: nNights(cal.sessions), d: dateStr(new Date(cal.done)) === defaultNightStr() ? tx('stanotte') : fmtDayLong(cal.done) });
+  if (!cal.done) t += tx('In un anno: {p}% dell’integrazione. Richiede più stagioni.', { p: Math.round(cal.prog * 100) });
+  else t += tx('<b>{h}</b> in <b>{n}</b>: fine prevista <b>{d}</b>.', { h: fmtH(cal.hours), n: nNights(cal.sessions), d: dateStr(new Date(cal.done)) === defaultNightStr() ? tx('stanotte') : fmtDayLong(cal.done) });
   if (cal.cloudy) t += ' ' + tx('Salto {n}: nuvole.', { n: nNights(cal.cloudy) });
-  if (cal.skipped) t += ' ' + tx('Salto {n}: troppa Luna.', { n: nNights(cal.skipped) });
+  if (cal.skipped) t += ' ' + tx('Escluse {n}: Luna troppo luminosa.', { n: nNights(cal.skipped) });
   return t;
 }
 function wireTargetCal() {

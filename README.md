@@ -84,44 +84,22 @@ La qualità è un SNR per elemento di risoluzione su tre livelli: il corpo dell'
 
 Le bolle di Wolf-Rayet (NGC 6888, WR 134, NGC 2359, Sh2-308) hanno un profilo di righe proprio, con OIII forte, e un guscio esterno quasi solo in OIII, molto più debole dei filamenti in Hα. Quando due multibanda lasciano passare la stessa riga (L-eXtreme e L-Synergy con l'OIII) i due segnali si sommano, e le ore si dividono tra i due filtri.
 
-### Taratura
+### Taratura e verifica
 
-Il modello è tarato su foto vere di AstroBin, in due tempi. Per ogni foto Skyframe rifà i conti con quel telescopio, quella camera, quei filtri e quel cielo (`scripts/calibrate.cjs`) e confronta le sue ore con quelle dichiarate. Nel repository ci sono solo il metodo e i risultati aggregati; le schede restano in `scripts/raw/`, fuori dal repository.
+La descrizione completa (variabili usate e ignorate, relazioni fisiche, evidenze, ipotesi, verifiche, limiti e dati che servono) è in [docs/MODELLO.md](docs/MODELLO.md); i casi rappresentativi in [docs/VERIFICA-casi.md](docs/VERIFICA-casi.md); la copertura del catalogo in [docs/CATALOGO.md](docs/CATALOGO.md).
 
-**Prima taratura: 190 foto di 23 oggetti**, lette una per una, con cieli e camere di ogni tipo. Ha fissato la fisica:
+In breve:
 
-- **L'apertura quasi non conta nelle foto reali.** Con un elemento di risoluzione fisso (2″) i tempi reali uscivano come D^2,6 rispetto al previsto. Con l'elemento proporzionale al diametro lo scarto non dipende più né dall'apertura né dalla scala.
-- **Agli oggetti luminosi e piccoli si chiede più pulizia**, su quelli deboli e grandi si accetta più rumore (SNR che cresce con la luminosità superficiale, esponente 0,45).
-- **Galassie:** una buona foto mostra il disco ben oltre l'isofota 25 (parti deboli a +3,5 mag sulla media di catalogo).
+- **Fisica.** Il tempo per un SNR dato segue il rumore fotonico: t ∝ SNR² × (segnale + fondo + rumore di lettura) / segnale². Filtri, cielo, telescopio e Luna cambiano il tempo solo così.
+- **Livello di qualità, dalle foto.** Su 1990 foto AstroBin a colori da cieli Bortle 6–8 (258 oggetti), ognuna rifatta con la sua attrezzatura e il suo cielo, il livello «buona» di un oggetto è il SNR della sua foto mediana; per gli oggetti senza foto si prevede dalla difficoltà fisica (log g = 0,07 − 0,71 · log D): sugli oggetti difficili si accetta un SNR più basso. `node scripts/quality-fit.cjs` rifà l'adattamento e scrive `src/data/quality.js`.
+- **Verifica fuori campione** su 720 foto di 160 oggetti mai usati per tarare: errore mediano sull'oggetto ×1,66, 59% degli oggetti entro un fattore 2 (0.15: ×4,07 e 26%).
+- **Pose singole**: in banda larga 60 s sotto f/3, altrimenti 120–300 s; con i duo-band 300 s: i valori più usati nelle foto, mai sotto il minimo fisico.
 
-**Seconda taratura: 1205 foto di 101 oggetti**, raccolte con uno script lanciato dal browser di un account AstroBin (file `skyframe-astrobin-dataset-*.json`; un esempio di raccolta è `scripts/astrobin-raccolta.user.js`). Solo camere a colori, cieli Bortle 6–8, almeno 30 like, riprese dal 2024: la situazione di chi fotografa da un terrazzo di città. `node scripts/astrobin-dataset.cjs` riconosce l'attrezzatura (tabelle in `scripts/gear.cjs`: 199 telescopi, 52 camere, 168 filtri) e 1125 foto risultano confrontabili. Cosa è emerso:
+Strumenti: `node scripts/astrobin-dataset.cjs` (foto → righe con l'attrezzatura riconosciuta da `scripts/gear.cjs`), `node scripts/calibrate.cjs` (confronto modello–foto; `CAL_SET=taratura|verifica`, `CAL_MODEL=` un altro model.js), `node scripts/check-cases.cjs` (casi rappresentativi), `node scripts/build-index.cjs` (indice del catalogo e rapporto di copertura). I file delle foto restano in `scripts/raw/`, fuori dal repository; nel repository ci sono solo metodo e risultati aggregati.
 
-- **Le ore vere crescono come la radice di quelle a qualità fissa.** Chi riprende da un cielo 10 volte più chiaro, o con un filtro 10 volte più largo, non ci mette 10 volte tanto ma circa 3: accetta più rumore e lo toglie in elaborazione. Col modello lineare le foto da Bortle 6–8 uscivano a un quarto del previsto, quelle in banda larga a un decimo. Con la radice il cielo e il filtro non spostano più il rapporto, e lasciando fuori un oggetto alla volta l'errore sull'oggetto scende da un fattore 2,2 a 1,5.
-- **SHO con due duo-band:** chi lo fa ci mette il doppio della strada a un solo filtro. Il modello lo sceglie quando non costa più di 6 volte la strada più rapida.
-- **Globulari e planetarie** si riprendono più a lungo del previsto (×1,9 e ×1,5: si cercano le stelle del centro e gli aloni). **Le polveri attorno** a un oggetto pesano la metà di quanto si pensava.
-- **Pose singole:** in banda larga 60 s sotto f/3, altrimenti 120–180 s; con i duo-band quasi sempre 300 s. Il modello ora propone questi valori.
-- Chi riprende in mono da cielo buio punta più in alto: ci mette 5 volte le ore "buone".
+Riferimenti dell'autore (terrazzo, SQM ~19,3, 800 mm f/5, camera a colori, L-eXtreme + L-Synergy): Cocoon ~100 h e WR 134 ~95 h per un SNR ritenuto discreto. Il livello «buona» dà 4 h e 9 h, «profonda» 14 h e 28 h: lo standard dell'autore è sopra il 90° percentile delle foto apprezzate.
 
-I livelli: **buona** = la mediana delle foto; **rapida** e **eccellente** = i quartili (×0,47 e ×2); **profonda** = il 90° percentile (×3,3), come i progetti più lunghi.
-
-| Rapporto ore vere / modello (qualità buona) | mediana | foto |
-| --- | --- | --- |
-| camera a colori, tutte | 0,99 (quartili 0,46 – 1,96) | 1217 |
-| per tipo: emissione / galassie / planetarie / resti di SN / riflessione / oscure / globulari | 0,99 / 0,95 / 1,04 / 1,15 / 1,06 / 1,17 / 1,02 | 511 / 356 / 103 / 91 / 86 / 34 / 36 |
-| Bortle 6 / 7 / 8 | 1,03 / 0,90 / 0,90 | 627 / 289 / 169 |
-| mono (prima taratura) | 5,4 | 90 |
-
-Nel dettaglio di ogni target, la scheda **Foto vere** mostra per 93 di questi oggetti le ore di chi l'ha ripreso da Bortle 6–8 (mediana e metà centrale), i filtri usati e i sub, e dove cade la stima per il tuo setup (`scripts/real-stats.cjs` → `src/data/real.js`, solo numeri aggregati).
-
-Riferimenti con un solo telescopio e camera a colori, dal terrazzo (SQM 19,3):
-
-| Target | Skyframe | Foto vere |
-| --- | --- | --- |
-| Cocoon (IC 5146), 800 mm f/5, L-eXtreme + L-Synergy | 23 h buona · 77 h profonda | 100 h dello stesso astrofilo; mediana 12 h su 12 foto da Bortle 6–8 |
-| WR 134, 800 mm f/5, L-eXtreme + L-Synergy | 18 h buona · 61 h profonda | ≈ 95 h per un SNR discreto; mediana 20 h su 15 foto |
-| NGC 281, 200/800 f/4, due duo-band (SHO) | 15 h (10 h da SQM 21,3) | mediana 7,5 h in duo-band, 26 h in SHO |
-
-Nelle galassie la parte principale è il corpo (0,5 mag sopra la media di catalogo). Le righe deboli (SII in una nebulosa a emissione, Hα in una planetaria) si accettano più rumorose, in proporzione alla loro intensità. Per gli oggetti a emissione si consiglia la banda stretta anche sotto un cielo buio, e fra le combinazioni quella che raccoglie tutte le righe importanti (SHO dove c'è SII) purché non costi più di 6 volte la più rapida; un po' di banda larga per il colore delle stelle è facoltativa.
+Nelle galassie la parte principale è il corpo (0,5 mag sopra la media di catalogo). Le righe deboli (SII in una nebulosa a emissione, Hα in una planetaria) si accettano più rumorose, in proporzione alla loro intensità. La **combinazione di filtri** consigliata è quella con il tempo più breve per il SNR richiesto, fra quelle ammesse dall'obiettivo del profilo (minor tempo, tutte le righe, colori naturali), senza pesi: sugli oggetti a righe deve raccogliere Hα e OIII quando sono importanti. Con la banda stretta il colore delle stelle viene da una ripresa a banda larga separata di 20 pose.
 
 Sono stime per scegliere, non promesse.
 
@@ -129,7 +107,7 @@ Il **punteggio** della lista combina l'inquadratura (quanto l'oggetto riempie il
 
 Le **pose singole** in banda larga: oltre il minimo che copre il rumore di lettura (pochi secondi sotto un cielo cittadino) l'SNR finale dipende solo dal tempo totale, quindi decide quanto reggono le stelle. In ogni telescopio puoi scrivere la posa più lunga che usi in banda larga senza saturare: Skyframe la propone (scalata col quadrato del fattore di riduttori e Barlow); se il campo è vuoto propone il minimo della fascia pratica del filtro.
 
-**Senza Luna e con la Luna sono due numeri diversi.** Il tempo di posa mostrato per ogni target è quello senza Luna lungo il suo percorso reale nella notte scelta (altezza, estinzione, cielo e luci nella sua direzione a ogni passo di 5 minuti): è quanto chiede il target sotto quel cielo, e si confronta fra luoghi e filtri. Con lo stesso profilo (200/800, camera a colori, due duo-band), un terrazzo di città (SQM 19,25) contro un sito a SQM 21,3: la Cocoon passa da 25 a 15 h, NGC 281 da 15 a 10 h. Quanto costerebbe con la Luna della notte scelta è indicato a parte (con la Luna piena i due cieli si somigliano: ×1,3). Nel profilo si sceglie se il calendario delle notti usa anche le notti con la Luna, col loro rallentamento, o solo le ore senza Luna.
+**Senza Luna e con la Luna sono due numeri diversi.** Il tempo di posa mostrato per ogni target è quello senza Luna lungo il suo percorso reale nella notte scelta (altezza, estinzione, cielo e luci nella sua direzione a ogni passo di 5 minuti): è quanto chiede il target sotto quel cielo, e si confronta fra luoghi e filtri. Con lo stesso profilo (200/800, camera a colori, due duo-band), un terrazzo di città (SQM 19,25) contro un sito a SQM 21,3: la Cocoon passa da 4,0 a 1,7 h, NGC 281 da 2,7 a 1,8 h (livello «buona»). Quanto costerebbe con la Luna della notte scelta è indicato a parte (con la Luna piena i due cieli si somigliano: ×1,3). Nel profilo si sceglie se il calendario delle notti usa anche le notti con la Luna, col loro rallentamento, o solo le ore senza Luna.
 
 Le **notti di ripresa** non sono le ore divise per le ore di stanotte: Skyframe scorre le notti una per una, da quella scelta in avanti (fino a un anno), e per ognuna calcola quante ore il target è libero sopra orizzonte e altezza minima col buio, e quanto rende in quelle ore con la Luna, l'altezza e il cielo di quella notte. Somma il lavoro fatto finché basta. Le notti in cui il target rende più di 2,5 volte meno che nella notte migliore del mese (di solito per la Luna) si saltano, perché conviene dedicarle ad altro. Si assume il cielo sempre sereno. Nel dettaglio un grafico mostra le notti usate, quelle saltate e quando finisci (anche per il tempo profondo).
 

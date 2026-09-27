@@ -235,7 +235,7 @@ function renderTopList() {
 
 /* ---------- Setup ---------- */
 /* precisione di guida consigliata per ogni configurazione del profilo attivo (model.js, guideAdvice) */
-const SAMP_TXT = { under: 'sottocampionato: ogni stella copre pochi pixel e appare squadrata; la guida pesa meno sul risultato', ok: 'campionamento adeguato (1,5–3,5 pixel per FWHM)', over: 'sovracampionato: con binning 2×2 o un riduttore si raccoglie più segnale per pixel; una guida migliore non cambia il campionamento' };
+const SAMP_TXT = { under: 'sottocampionato: ogni stella copre pochi pixel e appare squadrata; l’autoguida pesa meno sul risultato', ok: 'campionamento adeguato (1,5–3,5 pixel per FWHM)', over: 'sovracampionato: con binning 2×2 o un riduttore si raccoglie più segnale per pixel; un’autoguida migliore non cambia il campionamento' };
 function guideHTML() {
   if (!state.cfgs || !state.cfgs.length) return '';
   const w = state.res && typeof wxNight === 'function' ? wxNight(state.res.night) : null, see = w && w.see > 0 ? w.see : null;
@@ -243,9 +243,9 @@ function guideHTML() {
     return `<div class="st-item gd"><span class="tx"><b>${esc(c.label)} · ${c.short}</b>
       <small>${tx('Scala {p}″/pixel · stelle attese {f}″ FWHM (seeing {s}″, diffrazione {d}″, pixel)', { p: it(a.p, 2), f: it(a.F, 1), s: it(a.see, 1), d: it(a.diff, 1) })}</small>
       <small>${tx('{n} pixel per FWHM: {c}', { n: it(a.samp, 1), c: tx(SAMP_TXT[a.cls]) })}</small>
-      <small class="gd-v">${tx('Guida consigliata: errore RMS totale ≤ {t}″ ({a}″ per asse). Fino a {t2}″ le stelle si allargano meno del 20%.', { t: it(a.total, 2), a: it(a.axis, 2), t2: it(a.totalOk, 2) })}</small></span></div>`; }).join('');
-  return `<div class="st-sec" id="stGuiding"><h3>${tx('Precisione di guida')}</h3><div class="st-list">${rows}</div>
-    <p class="st-foot">${tx(see ? 'Seeing: mediana della previsione per le ore di buio di stanotte, allo zenit.' : 'Seeing: nessuna previsione disponibile, si assume 2,5″ (valore tipico, ipotesi).')} ${tx('Criterio: l’errore di guida, sommato in quadratura a seeing, diffrazione e pixel, non deve allargare le stelle più del 10%. Ipotesi: profili gaussiani, ottica limitata dalla diffrazione, errore uguale sui due assi. Con seeing migliore serve una guida più precisa; lontano dallo zenit il seeing peggiora.')}</p></div>`;
+      <small class="gd-v">${tx('Autoguida consigliata: errore RMS totale ≤ {t}″ ({a}″ per asse). Fino a {t2}″ le stelle si allargano meno del 20%.', { t: it(a.total, 2), a: it(a.axis, 2), t2: it(a.totalOk, 2) })}</small></span></div>`; }).join('');
+  return `<div class="st-sec" id="stGuiding"><h3>${tx('Precisione di autoguida')}</h3><div class="st-list">${rows}</div>
+    <p class="st-foot">${tx(see ? 'Seeing: mediana della previsione per le ore di buio di stanotte, allo zenit.' : 'Seeing: nessuna previsione disponibile, si assume 2,5″ (valore tipico, ipotesi).')} ${tx('Criterio: l’errore di autoguida, sommato in quadratura a seeing, diffrazione e pixel, non deve allargare le stelle più del 10%. Ipotesi: profili gaussiani, ottica limitata dalla diffrazione, errore uguale sui due assi. Con seeing migliore serve un’autoguida più precisa; lontano dallo zenit il seeing peggiora.')}</p></div>`;
 }
 function renderSetup() {
   const el = $('#setupView'); if (!el) return;
@@ -253,26 +253,26 @@ function renderSetup() {
   const locs = state.locs.map((l) => `<div class="st-item"><button type="button" class="st-main" data-loc="${esc(l.id)}"><span class="radio${l.id === state.locId ? ' on' : ''}"></span><span class="tx"><b>${esc(exName(l.site.name, l.unsaved))}</b><small>${locLine(l)}</small></span></button><button type="button" class="icon-btn" data-editl="${esc(l.id)}" aria-label="${tx('Modifica')}" title="${tx('Modifica')}">${ic('edit')}</button></div>`).join('');
   const red = !$('#veil').hidden, on = notifyOn(), nc = ncfg(), v = window.SKYFRAME_VERSION || '';
   el.innerHTML = `<div class="view-h"><h2>${tx('Setup')}</h2></div>
-    <div class="st-sec"><h3>${tx('Attrezzatura')}</h3><div class="st-list">${prof}<button type="button" class="st-item" data-newp>${ic('plus')}<span class="tx"><b>${tx('Nuovo profilo')}</b><small>${tx('altra ottica, camera o filtri')}</small></span></button></div></div>
+    <div class="st-sec"><h3>${tx('Attrezzatura')}</h3><div class="st-list">${prof}<button type="button" class="st-item" data-newp>${ic('plus')}<span class="tx"><b>${tx('Nuovo profilo')}</b><small>${tx('un’altra combinazione di ottica, camera e filtri')}</small></span></button></div></div>
     ${guideHTML()}
-    <div class="st-sec"><h3>${tx('Luoghi')}</h3><div class="st-list">${locs}<button type="button" class="st-item" data-newl>${ic('plus')}<span class="tx"><b>${tx('Nuovo luogo')}</b><small>${tx('cielo e orizzonte arrivano da soli')}</small></span></button></div></div>
+    <div class="st-sec"><h3>${tx('Luoghi')}</h3><div class="st-list">${locs}<button type="button" class="st-item" data-newl>${ic('plus')}<span class="tx"><b>${tx('Nuovo luogo')}</b><small>${tx('SQM stimato e orizzonte si ricavano dalla posizione')}</small></span></button></div></div>
     <div class="st-sec"><h3>${tx('Preferenze')}</h3><div class="st-list">
       <div class="st-item wrap">${ic('moon')}<span class="tx"><b>${tx('Con la Luna')}</b><small>${tx(MODE_TXT[moonMode()][1])}</small></span><div class="seg" id="moonSeg">${MOON_MODES.map((m) => `<button type="button" data-mode="${m}" aria-pressed="${m === moonMode()}">${tx(MODE_TXT[m][0])}</button>`).join('')}</div></div>
       <div class="st-item wrap">${ic('motion')}<span class="tx"><b>${tx('Animazioni')}</b></span><div class="seg" id="motionSeg">${[['auto', 'Come il sistema'], ['on', 'Sempre'], ['off', 'Ridotte']].map(([k, t]) => `<button type="button" data-v="${k}" aria-pressed="${motionPref() === k}">${tx(t)}</button>`).join('')}</div></div>
-      <label class="st-item tap">${ic('eye')}<span class="tx"><b>${tx('Luce rossa')}</b><small>${tx('tinge tutto di rosso per non perdere l’adattamento al buio')}</small></span><span class="switch"><input type="checkbox" id="swRed" ${red ? 'checked' : ''}><i></i></span></label>
+      <label class="st-item tap">${ic('eye')}<span class="tx"><b>${tx('Luce rossa')}</b><small>${tx('colora lo schermo di rosso per preservare l’adattamento dell’occhio al buio')}</small></span><span class="switch"><input type="checkbox" id="swRed" ${red ? 'checked' : ''}><i></i></span></label>
       <div class="st-item">${ic('globe')}<span class="tx"><b>${tx('Lingua')}</b></span><select class="sel" id="langSel" aria-label="${tx('Lingua')}">${Object.entries(LANGS).map(([k, n]) => `<option value="${k}" ${k === LANG ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
     </div></div>
     <div class="st-sec" id="stAlerts"><h3>${tx('Avvisi')}</h3><div class="st-list">
       <label class="st-item tap">${ic(on ? 'bell-on' : 'bell')}<span class="tx"><b>${tx('Avvisi')}</b><small>${tx(on ? 'accesi, anche ad app chiusa' : 'spenti')}</small></span><span class="switch"><input type="checkbox" id="swNotify" ${on ? 'checked' : ''}><i></i></span></label>
-      ${on ? [['evening', 'Stasera si scatta', 'prima del buio, se la notte merita'], ['top', 'Notte ottima in arrivo', 'il giorno prima: senza Luna e probabilmente sereno'], ['change', 'Il meteo è cambiato', 'se stanotte si apre, o se tornano le nuvole'], ['season', 'Ultime settimane', 'quando un target sta per uscire di stagione']].map(([k, t, d]) => `<label class="st-item tap sub"><span class="tx"><b>${tx(t)}</b><small>${tx(d)}</small></span><span class="switch"><input type="checkbox" data-nk="${k}" ${nc[k] ? 'checked' : ''}><i></i></span></label>`).join('') +
+      ${on ? [['evening', 'Stasera si scatta', 'prima del buio, se il voto della notte raggiunge il minimo'], ['top', 'Notte ottima in arrivo', 'il giorno prima di una notte senza Luna con alta probabilità di sereno'], ['change', 'Il meteo è cambiato', 'se la previsione di stanotte cambia (si apre o si copre)'], ['season', 'Ultime settimane', 'quando un target preferito sta per uscire dal suo periodo favorevole']].map(([k, t, d]) => `<label class="st-item tap sub"><span class="tx"><b>${tx(t)}</b><small>${tx(d)}</small></span><span class="switch"><input type="checkbox" data-nk="${k}" ${nc[k] ? 'checked' : ''}><i></i></span></label>`).join('') +
         `<div class="st-item wrap sub"><span class="tx"><b>${tx('Quanto prima del buio')}</b></span><div class="seg" id="nLead">${[30, 60, 90, 120].map((m) => `<button type="button" data-v="${m}" aria-pressed="${nc.lead === m}">${fmtDur(m / 60)}</button>`).join('')}</div></div>
-        <div class="st-item wrap sub"><span class="tx"><b>${tx('Da quale notte')}</b><small>${tx('voto minimo per l’avviso della sera')}</small></span><div class="seg" id="nMin">${[[2, 'Discreta'], [3, 'Buona'], [4, 'Ottima']].map(([v, t]) => `<button type="button" data-v="${v}" aria-pressed="${nc.min === v}">${tx(t)}</button>`).join('')}</div></div>
-        <button type="button" class="st-item sub" id="stExact" data-exact hidden><span class="tx"><b>${tx('Orario preciso')}</b><small>${tx('consenti «sveglie e promemoria» per l’avviso puntuale')}</small></span>${ic('chev-r')}</button>
+        <div class="st-item wrap sub"><span class="tx"><b>${tx('Da quale notte')}</b><small>${tx('voto minimo della notte per l’avviso della sera')}</small></span><div class="seg" id="nMin">${[[2, 'Discreta'], [3, 'Buona'], [4, 'Ottima']].map(([v, t]) => `<button type="button" data-v="${v}" aria-pressed="${nc.min === v}">${tx(t)}</button>`).join('')}</div></div>
+        <button type="button" class="st-item sub" id="stExact" data-exact hidden><span class="tx"><b>${tx('Orario preciso')}</b><small>${tx('consenti «sveglie e promemoria» perché l’avviso arrivi all’ora esatta')}</small></span>${ic('chev-r')}</button>
         <button type="button" class="st-item sub" data-test><span class="tx"><b>${tx('Prova un avviso')}</b><small>${tx('arriva fra 5 secondi')}</small></span></button>` : ''}
     </div></div>
     <div class="st-sec"><h3>${tx('Dati')}</h3><div class="st-list">
       <button type="button" class="st-item" data-export>${ic('upload')}<span class="tx"><b>${tx('Esporta')}</b><small>${tx(DESK ? 'profili, luoghi e progetti in un file' : 'profili, luoghi e progetti negli appunti')}</small></span></button>
-      <button type="button" class="st-item" data-import>${ic('download')}<span class="tx"><b>${tx('Importa')}</b><small>${tx('da un file di Skyframe, anche dal computer')}</small></span></button>
+      <button type="button" class="st-item" data-import>${ic('download')}<span class="tx"><b>${tx('Importa')}</b><small>${tx('da un file esportato da Skyframe')}</small></span></button>
     </div><p class="st-foot">${tx(DESK ? 'Tutto resta su questo computer.' : 'Tutto resta su questo dispositivo.')}</p></div>
     <div class="st-sec" id="stGuide"><h3>${tx('Guida')}</h3><div class="st-list">
       <button type="button" class="st-item" data-tour>${ic('info')}<span class="tx"><b>${tx('Rivedi la guida')}</b><small>${tx('le funzioni, una per una')}</small></span>${ic('chev-r')}</button>

@@ -81,14 +81,14 @@ function logFromPlan(id) {
   // quanto vale: le ore che servirebbero con notti come questa (Luna compresa), come nel piano
   const r = b.r, e = r.e, s = e.best, l = activeLoc(), need = isFinite(s.tonight) && s.tonight > 0 ? s.tonight : needHours(id, e.cfg.key, s.id, l.id), h = Math.max(0.25, Math.round(b.hClear * 4) / 4);
   addSession(id, { date: n.ds, h, loc: l.id, locName: l.site.name, cfg: e.cfg.key, cfgLabel: e.cfg.label, strat: s.id, stratLabel: s.label, need, frac: need ? h / need : 0 });
-  toast(need ? tx('{t}: {h} registrate, +{p}%', { t: id, h: fmtH(h), p: Math.round(h / need * 100) }) : tx('Sessione salvata'));
+  toast(need ? tx('{t}: {h} registrate, +{p}% dell’integrazione', { t: id, h: fmtH(h), p: Math.round(h / need * 100) }) : tx('Sessione salvata'));
 }
 function renderTonight() {
   const el = $('#tonight'); if (!el || !state.res) return;
   const n = state.res.night, P = tonightPlan(), wn = wxNight(n);
   const on = notifyOn(), today = n.ds === defaultNightStr();
-  const bell = `<button type="button" class="icon-btn tn-bell" id="notifyBtn" aria-pressed="${on}" title="${tx(on ? 'Avviso attivo: un’ora prima del buio, se è sereno' : 'Avvisami quando è sereno')}" aria-label="${tx('Avvisi')}">${ic(on ? 'bell-on' : 'bell')}</button>`;
-  const head = `<div class="card-h"><h3>${tx('Il piano')}</h3><span class="acts">${bell}</span></div>`;
+  const bell = `<button type="button" class="icon-btn tn-bell" id="notifyBtn" aria-pressed="${on}" title="${tx(on ? 'Avviso attivo: un’ora prima del buio, se la previsione è serena' : 'Avvisami se la notte è serena')}" aria-label="${tx('Avvisi')}">${ic(on ? 'bell-on' : 'bell')}</button>`;
+  const head = `<div class="card-h"><h3>${tx('Il piano della notte')}</h3><span class="acts">${bell}</span></div>`;
   const wire = () => { el.onclick = (ev) => {
     if (ev.target.closest('#notifyBtn')) { toggleNotify(); return; }
     const lg = ev.target.closest('[data-log]'); if (lg) { logFromPlan(lg.dataset.log); return; }
@@ -96,7 +96,7 @@ function renderTonight() {
     if (ev.target.closest('[data-reset]')) { planReset(); return; }
     const x = ev.target.closest('[data-id]'); if (x) openDetail(x.dataset.id, x);
   }; };
-  if (!P.blocks.length) { el.innerHTML = head + `<div class="note">${P.none === 'dark' ? tx('Stanotte niente buio astronomico.') : WX.d && wn && wn.clear < 0.15 ? tx('Coperto: niente da riprendere.') : tx('Nessun target per stanotte.')}${P.edited ? ` · <button type="button" class="link" data-reset>${tx('Ripristina')}</button>` : ''}</div>`; wire(); return; }
+  if (!P.blocks.length) { el.innerHTML = head + `<div class="note">${P.none === 'dark' ? tx('Stanotte niente buio astronomico.') : WX.d && wn && wn.clear < 0.15 ? tx('Previsto coperto: nessuna ripresa possibile.') : tx('Nessun target riprendibile stanotte.')}${P.edited ? ` · <button type="button" class="link" data-reset>${tx('Ripristina')}</button>` : ''}</div>`; wire(); return; }
   // la notte in orizzontale: buio, nuvole previste (in alto), i blocchi coi nomi, l'ora scelta
   const i0 = n.w0, i1 = n.w1, P0 = n.t[i0], span = n.t[i1] - P0, X = (ms) => ((ms - P0) / span * 100).toFixed(2);
   let track = n.first >= 0 ? `<div class="tn-dark" style="left:${X(n.t[n.first])}%;width:${(X(n.t[n.last] + DT) - X(n.t[n.first])).toFixed(2)}%"></div>` : '';
@@ -105,7 +105,7 @@ function renderTonight() {
   const t = Dome.time; if (t >= P0 && t <= n.t[i1]) track += `<i class="tn-now" style="left:${X(t)}%"></i>`;
   const ticks = []; const h0 = new Date(P0); h0.setMinutes(0, 0, 0);
   for (let ms = h0.getTime() + 3600000; ms < n.t[i1]; ms += 3600000) { if (new Date(ms).getHours() % 2) continue; ticks.push(`<span style="left:${X(ms)}%">${String(new Date(ms).getHours()).padStart(2, '0')}</span>`); }
-  const wtxt = wn ? (wn.clear >= 0.85 ? tx('Previsto sereno') : wn.clear < 0.15 ? tx('Previsto coperto') : wn.win && wn.winH >= 1 ? tx('Sereno solo {a}–{b}', { a: fmtT(wn.win[0]), b: fmtT(wn.win[1]) }) : tx('Nuvole a tratti · {p}% sereno', { p: Math.round(wn.clear * 100) })) : '';
+  const wtxt = wn ? (wn.clear >= 0.85 ? tx('Previsto sereno') : wn.clear < 0.15 ? tx('Previsto coperto') : wn.win && wn.winH >= 1 ? tx('Sereno solo {a}–{b}', { a: fmtT(wn.win[0]), b: fmtT(wn.win[1]) }) : tx('Nuvolosità variabile · {p}% del buio sereno', { p: Math.round(wn.clear * 100) })) : '';
   el.innerHTML = head + `<div class="tn-g"><div class="tn-track">${track}</div><div class="tn-ax">${ticks.join('')}</div></div>
     <ol class="tn-l">${P.blocks.map((b) => `<li><button type="button" class="tn-row" data-id="${esc(b.id)}"><i style="background:${TYPE_COLOR[b.r.o.type]}"></i><span class="nm"><span class="l1"><b>${esc(b.id)}</b>${b.r.o.nick ? `<small>${esc(b.r.o.nick)}</small>` : ''}</span><span class="tm num">${fmtT(b.t0)}–${fmtT(b.t1)}</span></span><span class="hh num">${fmtH(b.hClear)}${b.frac > 0.005 ? `<b>+${Math.round(Math.min(1, b.frac) * 100)}% ${tx('del lavoro')}</b>` : ''}</span></button>${logBtn(n, b)}<button type="button" class="icon-btn tn-x" data-skip="${esc(b.id)}" title="${tx('Togli dal piano')}" aria-label="${tx('Togli {t} dal piano', { t: b.id })}">${ic('x', 'sm')}</button></li>`).join('')}</ol>
     ${P.edited ? `<div class="note">${tx('Modificato da te')} · <button type="button" class="link" data-reset>${tx('ripristina')}</button></div>` : ''}

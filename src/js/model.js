@@ -688,17 +688,17 @@ function fieldOf(o) {
 function fillInfo(o, g, field) {
   const F = field && field.ctx.length ? field : { a: o.a, b: o.b, ctx: [] };
   const r = Math.max(F.a / g.W, F.b / g.H), objPx = o.a * 60 / g.px, withCtx = F.ctx.length > 0;
-  if (withCtx && r > 1.05 && r <= 1.8) return { r, objPx, score: 0.9, label: tx('Riempie il campo'), sub: tx('le polveri escono dal bordo'), nx: 1, ny: 1, field: F };
+  if (withCtx && r > 1.05 && r <= 1.8) return { r, objPx, score: 0.9, label: tx('Riempie il campo'), sub: tx('le polveri circostanti escono dal campo'), nx: 1, ny: 1, field: F };
   if (r > 1.05) {
     const nx = Math.max(1, Math.ceil((F.a * 1.05 - g.W * 0.1) / (g.W * 0.9))), ny = Math.max(1, Math.ceil((F.b * 1.05 - g.H * 0.1) / (g.H * 0.9))), n = nx * ny;
-    if (n === 1) return { r, objPx, score: 0.8, label: tx('Riempie tutto'), sub: tx('bordi al limite'), nx, ny, field: F };
-    return { r, objPx, score: 0.75 / Math.pow(n, 0.8), label: tx('Mosaico {n}', { n: `${nx}×${ny}` }), sub: tx(withCtx ? 'con le polveri attorno' : 'più grande del campo'), nx, ny, field: F };
+    if (n === 1) return { r, objPx, score: 0.8, label: tx('Riempie tutto'), sub: tx('bordi al limite del campo'), nx, ny, field: F };
+    return { r, objPx, score: 0.75 / Math.pow(n, 0.8), label: tx('Mosaico {n}', { n: `${nx}×${ny}` }), sub: tx(withCtx ? 'con le polveri attorno' : 'più grande del campo inquadrato'), nx, ny, field: F };
   }
   if (r >= 0.9) return { r, objPx, score: 0.88, label: tx('Riempie il campo'), sub: tx('{p}% del lato', { p: Math.round(r * 100) }), nx: 1, ny: 1, field: F };
   if (r >= 0.35) return { r, objPx, score: 1, label: tx('Inquadratura ideale'), sub: withCtx ? tx('con le polveri attorno') : tx('{p}% del lato', { p: Math.round(r * 100) }), nx: 1, ny: 1, field: F };
   const base = Math.pow(r / 0.35, 0.9), crop = clamp(objPx / 900, 0, 0.8);
-  if (crop > base) return { r, objPx, score: crop, label: tx('Piccolo, da ritagliare'), sub: tx('{n} px di diametro', { n: Math.round(objPx) }), nx: 1, ny: 1, field: F };
-  return { r, objPx, score: base, label: tx(r < 0.1 ? 'Molto piccolo' : 'Piccolo'), sub: r < 0.1 ? tx('{n} px di diametro', { n: Math.round(objPx) }) : tx('{p}% del lato', { p: Math.round(r * 100) }), nx: 1, ny: 1, field: F };
+  if (crop > base) return { r, objPx, score: crop, label: tx('Piccolo: richiede un ritaglio'), sub: tx('{n} pixel di diametro', { n: Math.round(objPx) }), nx: 1, ny: 1, field: F };
+  return { r, objPx, score: base, label: tx(r < 0.1 ? 'Molto piccolo' : 'Piccolo'), sub: r < 0.1 ? tx('{n} pixel di diametro', { n: Math.round(objPx) }) : tx('{p}% del lato', { p: Math.round(r * 100) }), nx: 1, ny: 1, field: F };
 }
 /* costanti di una configurazione, indipendenti dall'oggetto */
 function configConst(cfg) {
@@ -1183,7 +1183,7 @@ function framingFor(o, field, g) {
   return { ...best, ra: (ra + 360) % 360, dec, free: !elong };
 }
 function framingTip(o, fr, field) {
-  if (fr.free) return tx('Quasi rotondo: ruota come vuoi, tieni fuori le stelle brillanti.');
+  if (fr.free) return tx('Forma quasi circolare: la rotazione è libera; scegli quella che esclude le stelle brillanti.');
   const dist = Math.hypot(fr.dx, fr.dy), dir = azName((Math.atan2(fr.dx, fr.dy) * R2D + 360) % 360);
   let t = tx('Lato lungo a PA {pa}° (da nord verso est)', { pa: fr.pa });
   if (field.ctx.length && dist > 2) t += tx(', centro spostato di {d}′ verso {dir} ({ra} {dec})', { d: Math.round(dist), dir, ra: raStr(fr.ra), dec: decStr(fr.dec) });
@@ -1198,8 +1198,8 @@ const DRIVE_LABEL = { main: 'parte principale', faint: 'parti deboli', dust: 'po
 /* a cosa servono le ore di un filtro, detto per esteso (è il requisito più lento fra quelli che quel filtro deve soddisfare) */
 const DRIVE_WHY = {
   main: 'per il corpo dell’oggetto', faint: 'per le parti deboli (aloni, bracci esterni)',
-  dust: 'per le polveri attorno', ctxHa: 'per le nebulosità deboli attorno',
-  diffHa: 'per l’Hα diffuso attorno', shell: 'per il guscio esterno in OIII',
+  dust: 'per le polveri circostanti', ctxHa: 'per le nebulosità deboli circostanti',
+  diffHa: 'per l’Hα diffuso circostante', shell: 'per il guscio esterno in OIII',
 };
 /* Piano di ripresa: un passo per filtro con ore e sub. Si usa una sola strategia, non tutti i filtri che hai:
    l'unica aggiunta è la banda larga per le stelle quando il piano OSC è solo in banda stretta. */
@@ -1220,50 +1220,50 @@ function adviceFor(r, e, ctx) {
   if (b && isFinite(b.tonight) && hoursOf(b) > 0) {
     const extra = b.tonight / hoursOf(b) - 1;
     if (extra > 0.4 && r.minSep < 180) {
-      let t = tx('Luna al {ill}% a {sep}°: +{x}% di tempo.', { ill: Math.round(n.moonIll * 100), sep: Math.round(r.minSep), x: Math.round(extra * 100) });
+      let t = tx('Luna al {ill}% a {sep}° di distanza: tempo +{x}%.', { ill: Math.round(n.moonIll * 100), sep: Math.round(r.minSep), x: Math.round(extra * 100) });
       const nbAlt = e.strat.filter((s) => s.lineOnly && s !== b).sort((x, y) => x.tonight - y.tonight)[0];
       if (!b.lineOnly && nbAlt) t += ' ' + tx('Con {s}: {h}.', { s: nbAlt.label, h: fmtH(nbAlt.tonight) });
-      if (b.hybrid) t += ' ' + tx('Banda larga (polveri) nelle notti senza Luna; banda stretta anche ora.');
-      if (ctx.nextDark) t += ' ' + tx('Prossime notti buie: {d}.', { d: ctx.nextDark });
+      if (b.hybrid) t += ' ' + tx('Banda larga (polveri) nelle notti senza Luna; banda stretta anche con la Luna.');
+      if (ctx.nextDark) t += ' ' + tx('Prossime notti senza Luna: {d}.', { d: ctx.nextDark });
       tips.push({ k: 'Luna', t });
     }
   }
   const dust = r.field.ctx.filter((c) => c.type === 'DN' || c.type === 'RN');
   const tot = hoursOf(b);
-  const core = ctx.coreH != null && ctx.coreH < tot * 0.7 ? ' ' + tx('Solo la parte luminosa: {h}.', { h: fmtH(ctx.coreH) }) : '';
-  if (!dust.length && o.dust) tips.push({ k: 'Polveri', t: tx('Attorno c’è polvere (E(B−V) ≈ {e}, LS ≈ {sb} mag/″²): decide lei il tempo in banda larga.', { e: it(o.dust, 2), sb: it(DUST_SB, 1) }) + core });
-  if (dust.length) tips.push({ k: 'Polveri', t: tx('Attorno c’è {ids} (LS ≈ {sb} mag/″²): per questo il campo è {f} e non {o}.', { ids: dust.map((c) => `${c.id}${c.nick ? ' (' + c.nick + ')' : ''}`).join(', '), sb: it(Math.max(dust[0].sb, DUST_SB), 1), f: fmtDeg(r.field.a), o: fmtDeg(o.a) }) + core });
+  const core = ctx.coreH != null && ctx.coreH < tot * 0.7 ? ' ' + tx('Solo per la parte luminosa: {h}.', { h: fmtH(ctx.coreH) }) : '';
+  if (!dust.length && o.dust) tips.push({ k: 'Polveri', t: tx('Attorno c’è polvere (E(B−V) ≈ {e}, luminosità superficiale ≈ {sb} mag/″²): in banda larga è questa a determinare il tempo.', { e: it(o.dust, 2), sb: it(DUST_SB, 1) }) + core });
+  if (dust.length) tips.push({ k: 'Polveri', t: tx('Attorno c’è {ids} (luminosità superficiale ≈ {sb} mag/″²): per questo il campo consigliato è {f} e non {o}.', { ids: dust.map((c) => `${c.id}${c.nick ? ' (' + c.nick + ')' : ''}`).join(', '), sb: it(Math.max(dust[0].sb, DUST_SB), 1), f: fmtDeg(r.field.a), o: fmtDeg(o.a) }) + core });
   if (b && b.ideal > 150 && ctx.sky && ctx.sky.sqm < 20.8) {
     // con il fondo cielo dominante il tempo scala con la sua luminosità: stima per un sito con SQM 21,3
     const dark = b.ideal * Math.pow(10, -0.4 * (21.3 - ctx.sky.sqm));
-    tips.push({ k: 'Cielo', t: tx('Da qui servono {h} anche senza Luna. Sotto un cielo da SQM 21,3: circa {d}.', { h: fmtH(b.ideal), d: fmtH(dark) }) });
+    tips.push({ k: 'Cielo', t: tx('Da questo luogo servono {h} anche senza Luna; sotto un cielo con SQM 21,3 circa {d}.', { h: fmtH(b.ideal), d: fmtH(dark) }) });
   }
-  if (r.skyMag != null && e.cfg && r.skyMag < ctx.sky.sqm - 0.25) tips.push({ k: 'Cielo', t: tx('In quella direzione il cielo è {m} mag/″² (zenit {z}): {why}.', { m: it(r.skyMag, 2), z: it(ctx.sky.sqm, 2), why: tx(r.maxA < 45 ? 'resta basso verso le luci' : 'passa vicino al bagliore delle luci') }) });
+  if (r.skyMag != null && e.cfg && r.skyMag < ctx.sky.sqm - 0.25) tips.push({ k: 'Cielo', t: tx('In quella direzione il cielo è {m} mag/″² (zenit {z}): {why}.', { m: it(r.skyMag, 2), z: it(ctx.sky.sqm, 2), why: tx(r.maxA < 45 ? 'resta basso, nella direzione delle luci' : 'passa vicino al bagliore dell’illuminazione artificiale') }) });
   if (r.first >= 0) {
-    let t = tx('Libero dalle {a} alle {b}', { a: fmtT(n.t[r.first]), b: fmtT(n.t[r.last] + DT) });
-    if (r.maxI >= 0) t += tx(', culmina alle {t} a {a}°', { t: fmtT(n.t[r.maxI]), a: Math.round(r.maxA) });
+    let t = tx('Visibile dalle {a} alle {b}', { a: fmtT(n.t[r.first]), b: fmtT(n.t[r.last] + DT) });
+    if (r.maxI >= 0) t += tx(', culmina alle {t} a {a}° di altezza', { t: fmtT(n.t[r.maxI]), a: Math.round(r.maxA) });
     if (r.riseBlocked >= 0 && r.riseBlocked < r.first) t += tx('. Prima è dietro l’ostacolo a {dir}', { dir: azName(r.az[r.riseBlocked]) });
     tips.push({ k: 'Quando', t: t + '.' });
-    if (b && b.steps.some((s) => s.keys.includes('OIII')) && b.steps.length > 1) tips.push({ k: 'Quando', t: tx('OIII vicino al transito: soffre l’aria più di Hα e SII.') });
+    if (b && b.steps.some((s) => s.keys.includes('OIII')) && b.steps.length > 1) tips.push({ k: 'Quando', t: tx('Riprendi l’OIII vicino al transito: a 500 nm l’estinzione atmosferica è maggiore che per Hα e SII.') });
   }
-  if (r.maxA < 32 && r.usableH > 0) tips.push({ k: 'Quota', t: tx('Arriva a {a}°: riprendi attorno al transito.', { a: Math.round(r.maxA) }) });
+  if (r.maxA < 32 && r.usableH > 0) tips.push({ k: 'Quota', t: tx('Raggiunge solo {a}° di altezza: riprendi attorno al transito.', { a: Math.round(r.maxA) }) });
   const f = e.fill;
-  if (f.nx * f.ny > 1) tips.push({ k: 'Campo', t: tx('Mosaico {n} a {fl} mm: {p} a pannello, {t} in tutto. Con un riduttore basta un colpo.', { n: `${f.nx}×${f.ny}`, fl: Math.round(g.fEff), p: fmtH(b ? b.ideal / (f.nx * f.ny) : NaN), t: fmtH(b ? b.ideal : NaN) }) });
+  if (f.nx * f.ny > 1) tips.push({ k: 'Campo', t: tx('Mosaico {n} a {fl} mm: {p} per pannello, {t} in totale. Con un riduttore l’oggetto entra in un solo campo.', { n: `${f.nx}×${f.ny}`, fl: Math.round(g.fEff), p: fmtH(b ? b.ideal / (f.nx * f.ny) : NaN), t: fmtH(b ? b.ideal : NaN) }) });
   if (ctx.framing) tips.push({ k: 'Rotazione', t: framingTip(o, ctx.framing, r.field) });
-  if (f.objPx < 160) tips.push({ k: 'Campo', t: tx('A {fl} mm è {px} px: per i dettagli serve più focale.', { fl: Math.round(g.fEff), px: Math.round(f.objPx) }) });
+  if (f.objPx < 160) tips.push({ k: 'Campo', t: tx('A {fl} mm copre {px} pixel: per risolvere i dettagli serve una focale maggiore.', { fl: Math.round(g.fEff), px: Math.round(f.objPx) }) });
   if (r.evals.length > 1) {
     const o2 = r.evals.filter((x) => x !== e).sort((a, c) => c.score - a.score)[0];
-    if (o2 && e.score - o2.score >= 6) tips.push({ k: 'Setup', t: tx('Meglio {a} a {fa} che {b} a {fb}: {la} contro {lb}', { a: e.cfg.label, fa: e.cfg.short, b: o2.cfg.label, fb: o2.cfg.short, la: f.label.toLowerCase(), lb: o2.fill.label.toLowerCase() }) + (b && o2.best && isFinite(b.tonight) && isFinite(o2.best.tonight) ? tx(', {a} contro {b} stanotte', { a: fmtH(b.tonight), b: fmtH(o2.best.tonight) }) : '') + '.' });
+    if (o2 && e.score - o2.score >= 6) tips.push({ k: 'Setup', t: tx('Più efficiente {a} ({fa}) di {b} ({fb}): {la} contro {lb}', { a: e.cfg.label, fa: e.cfg.short, b: o2.cfg.label, fb: o2.cfg.short, la: f.label.toLowerCase(), lb: o2.fill.label.toLowerCase() }) + (b && o2.best && isFinite(b.tonight) && isFinite(o2.best.tonight) ? tx(', {a} contro {b} stanotte', { a: fmtH(b.tonight), b: fmtH(o2.best.tonight) }) : '') + '.' });
   }
   if (b) {
     const subs = b.steps.map((s) => `${fname(s.f)} ${Math.max(...s.subs.map((x) => x.s))} s`);
     const mins = b.steps.map((s) => Math.max(...s.subs.map((x) => x.min)));
-    let t = tx('Pose singole: {subs}. Sotto {mins} pesa il rumore di lettura.', { subs: subs.join(', '), mins: mins.map((m) => Math.max(1, m) + ' s').join(' / ') });
-    if (b.steps.some((s) => s.f.kind === 'bb' || s.f.kind === 'lp')) t += ' ' + (e.K.subMax ? tx('In banda larga uso la tua posa massima ({s} s).', { s: e.K.subMax }) : tx('In banda larga propongo il minimo pratico; se reggi pose più lunghe, indicale nel telescopio.'));
+    let t = tx('Pose singole: {subs}. Sotto {mins} il rumore di lettura diventa rilevante rispetto a quello del fondo cielo.', { subs: subs.join(', '), mins: mins.map((m) => Math.max(1, m) + ' s').join(' / ') });
+    if (b.steps.some((s) => s.f.kind === 'bb' || s.f.kind === 'lp')) t += ' ' + (e.K.subMax ? tx('In banda larga si usa la posa massima indicata nel telescopio ({s} s).', { s: e.K.subMax }) : tx('In banda larga si propone la posa più usata nelle foto di riferimento; se il setup consente pose più lunghe senza saturare le stelle, indica il massimo nel telescopio.'));
     tips.push({ k: 'Sub', t });
   }
-  if (!b) tips.push({ k: 'Filtri', t: tx('Con questi filtri no: per {t} serve la banda larga.', { t: tx(TYPES_PL[o.type]).toLowerCase() }) });
-  if (o.type === 'DN' || o.type === 'RN') tips.push({ k: 'Filtri', t: tx('Luce riflessa: niente banda stretta, serve un cielo buio.') });
+  if (!b) tips.push({ k: 'Filtri', t: tx('Con i filtri del profilo non si può: {t} emettono uno spettro continuo e richiedono la banda larga.', { t: tx(TYPES_PL[o.type]).toLowerCase() }) });
+  if (o.type === 'DN' || o.type === 'RN') tips.push({ k: 'Filtri', t: tx('Luce stellare riflessa (spettro continuo): la banda stretta non raccoglie il segnale; serve banda larga e un cielo buio.') });
   if (ctx.alt && b) tips.push({ k: 'E se…', t: tx('Con {n}: {a} invece di {b}.', { n: ctx.alt.name, a: fmtH(ctx.alt.h), b: fmtH(hoursOf(b)) }) });
   ((window.TIPS && o.tip && window.TIPS[o.tip]) || []).forEach((t) => tips.push({ k: 'Nota', t: tx(t) }));
   return tips;

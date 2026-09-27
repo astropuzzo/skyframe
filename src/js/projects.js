@@ -66,12 +66,12 @@ function projHTML(r, e, b) {
   const status = done ? `<span class="pst done">${ic('check')}${tx('fatto')}</span>` : hd > 0 ? `<span class="pst wip">${tx('in corso')}</span>` : fav ? `<span class="pst fav">${ic('star-f')}${tx('preferito')}</span>` : '';
   const sess = p && (p.sessions || []).length ? `<ul class="sess">${p.sessions.map((s) => `<li><span class="d">${fmtDate(s.date)}<small>${esc(s.locName || '')}</small></span><span class="s">${esc(s.stratLabel || '')}</span><b class="num">${fmtH(+s.h)}</b><em class="num">${s.frac ? '+' + Math.round(s.frac * 100) + '%' : ''}</em><button type="button" class="icon-btn" data-del="${s.ts}" aria-label="${tx('Elimina la sessione')}" title="${tx('Elimina la sessione')}">${ic('trash', 'sm')}</button></li>`).join('')}</ul>` : '';
   const bar = hd > 0 || done ? `<div class="pbar big"><b style="width:${Math.round(prog * 100)}%"></b></div>
-    <div class="pnum">${done ? tx('Segnato come fatto') : tx('{p}% · {h} fatte', { p: Math.round(prog * 100), h: fmtH(hd) })}${!done && rem != null ? ' · ' + (prog >= 1 ? tx('tempo stimato raccolto') : tx('mancano ≈ {h} qui', { h: fmtH(rem) })) : ''}</div>` : `<div class="pnum">${tx('Registra le notti: il conto si aggiorna da solo.')}</div>`;
+    <div class="pnum">${done ? tx('Segnato come fatto') : tx('{p}% · {h} fatte', { p: Math.round(prog * 100), h: fmtH(hd) })}${!done && rem != null ? ' · ' + (prog >= 1 ? tx('integrazione stimata completata') : tx('mancano ≈ {h} qui', { h: fmtH(rem) })) : ''}</div>` : `<div class="pnum">${tx('Registra le sessioni: l’integrazione mancante si ricalcola.')}</div>`;
   const today = $('#nightDate').value || defaultNightStr();
   const strats = e.strat.filter((s) => isFinite(hoursOf(s)));
   const form = `<form class="sform" id="sForm" hidden>
       <label class="field"><span>${tx('Notte del')}</span><input type="date" id="sDate" value="${today}" required></label>
-      <label class="field"><span>${tx('Ore di posa')}</span><input type="number" id="sH" min="0.05" step="any" inputmode="decimal" required></label>
+      <label class="field"><span>${tx('Integrazione')}</span><input type="number" id="sH" min="0.05" step="any" inputmode="decimal" required></label>
       <label class="field w2"><span>${tx('Con')}</span><select id="sStrat">${strats.map((s) => `<option value="${esc(s.id)}" ${b && s.id === b.id ? 'selected' : ''}>${esc(s.label)}</option>`).join('')}</select></label>
       <label class="field w2"><span>${tx('Dove')}</span><select id="sLoc">${state.locs.map((l) => `<option value="${esc(l.id)}" ${l.id === state.locId ? 'selected' : ''}>${esc(l.site.name)}</option>`).join('')}</select></label>
       <div class="acts"><button class="btn sm primary" type="submit">${tx('Salva la sessione')}</button><button class="btn sm ghost" type="button" id="sCancel">${tx('Annulla')}</button></div>
@@ -99,8 +99,8 @@ function wireProj(r, e) {
     const s = e.strat.find((x) => x.id === stratId), l = state.locs.find((x) => x.id === locId);
     const need = needHours(id, e.cfg.key, stratId, locId, date);
     addSession(id, { date, h, loc: locId, locName: l ? l.site.name : '', cfg: e.cfg.key, cfgLabel: e.cfg.label, strat: stratId, stratLabel: s ? s.label : '', need, frac: need ? h / need : 0 });
-    toast(need ? tx('Sessione salvata: +{p}%', { p: Math.round(h / need * 100) }) : tx('Sessione salvata'));
-    if (projProgress(id) >= 1 && !isDone(id)) toast(tx('Tempo raccolto: segnalo fatto quando ti piace'));
+    toast(need ? tx('Sessione salvata: +{p}% dell’integrazione', { p: Math.round(h / need * 100) }) : tx('Sessione salvata'));
+    if (projProgress(id) >= 1 && !isDone(id)) toast(tx('Integrazione stimata raccolta: segna il progetto come completato quando il risultato ti soddisfa'));
   };
   box.onclick = (ev) => { const d = ev.target.closest('[data-del]'); if (d) removeSession(id, +d.dataset.del); };
 }
@@ -111,7 +111,7 @@ function rowProgress(r) {
   const id = r.o.id; if (isDone(id)) return `<span class="rdone">${ic('check')}${tx('fatto')}</span>`;
   const prog = projProgress(id); if (!(prog > 0)) return '';
   const b = r.e.best, rem = b && isFinite(hoursOf(b)) ? hoursOf(b) * (1 - prog) : null;
-  return `<span class="rprog" title="${tx('{p}% del lavoro fatto', { p: Math.round(prog * 100) })}"><i style="width:${Math.round(prog * 100)}%"></i></span><small>${Math.round(prog * 100)}%${prog >= 1 ? ' · ' + tx('tempo stimato raccolto') : rem != null ? ' · ' + tx('mancano ≈ {h}', { h: fmtH(rem) }) : ''}</small>`;
+  return `<span class="rprog" title="${tx('{p}% del lavoro fatto', { p: Math.round(prog * 100) })}"><i style="width:${Math.round(prog * 100)}%"></i></span><small>${Math.round(prog * 100)}%${prog >= 1 ? ' · ' + tx('integrazione stimata completata') : rem != null ? ' · ' + tx('mancano ≈ {h}', { h: fmtH(rem) }) : ''}</small>`;
 }
 
 /* ---------- la sezione Progetti ---------- */
@@ -122,7 +122,7 @@ function projCard(id) {
   const r = state.byId.get(id), o = r ? r.o : CAT_BY_ID.get(id); if (!o) return '';
   const done = isDone(id), prog = projProgress(id), hd = projHoursDone(id), b = r && r.e.best, need = b ? hoursOf(b) : Infinity;
   const rem = isFinite(need) ? need * (1 - prog) : null;
-  const left = done ? tx('fatto') : prog > 0 ? (rem != null ? tx('mancano ≈ {h}', { h: fmtH(rem) }) : '') : rem != null ? tx('servono ≈ {h}', { h: fmtH(need) }) : tx('non si riprende da qui');
+  const left = done ? tx('fatto') : prog > 0 ? (rem != null ? tx('mancano ≈ {h}', { h: fmtH(rem) }) : '') : rem != null ? tx('servono ≈ {h}', { h: fmtH(need) }) : tx('non riprendibile da questo luogo');
   return `<div class="pc${done ? ' done' : ''}" role="button" tabindex="0" data-id="${esc(id)}">
     <span class="th"><img src="${esc(thumbUrl(o))}" alt="" loading="lazy" decoding="async"></span>
     <span class="bd"><span class="t"><b>${esc(o.id)}</b><small>${esc(o.nick || tx(TYPES[o.type]))}</small>${favBtn(id)}</span>
@@ -139,17 +139,17 @@ function renderProjects() {
   const hours = ids.reduce((a, id) => a + projHoursDone(id), 0), nights = new Set(ids.flatMap((id) => (state.projects[id].sessions || []).map((s) => s.date))).size;
   const head = `<div class="view-h"><h2>${tx('Progetti')}</h2></div>`;
   if (!ids.length) {
-    el.innerHTML = head + `<div class="pv-empty">${ic('star')}<h3>${tx('Ancora nessun progetto')}</h3><p>${tx('Tocca la stella di un target per metterlo qui.')}</p><button type="button" class="btn primary" data-go="targets">${ic('target')}<span>${tx('Scegli dai target')}</span></button></div>`;
+    el.innerHTML = head + `<div class="pv-empty">${ic('star')}<h3>${tx('Ancora nessun progetto')}</h3><p>${tx('Tocca la stella di un target per aggiungerlo ai progetti.')}</p><button type="button" class="btn primary" data-go="targets">${ic('target')}<span>${tx('Scegli dai target')}</span></button></div>`;
     el.onclick = (e) => { if (e.target.closest('[data-go]')) setView('targets'); };
     return;
   }
   const sec = (t, sub, list) => list.length ? `<div class="pv-sec"><h3>${t}</h3><small>${sub}</small></div><div class="pv-grid">${list.map(projCard).join('')}</div>` : '';
   el.innerHTML = head + `<div class="pv-stats">
       <div class="pv-stat"><b class="num" data-to="${wip.length}">${wip.length}</b><span>${tx('in corso')}</span></div>
-      <div class="pv-stat"><b class="num" data-to="${favs.length}">${favs.length}</b><span>${tx('preferiti da iniziare')}</span></div>
+      <div class="pv-stat"><b class="num" data-to="${favs.length}">${favs.length}</b><span>${tx('preferiti non ancora iniziati')}</span></div>
       <div class="pv-stat"><b class="num" data-to="${done.length}">${done.length}</b><span>${tx('completati')}</span></div>
       <div class="pv-stat"><b class="num" data-to="${hours}" data-fmt="hh">${hours > 0 ? fmtH(hours) : '0 h'}</b><span>${nights ? tx('di posa in {n}', { n: nNights(nights) }) : tx('di posa registrate')}</span></div></div>
-    <div id="pvSeason">${wip.length + favs.length ? `<div class="card sk-wait"><div class="spin"></div><p>${tx('Preparo il piano di stagione…')}</p></div>` : ''}</div>` +
+    <div id="pvSeason">${wip.length + favs.length ? `<div class="card sk-wait"><div class="spin"></div><p>${tx('Calcolo del piano di stagione…')}</p></div>` : ''}</div>` +
     sec(tx('In corso'), tx('fatte e mancanti'), wip) + sec(tx('Preferiti'), tx('da iniziare'), favs) + yearHTML(seasonTargets()) + sec(tx('Fatti'), '', done);
   el.onclick = (e) => {
     if (e.target.closest('[data-go]')) { setView('targets'); return; }

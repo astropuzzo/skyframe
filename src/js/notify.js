@@ -47,7 +47,7 @@ function evalNight(n, plan) {
     w && w.prob != null ? tx('probabilità {p}%', { p: Math.round(w.prob * 100) }) : '',
     sl ? tx('seeing {s}', { s: tx(sl.t).toLowerCase() }) : '',
     n.moonIll >= 0.3 && n.moonUpFrac > 0.3 ? tx('Luna {p}%', { p: Math.round(n.moonIll * 100) }) : '',
-    w && w.dew != null && w.dew <= 2 ? tx('condensa: scalda l’ottica') : '', w && w.gust != null && w.gust >= 30 ? tx('raffiche {v} km/h', { v: w.gust }) : '',
+    w && w.dew != null && w.dew <= 2 ? tx('condensa: riscalda l’ottica') : '', w && w.gust != null && w.gust >= 30 ? tx('raffiche {v} km/h', { v: w.gust }) : '',
   ].filter(Boolean).join(' · ');
   const body = [blocks.slice(0, 3).map((b) => `${b.id} ${fmtT(b.t0)}–${fmtT(b.t1)}`).join(' · '), extra].filter(Boolean).join('\n');
   return { n, q, w, good, when, body, title: tx('Stasera si scatta: {w}', { w: when }), d0: n.t[n.first], d1: n.t[n.last] + DT };
@@ -81,7 +81,7 @@ async function planNotifications() {
   if (t && c.change && now > t.ev.d0 - 6 * 3600e3 && now < t.ev.d1 - 2 * 3600e3) {
     const prev = LS.get('sf.nstate', {})[t.ds];
     if (prev && !prev.good && t.ev.good && !sent[t.ds + 'o']) { out.push({ id: 41, at: now + 2000, title: tx('Si apre: {w}', { w: t.ev.when }), body: t.ev.body }); sentMark(t.ds + 'o'); }
-    else if (prev && prev.good && !t.ev.good && t.ev.w && (sent[t.ds + 'e'] || now > t.ev.d0 - lead) && !sent[t.ds + 'b']) { out.push({ id: 51, at: now + 2000, title: tx('Cambio di programma: nuvole'), body: tx('Ora il buio è sereno solo al {p}%.', { p: Math.round(t.ev.w.clear * 100) }) }); sentMark(t.ds + 'b'); }
+    else if (prev && prev.good && !t.ev.good && t.ev.w && (sent[t.ds + 'e'] || now > t.ev.d0 - lead) && !sent[t.ds + 'b']) { out.push({ id: 51, at: now + 2000, title: tx('Cambio di programma: nuvole'), body: tx('Previsione aggiornata: solo il {p}% del buio è sereno.', { p: Math.round(t.ev.w.clear * 100) }) }); sentMark(t.ds + 'b'); }
     LS.set('sf.nstate', { [t.ds]: { good: t.ev.good } });
     if (t.ev.good && now > t.ev.d0 - lead) sentMark(t.ds + 'e');
   }
@@ -105,7 +105,7 @@ async function planNotifications() {
       if (tg.last < 0 || tg.last > 10 || tg.rem < 0.2) continue;
       const d = new Date(), key = tg.id + '|s|' + d.getFullYear() + '-' + d.getMonth(); if (sent[key]) continue;
       const at6 = new Date(); at6.setHours(18, 0, 0, 0); const at = at6.getTime() > now ? at6.getTime() : now + 3000;
-      once(key, { id: 100 + (hash(tg.id) % 800), at, title: tx('{t}: ultime settimane', { t: tg.id }), body: tx('In stagione fino al {d}, manca il {p}%: ha la precedenza.', { d: fmtDay(aheadNight(state.res.C, tg.last).t0), p: Math.round(tg.rem * 100) }) });
+      once(key, { id: 100 + (hash(tg.id) % 800), at, title: tx('{t}: ultime settimane', { t: tg.id }), body: tx('Periodo favorevole fino al {d}, manca il {p}% dell’integrazione: ha la precedenza.', { d: fmtDay(aheadNight(state.res.C, tg.last).t0), p: Math.round(tg.rem * 100) }) });
     }
   }
   for (const k of Object.keys(sch)) if (now - sch[k] > 10 * 864e5) delete sch[k];
@@ -117,7 +117,7 @@ async function planNotifications() {
     window.cielo.bgConfig({
       on: true, evening: c.evening, change: c.change, lat: (+L.lat).toFixed(3), lon: (+L.lon).toFixed(3), tz: -new Date().getTimezoneOffset(),
       nights: nights.map((x) => ({ id: 1 + x.k, ds: x.ds, d0: x.ev.d0, d1: x.ev.d1, alertAt: x.ev.d0 - lead, minH: 1.5, minClear: c.min >= 4 ? 0.7 : c.min >= 3 ? 0.5 : 0.3, good: x.ev.good, appScheduled: !bgOk && x.ev.good && c.evening, body: x.ev.body })),
-      txt: { title: tx('Stasera si scatta: {w}'), all: tx('sereno tutta la notte'), win: tx('sereno {a}–{b}'), pct: tx('{p}% del buio sereno'), open: tx('Si apre: {w}'), bad: tx('Cambio di programma: nuvole'), badBody: tx('Ora il buio è sereno solo al {p}%.') },
+      txt: { title: tx('Stasera si scatta: {w}'), all: tx('sereno tutta la notte'), win: tx('sereno {a}–{b}'), pct: tx('{p}% del buio sereno'), open: tx('Si apre: {w}'), bad: tx('Cambio di programma: nuvole'), badBody: tx('Previsione aggiornata: solo il {p}% del buio è sereno.') },
     });
   }
 }
@@ -125,13 +125,13 @@ async function toggleNotify() {
   const sync = () => { renderTonight(); if (UI.view === 'setup') renderSetup(); };
   if (notifyOn()) { LS.set('sf.notify', false); await notifySchedule([]); if (window.cielo && window.cielo.bgConfig) window.cielo.bgConfig({ on: false }); toast(tx('Avvisi spenti')); sync(); return; }
   const ok = await notifyPermission();
-  if (!ok) { toast(tx('Notifiche bloccate: attivale nelle impostazioni')); sync(); return; }
+  if (!ok) { toast(tx('Notifiche bloccate: attivale nelle impostazioni del sistema')); sync(); return; }
   LS.set('sf.notify', true); await planNotifications(); sync();
-  toast(tx('Avvisi accesi: li regoli in Setup'));
+  toast(tx('Avvisi attivi: si regolano in Setup'));
 }
 /* prova: un avviso fra 5 secondi con la notte di stanotte */
 async function testNotify() {
-  const ok = await notifyPermission(); if (!ok) { toast(tx('Notifiche bloccate: attivale nelle impostazioni')); return; }
+  const ok = await notifyPermission(); if (!ok) { toast(tx('Notifiche bloccate: attivale nelle impostazioni del sistema')); return; }
   const ev = evalNight(state.res.night, tonightPlan());
   await notifySchedule([{ id: 99, at: Date.now() + 5000, title: ev && ev.when ? ev.title : tx('Prova degli avvisi'), body: (ev && ev.body) || tx('Prova degli avvisi') }]);
   toast(tx('Arriva fra 5 secondi'));

@@ -61,8 +61,8 @@ for (const [t, v] of Object.entries(by)) {
   out[t] = [v.length, r1(q(hs, 0.25)), r1(q(hs, 0.5)), r1(q(hs, 0.75)), recs];
 }
 const n = Object.values(out).reduce((a, x) => a + x[0], 0);
-const head = `// Foto vere: ${n} immagini con telescopio e camera a colori su AstroBin da cieli Bortle 6–8 (almeno 30 like, riprese dal 2024), ${Object.keys(out).length} oggetti.
+const head = `// Foto vere: ${n} immagini con telescopio e camera a colori su AstroBin da cieli Bortle 6–8 (almeno 25–30 apprezzamenti secondo la raccolta, riprese dal 2024), ${Object.keys(out).length} oggetti.
 // Generato da scripts/real-stats.cjs. Per oggetto: [foto, ore 1° quartile, mediana, 3° quartile, [[ricetta, foto, ore mediane, sub s]]]
 // Ricette: bb banda larga, lp anti-inquinamento, duo Hα+OIII, so SII+OIII, quad quattro righe, sho duo+so, "+rgb" con banda larga.\n`;
-fs.writeFileSync(OUT, head + 'window.REAL = ' + JSON.stringify({ n, bortle: [6, 8], since: 2024, likes: 30, o: out }) + ';\n');
+fs.writeFileSync(OUT, head + 'window.REAL = ' + JSON.stringify({ n, bortle: [6, 8], since: 2024, likes: 25, o: out }) + ';\n');
 console.log(`${Object.keys(out).length} oggetti, ${n} foto → ${path.relative(process.cwd(), OUT)} (${fs.statSync(OUT).size} byte)`);

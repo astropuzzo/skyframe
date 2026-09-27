@@ -95,7 +95,7 @@
         <div class="card verdict" id="facts"></div>
         <div class="card skycard">
           <div class="dome-wrap"><canvas id="dome" aria-label="Cielo visto dal tuo luogo"></canvas><div id="domeTip" class="dome-tip" hidden></div>
-            <div class="dome-ctl"><button type="button" class="icon-btn glass" id="lpToggle" aria-pressed="false" title="Mostra le luci artificiali" aria-label="Luci"><svg class="ic"><use href="#i-lights"/></svg></button></div>
+            <div class="dome-ctl"><button type="button" class="icon-btn glass" id="lpToggle" aria-pressed="false" title="Mostra la luminosità artificiale del cielo" aria-label="Luci"><svg class="ic"><use href="#i-lights"/></svg></button></div>
           </div>
           <div class="clock">
             <div class="time num" id="clockTime">--:--</div>
@@ -130,7 +130,7 @@
               <option value="transit">Orario di culmine</option>
               <option value="now">Più alto all'ora scelta</option>
               <option value="sb">Più debole (sfida)</option>
-              <option value="gain" hidden>Più rapidi in un altro luogo</option>
+              <option value="gain" hidden>Più rapidi da un altro luogo salvato</option>
             </select></label>
           <button type="button" class="btn" id="advBtn" aria-expanded="false"><svg class="ic"><use href="#i-filter"/></svg><span>Filtri</span> <span class="badge" id="advCount" hidden>0</span></button>
         </div>
@@ -149,7 +149,7 @@
           <label class="f"><span class="lbl">Tecnica</span><select id="bandSel" class="sel"><option value="any">Qualsiasi</option><option value="nb">Si fanno in banda stretta</option><option value="bb">Solo banda larga</option></select></label>
           <label class="f"><span class="lbl">Costellazione</span><select id="conSel" class="sel"></select></label>
           <div class="f wide checks">
-            <label class="chk"><input type="checkbox" id="hideClassic"> Nascondi i classici</label>
+            <label class="chk"><input type="checkbox" id="hideClassic"> Nascondi gli oggetti più noti (Messier e simili)</label>
             <label class="chk"><input type="checkbox" id="showAll"> Mostra anche i non visibili stanotte</label>
             <label class="chk"><input type="checkbox" id="hideDone"> Nascondi i target già fatti</label>
           </div>
@@ -182,7 +182,7 @@
         <h3>Camera</h3>
         <div class="grid">
           <label class="field w2"><span>Modello</span><select id="f_cam"></select></label>
-          <label class="field"><span>Tipo</span><select id="f_ctype"><option value="osc">A colori (OSC)</option><option value="mono">Monocromatica</option><option value="dslr">Reflex / mirrorless</option><option value="dslrmod">Reflex modificata (Hα)</option></select></label>
+          <label class="field"><span>Tipo</span><select id="f_ctype"><option value="osc">A colori (OSC)</option><option value="mono">Monocromatica</option><option value="dslr">Reflex / mirrorless</option><option value="dslrmod">Reflex con filtro modificato (trasmette l’Hα)</option></select></label>
           <label class="field"><span>Binning</span><select id="f_bin"><option value="1">1×1</option><option value="2">2×2</option><option value="3">3×3</option></select></label>
           <label class="field"><span>Larghezza sensore (px)</span><input id="f_cw" type="number" min="100" step="1"></label>
           <label class="field"><span>Altezza sensore (px)</span><input id="f_ch" type="number" min="100" step="1"></label>
@@ -195,12 +195,12 @@
         <h3>Telescopi e accessori</h3>
         <div id="optics" class="optics"></div>
         <button class="btn sm" id="opticAdd" type="button"><svg class="ic"><use href="#i-plus"/></svg><span>Aggiungi telescopio</span></button>
-        <p class="hint">Ogni telescopio con i suoi correttori e riduttori: per ogni target Skyframe sceglie la combinazione migliore.</p>
+        <p class="hint">Ogni telescopio con correttori e riduttori genera una configurazione (focale e rapporto focale). Per ogni target si usa quella con il tempo più breve.</p>
       </section>
       <section class="fs ed-prof">
         <h3>Filtri che possiedi</h3>
         <div id="filterPick"></div>
-        <p class="hint">Bande dalle schede dei produttori; «stima» dove non sono pubblicate.</p>
+        <p class="hint">Bande passanti e trasmissione dalle schede dei produttori; «stima» indica valori non pubblicati in forma numerica.</p>
       </section>
       <section class="fs ed-loc">
         <h3>Luogo e inquinamento luminoso</h3>
@@ -210,7 +210,7 @@
             <div id="geoList" class="geolist" hidden></div>
           </div>
           <div id="geoMap" class="geomap" aria-label="Mappa: clicca o trascina lo spillo"></div>
-          <p class="hint" id="geoHint">Tocca la mappa o trascina lo spillo. Grigio e blu: cielo buio; verde e giallo: campagna; rosso e bianco: città.</p>
+          <p class="hint" id="geoHint">Tocca la mappa o trascina lo spillo sul punto di osservazione. Colori dell’atlante: grigio e blu cielo buio, verde e giallo zone rurali e periferiche, rosso e bianco centri urbani.</p>
         </div>
         <div class="grid">
           <label class="field w2"><span>Nome del luogo</span><input id="f_site" maxlength="60"></label>
@@ -227,8 +227,8 @@
             <div id="lpLegend"></div>
             <div class="hzbar" style="margin-top:0"><button class="btn sm" id="lpBtn">Calcola dall’atlante 2025</button><span id="lpMsg" class="hint" style="margin:0"></span></div>
             <div class="skydrop" id="skyDrop">
-              <b>Il tuo cielo, direzione per direzione</b>
-              <div class="hzbar" style="margin:6px 0 4px"><button class="btn sm" id="lpmBtn" type="button">Prendi la mappa all-sky dal sito</button><span class="hint" style="margin:0">Parte da sola quando sposti lo spillo.</span></div>
+              <b>Luminosità del cielo per direzione (mappa all-sky)</b>
+              <div class="hzbar" style="margin:6px 0 4px"><button class="btn sm" id="lpmBtn" type="button">Prendi la mappa all-sky dal sito</button><span class="hint" style="margin:0">Si scarica automaticamente quando sposti lo spillo.</span></div>
               <p class="hint" style="margin:4px 0 0">In alternativa, a mano:</p>
               <ol>
                 <li data-t><a id="lpmOpen" href="https://www.lightpollutionmap.info" target="_blank" rel="noopener">Apri lightpollutionmap sul tuo punto</a>, scegli il livello <i>Sky brightness</i> e clicca sul terrazzo.</li>
@@ -241,14 +241,14 @@
                 <div class="grid" style="flex:1">
                   <label class="field"><span>Valore in alto sulla barra</span><input id="skyTop" inputmode="decimal" placeholder="19,3"></label>
                   <label class="field"><span>Valore in basso</span><input id="skyBot" inputmode="decimal" placeholder="17,9"></label>
-                  <label class="chk field wide"><input type="checkbox" id="skyTerr" checked> Usa la sagoma del terreno come orizzonte minimo</label>
+                  <label class="chk field wide"><input type="checkbox" id="skyTerr" checked> Usa il profilo del terreno come orizzonte minimo</label>
                   <div class="field wide"><button class="btn sm primary" id="skyApply" type="button">Importa la mappa</button></div>
                 </div>
               </div>
               <p class="hint" id="skyMsg"></p>
               <button class="btn sm ghost" id="skyRemove" type="button" hidden>Rimuovi la mappa importata</button>
             </div>
-            <p class="hint" data-t>Senza mappa, il cielo viene dall’<a href="https://djlorenz.github.io/astronomy/lp/" target="_blank" rel="noopener">atlante di David Lorenz</a> (VIIRS 2025). Una tua misura SQM prevale.</p>
+            <p class="hint" data-t>Senza mappa all-sky, l’SQM è una stima dall’<a href="https://djlorenz.github.io/astronomy/lp/" target="_blank" rel="noopener">atlante di David Lorenz</a> (dati satellitari VIIRS 2025; incertezza tipica ±0,3 mag). Una misura con fotometro, se indicata, prevale.</p>
           </div>
         </div>
       </section>
@@ -261,14 +261,14 @@
           <label class="field"><span>Qualità</span><select id="f_quality"><option value="quick">Rapida</option><option value="good">Buona</option><option value="great">Eccellente</option><option value="deep">Profonda</option></select></label>
           <label class="field"><span>Obiettivo della ripresa</span><select id="f_goal"><option value="snr">Minor tempo per il SNR richiesto</option><option value="lines">Tutte le righe dell’oggetto (SHO)</option><option value="natural">Colori naturali (banda larga)</option></select></label>
         </div>
-        <p class="hint">«Buona» è la mediana delle foto vere; «rapida» chiede metà tempo, «eccellente» il doppio, «profonda» come i progetti più lunghi.</p>
+        <p class="hint">Livello «buona»: il SNR della foto mediana apprezzata su AstroBin di quell’oggetto, riportato al tuo setup. «Rapida» richiede circa metà del tempo (25° percentile delle foto), «eccellente» il doppio (75°), «profonda» 3,3 volte (90°).</p>
       </section>
       <section class="fs ed-loc">
         <h3>Orizzonte</h3>
         <div class="grid"><label class="field"><span>Altezza minima (°)</span><input id="f_minalt" type="number" min="0" max="80" step="1"></label></div>
         <div class="hz"><svg id="hzSvg" viewBox="0 0 720 204" aria-label="Editor dell'orizzonte"></svg></div>
         <div class="hzbar" style="margin-top:4px"><span id="hzSrc" class="hint" style="margin:0"></span><button class="btn sm" id="hzUseMap" type="button" hidden>Usa il terreno della mappa</button></div>
-        <p class="hint" data-t>Clic o trascina per disegnare l’orizzonte. <b>Shift+clic</b> o clic destro toglie il punto più vicino. Tratteggio = altezza minima.</p>
+        <p class="hint" data-t>Clic o trascinamento per disegnare l’orizzonte. <b>Maiusc+clic</b> o clic destro rimuove il punto più vicino. La linea tratteggiata è l’altezza minima.</p>
         <div class="hzbar">
           <label class="btn sm" for="hzFile">Importa .hrz (N.I.N.A.) o Stellarium</label><input id="hzFile" type="file" accept=".hrz,.txt,.csv,.ini,.dat" hidden>
           <button class="btn sm ghost" id="hzPasteBtn">Incolla testo</button>
@@ -277,7 +277,7 @@
           <button class="btn sm ghost" id="hzCopyStel">Copia per Stellarium</button>
         </div>
         <div id="hzPaste" hidden style="margin-top:10px">
-          <label class="field wide"><span>Una riga per punto: azimut altezza (gradi). Righe con # o ; ignorate.</span><textarea id="hzText" spellcheck="false"></textarea></label>
+          <label class="field wide"><span>Una riga per punto: azimut altezza, in gradi. Le righe che iniziano con # o ; sono ignorate.</span><textarea id="hzText" spellcheck="false"></textarea></label>
           <div class="hzbar"><button class="btn sm" id="hzApply">Applica</button><span id="hzMsg" class="hint"></span></div>
         </div>
       </section>

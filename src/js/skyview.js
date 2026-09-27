@@ -28,11 +28,11 @@ function skyNightCard(x, k) {
   const sl = w && seeLvl(w.see), tl = w && traLvl(w.aod), dl = w && w.dew != null ? (w.dew <= 1.5 ? 4 : w.dew <= 3 ? 2 : 0) : null, gl = w && windLvl(w.gust);
   const cells = hrs.map((h) => { const f = wxAt(h.t + 1800e3); return `<i style="background:${f == null ? 'var(--line-2)' : skyCol(f)}"></i>`; }).join('');
   const title = k === 0 ? tx('Stanotte') : d.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' });
-  const warn = [dl >= 2 ? `<span class="w" style="color:${LVL_COL[dl]}" title="${tx('Rischio condensa: {t}', { t: tx(dl >= 4 ? 'alto' : 'medio') })}">${ic('drop')}</span>` : '', gl && gl.i >= 2 ? `<span class="w" style="color:${LVL_COL[gl.i]}" title="${tx('Raffiche fino a {v} km/h', { v: w.gust })}">${ic('wind')}</span>` : ''].join('');
+  const warn = [dl >= 2 ? `<span class="w" style="color:${LVL_COL[dl]}" title="${tx('Rischio di condensa: {t}', { t: tx(dl >= 4 ? 'alto' : 'medio') })}">${ic('drop')}</span>` : '', gl && gl.i >= 2 ? `<span class="w" style="color:${LVL_COL[gl.i]}" title="${tx('Raffiche fino a {v} km/h', { v: w.gust })}">${ic('wind')}</span>` : ''].join('');
   return `<button type="button" class="sk-n" data-k="${k}" aria-pressed="${k === SK.k}">
     <span class="h"><b>${esc(title)}</b><span class="mo">${moonSvg(x.ill, x.waxing, 6)}${Math.round(x.ill * 100)}%</span><span class="rate r${q.r}"><i></i>${tx(q.label)}</span></span>
     <span class="cells">${cells || `<em>${tx('niente buio')}</em>`}</span>
-    <span class="kv">${w ? `<span><small>${tx('Sereno')}</small><b>${pct(w.clear)}</b></span><span><small>${tx('Probabilità')}</small><b>${pct(w.prob)}</b></span><span><small>${tx('Seeing')}</small><b style="color:${sl ? LVL_COL[sl.i] : 'inherit'}">${sl ? tx(sl.t) : '—'}</b></span><span><small>${tx('Trasparenza')}</small><b style="color:${tl ? LVL_COL[tl.i] : 'inherit'}">${tl ? tx(tl.t) : '—'}</b></span>` : `<span class="far">${tx('Oltre le previsioni: solo Luna e buio')}</span>`}${warn}</span></button>`;
+    <span class="kv">${w ? `<span><small>${tx('Sereno')}</small><b>${pct(w.clear)}</b></span><span><small>${tx('Probabilità')}</small><b>${pct(w.prob)}</b></span><span><small>${tx('Seeing')}</small><b style="color:${sl ? LVL_COL[sl.i] : 'inherit'}">${sl ? tx(sl.t) : '—'}</b></span><span><small>${tx('Trasparenza')}</small><b style="color:${tl ? LVL_COL[tl.i] : 'inherit'}">${tl ? tx(tl.t) : '—'}</b></span>` : `<span class="far">${tx('Oltre l’orizzonte delle previsioni: solo Luna e buio')}</span>`}${warn}</span></button>`;
 }
 function skyGrid(x) {
   const H = nightHours(x), s = active().site;
@@ -86,7 +86,7 @@ function renderSky() {
   const s = activeLoc().site;
   const head = `<div class="view-h tight"><h2>${tx('Cielo')}</h2><span class="grow"></span><button type="button" class="icon-btn" data-refresh title="${tx('Aggiorna le previsioni')}" aria-label="${tx('Aggiorna le previsioni')}">${ic('refresh')}</button></div><p class="view-sub">${esc(s.name)}${wxOk() ? ' · ' + tx('aggiornato alle {t}', { t: fmtT(WX.d.at) }) : ''}</p>`;
   if (!wxOk()) {
-    el.innerHTML = head + `<div class="card sk-wait">${WX.busy || !WX.err ? `<div class="spin"></div><p>${tx('Scarico le previsioni…')}</p>` : `<p>${tx('Niente previsioni: manca la connessione.')}</p><button type="button" class="btn" data-refresh>${ic('refresh')}${tx('Riprova')}</button>`}</div>`;
+    el.innerHTML = head + `<div class="card sk-wait">${WX.busy || !WX.err ? `<div class="spin"></div><p>${tx('Scarico le previsioni…')}</p>` : `<p>${tx('Previsioni non disponibili: nessuna connessione.')}</p><button type="button" class="btn" data-refresh>${ic('refresh')}${tx('Riprova')}</button>`}</div>`;
     el.onclick = (e) => { if (e.target.closest('[data-refresh]')) refreshWeather(true); };
     if (!WX.busy && !WX.err) refreshWeather(false);
     return;
@@ -97,7 +97,7 @@ function renderSky() {
   el.innerHTML = head + `
     <div class="sk-nights">${L.map(skyNightCard).join('')}</div>
     <div class="card"><div class="card-h"><h3>${esc(title)}</h3></div>${skyGrid(x)}
-      <div class="sk-legend"><span>${ic('info')}${tx('Seeing in secondi d’arco (sotto 1,2″ buono) · trasparenza dagli aerosol (sotto 0,15 buona) · giallo: rischio condensa.')}</span></div></div>
+      <div class="sk-legend"><span>${ic('info')}${tx('Seeing: FWHM stimata in secondi d’arco, allo zenit (sotto 1,2″ buono). Trasparenza: profondità ottica degli aerosol (sotto 0,15 buona). Giallo: rischio di condensa.')}</span></div></div>
     ${skyModels(x)}
     <div class="card" id="skOther"${state.locs.length > 1 ? '' : ' hidden'}></div>
     <p class="st-foot sk-src">${tx('Fonti')}: Open-Meteo.com (${Object.keys(WX.d.models).length} ${tx('modelli')}${p.ens ? ', ECMWF ensemble' : ''}${p.aq ? ', CAMS' : ''}) · ItaliaMeteo-ARPAE, DWD, Météo-France, ECMWF, UK Met Office, NOAA · Copernicus Atmosphere Monitoring Service</p>`;

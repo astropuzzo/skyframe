@@ -73,10 +73,10 @@ function seasonHTML(P) {
   const rows = P.targets.map((t) => {
     const byK = new Map(t.nights.map((x) => [x.k, x])); let cells = '';
     for (let k = 0; k < D; k++) { const x = byK.get(k); cells += x ? `<i class="use${k === t.done ? ' end' : ''}" style="--f:${(0.35 + 0.65 * clamp(x.f * 2.5, 0, 1)).toFixed(2)}"></i>` : '<i class="no"></i>'; }
-    const when = t.done != null ? (t.done === 0 ? tx('stanotte') : tx('fino al {d}', { d: fmtDay(aheadNight(C, t.done).t0) })) : t.rem < 1 ? tx('{p}% in {n} giorni', { p: Math.round((1 - t.rem) * 100), n: P.D }) : tx('non in questi {n} giorni', { n: P.D });
+    const when = t.done != null ? (t.done === 0 ? tx('stanotte') : tx('fino al {d}', { d: fmtDay(aheadNight(C, t.done).t0) })) : t.rem < 1 ? tx('{p}% in {n} giorni', { p: Math.round((1 - t.rem) * 100), n: P.D }) : tx('non nei prossimi {n} giorni', { n: P.D });
     return `<button type="button" class="ss-row" data-id="${esc(t.id)}"><span class="ss-h">${tThumb(t.r.o)}<span class="ss-t"><b>${esc(t.id)}</b><small>${esc(t.r.o.nick || tx(TYPES[t.r.o.type]))}</small></span><span class="ss-v"><b class="num">${fmtH(t.hours)}</b><small>${t.nights.length ? nNights(t.nights.length) + ' · ' : ''}${when}</small></span></span><span class="sc-tl" style="--d:${D}">${cells}</span></button>`;
   }).join('');
-  const endTxt2 = P.end != null ? tx('Tutto finito entro il {d}', { d: fmtDayLong(aheadNight(C, P.end).t0) }) : tx('Non tutto entro {n} giorni', { n: P.D });
+  const endTxt2 = P.end != null ? tx('Tutti completati entro il {d}', { d: fmtDayLong(aheadNight(C, P.end).t0) }) : tx('Non tutti completabili entro {n} giorni', { n: P.D });
   return `<div class="card season-card"><div class="card-h"><h3>${tx('Piano di stagione')}</h3><small>${tx('{m}', { m: tx(MODE_TXT[P.mode][0]).toLowerCase() })}</small></div>
     <p class="ss-sum"><b>${endTxt2}</b>: ${tx('{h} in {n}.', { h: fmtH(P.hours), n: nNights(P.used) })}</p>
     <div class="ss-ax">${dayAxis(C, D)}</div><div class="ss-rows">${rows}</div></div>`;
@@ -109,7 +109,7 @@ function monthHTML(P) {
 function openSeasonNight(P, k) {
   const n = P.nights[k]; if (!n) return; const C = state.res.C, t0 = n.t0, byId = new Map(P.targets.map((t) => [t.id, t]));
   const d = new Date(t0).toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
-  const rows = n.alloc.length ? n.alloc.map((a) => { const t = byId.get(a.id); return `<button type="button" class="st-item" data-id="${esc(a.id)}">${tThumb(t.r.o, 36)}<span class="tx"><b>${esc(a.id)}</b><small>${esc(t.r.o.nick || tx(TYPES[t.r.o.type]))} · ${tx('fa il {p}% del lavoro', { p: Math.max(1, Math.round(a.f * 100)) })}${a.fin ? ' · ' + tx('ultima notte') : ''}</small></span><b class="num">${fmtH(a.a)}</b></button>`; }).join('') : `<div class="st-item"><span class="tx"><small>${tx('Stanotte nessuno rende abbastanza.')}</small></span></div>`;
+  const rows = n.alloc.length ? n.alloc.map((a) => { const t = byId.get(a.id); return `<button type="button" class="st-item" data-id="${esc(a.id)}">${tThumb(t.r.o, 36)}<span class="tx"><b>${esc(a.id)}</b><small>${esc(t.r.o.nick || tx(TYPES[t.r.o.type]))} · ${tx('raccoglie il {p}% dell’integrazione', { p: Math.max(1, Math.round(a.f * 100)) })}${a.fin ? ' · ' + tx('ultima notte') : ''}</small></span><b class="num">${fmtH(a.a)}</b></button>`; }).join('') : `<div class="st-item"><span class="tx"><small>${tx('Stanotte nessun progetto raggiunge un rendimento sufficiente.')}</small></span></div>`;
   openSheet({
     title: d.charAt(0).toUpperCase() + d.slice(1), body: `<p class="st-foot" style="margin:0 4px 10px">${tx('{h} di buio sereno', { h: fmtDur(n.cap) })} · ${tx('Luna {p}%', { p: Math.round(aheadNight(C, k).moon * 100) })}</p><div class="st-list">${rows}</div>`,
     foot: `<button type="button" class="btn primary" data-go>${ic('night')}<span>${tx('Apri questa notte')}</span></button>`,
@@ -123,7 +123,7 @@ function openSeasonNight(P, k) {
 const YR = { key: '', rows: null, job: 0 };
 function yearHTML(list) {
   if (!list.length) return '';
-  return `<div class="card year-card"><div class="card-h"><h3>${tx('Le stagioni')}</h3><small>${tx('più acceso = più ore col buio')}</small></div><div id="yearBox" class="yr"><div class="spin"></div></div></div>`;
+  return `<div class="card year-card"><div class="card-h"><h3>${tx('Le stagioni')}</h3><small>${tx('colore più intenso = più ore di buio sopra l’orizzonte')}</small></div><div id="yearBox" class="yr"><div class="spin"></div></div></div>`;
 }
 function fillYear(list) {
   const box = $('#yearBox'); if (!box) return;
@@ -133,7 +133,7 @@ function fillYear(list) {
     let months = ''; for (let w = 0; w < W; w++) { const d = new Date(w0 + w * 7 * 864e5), prev = new Date(w0 + (w - 1) * 7 * 864e5), nx = new Date(w0 + (w + 2) * 7 * 864e5); months += `<span>${(w === 0 && nx.getMonth() === d.getMonth()) || (w > 0 && d.getMonth() !== prev.getMonth()) ? d.toLocaleDateString(LOCALE, { month: 'short' }).replace('.', '') : ''}</span>`; }
     let moons = ''; for (let w = 0; w < W; w++) { let lo = 1; for (let i = 0; i < 7; i++) lo = Math.min(lo, moonIllum(jd(w0 + (w * 7 + i) * 864e5 + 11 * 3600e3)).k); moons += `<i class="${lo < 0.05 ? 'nm' : ''}"></i>`; }
     // ogni riga sul suo massimo: il periodo migliore di ciascun target si vede subito (le ore vere sono nel suggerimento)
-    const rows = YR.rows.map((r) => { const mx = Math.max(1, ...r.h); return `<button type="button" class="yr-row" data-id="${esc(r.id)}"><span class="yr-n">${tThumb(r.o, 20)}<b>${esc(r.id)}</b></span><span class="yr-c" style="--w:${W}">${r.h.map((h, w) => `<i style="--a:${Math.pow(h / mx, 1.8).toFixed(2)}" title="${esc(tx('settimana del {d}: {h} col buio', { d: fmtDay(w0 + w * 7 * 864e5), h: fmtDur(h) }))}"></i>`).join('')}</span></button>`; }).join('');
+    const rows = YR.rows.map((r) => { const mx = Math.max(1, ...r.h); return `<button type="button" class="yr-row" data-id="${esc(r.id)}"><span class="yr-n">${tThumb(r.o, 20)}<b>${esc(r.id)}</b></span><span class="yr-c" style="--w:${W}">${r.h.map((h, w) => `<i style="--a:${Math.pow(h / mx, 1.8).toFixed(2)}" title="${esc(tx('settimana del {d}: {h} di buio', { d: fmtDay(w0 + w * 7 * 864e5), h: fmtDur(h) }))}"></i>`).join('')}</span></button>`; }).join('');
     box.innerHTML = `<div class="yr-row ax"><span class="yr-n"></span><span class="yr-c lab" style="--w:${W}">${months}</span></div><div class="yr-row ax"><span class="yr-n"><small>${tx('Luna nuova')}</small></span><span class="yr-c moon" style="--w:${W}">${moons}</span></div>${rows}`;
   };
   if (YR.key === key && YR.rows) { draw(); return; }

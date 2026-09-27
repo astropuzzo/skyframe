@@ -9,24 +9,27 @@
    Parte da sola al primo avvio; chi aveva già Skyframe riceve la proposta; dopo un aggiornamento le «Novità» e i passi
    nuovi. Si riprende da Setup → Guida. v = versione in cui il passo è comparso. */
 const TOUR_STEPS = [
-  { id: 'benvenuto', v: '0.13.0', view: 'tonight', hero: true, t: 'Skyframe', d: 'Cosa riprendere stanotte, quante ore servono, in quali notti. Dal tuo luogo, con la tua attrezzatura.' },
-  { id: 'luogo', v: '0.13.0', view: 'tonight', sel: ['#locChip', '#nightChip', '#profChip'], t: 'Luogo, notte, attrezzatura', d: 'Ogni stima parte da qui. Puoi salvare più luoghi e più setup.',
+  { id: 'benvenuto', v: '0.13.0', view: 'tonight', hero: true, t: 'Skyframe', d: 'Pianifica le riprese del cielo profondo: quali oggetti sono osservabili dal tuo luogo, quale integrazione serve con la tua attrezzatura e in quali notti ottenerla.' },
+  { id: 'luogo', v: '0.13.0', view: 'tonight', sel: ['#locChip', '#nightChip', '#profChip'], t: 'Luogo, notte, attrezzatura', d: 'I calcoli usano il cielo del luogo attivo (SQM e orizzonte), la notte scelta e il profilo attivo (ottica, camera, filtri). Qui si cambiano.',
     cta: () => (activeLoc().site.example ? ['Imposta il luogo', () => openLocEditor(state.locId)] : activeProfile().unsaved ? ['Imposta l’attrezzatura', () => openEditor(state.activeId)] : null) },
-  { id: 'notti', v: '0.13.0', view: 'tonight', sel: '#nightBar', hint: ['#nightBar > :nth-child(2)', 'tap'], t: 'Le notti', d: 'Due settimane, con Luna e meteo. Toccane una per pianificarla.' },
-  { id: 'cielo', v: '0.13.0', view: 'tonight', sel: '.skycard', anchor: 'bottom', hint: ['.skycard .clock', 'drag'], t: 'Il tuo cielo', d: 'I target migliori sulla cupola, con il tuo orizzonte. Trascina per cambiare ora.' },
-  { id: 'piano', v: '0.13.0', view: 'tonight', sel: '#tonight', t: 'Il piano', d: 'Chi riprendere e quando, nelle ore buie e serene.' },
-  { id: 'quanto', v: '0.13.0', detail: 'piano', sel: '#scen', t: 'Quanto ci vuole', d: 'Ore, notti e data di fine, per ogni filtro e ogni luogo.' },
-  { id: 'fotovere', v: '0.16.0', detail: 'piano', sel: '.real-card', hint: ['.real-card .rbar .me', 'ping'], when: () => !!(window.REAL && REAL.o[(tourSample() || {}).id]), t: 'Foto vere', d: 'Le ore di chi l’ha ripreso da un cielo come il tuo. Il punto verde è la tua stima.' },
-  { id: 'meteo', v: '0.13.0', view: 'sky', sel: '#skyView .sk-nights', t: 'Meteo', d: 'Sette modelli, seeing, trasparenza e condensa, notte per notte.' },
-  { id: 'progetti', v: '0.13.0', view: 'projects', sel: '#projView', t: 'Progetti', d: 'Una stella su un target e le notti si dividono fra i tuoi preferiti. La guida resta in Setup.' },
+  { id: 'notti', v: '0.13.0', view: 'tonight', sel: '#nightBar', hint: ['#nightBar > :nth-child(2)', 'tap'], t: 'Le prossime notti', d: 'Per ogni notte: buio astronomico, fase lunare e copertura nuvolosa prevista. Tocca una notte per calcolarla.' },
+  { id: 'cielo', v: '0.13.0', view: 'tonight', sel: '.skycard', anchor: 'bottom', hint: ['.skycard .clock', 'drag'], t: 'Il cielo del luogo', d: 'Posizione dei target migliori all’ora indicata, con il tuo orizzonte. Trascina la barra dell’ora per vedere un altro momento della notte.' },
+  { id: 'piano', v: '0.13.0', view: 'tonight', sel: '#tonight', t: 'Il piano della notte', d: 'I target in ordine di ripresa, ciascuno quando è più alto, nelle ore buie e serene previste.' },
+  { id: 'catalogo', v: '0.19.0', view: 'targets', sel: '.searchbox', t: 'Catalogo completo', d: 'La ricerca copre tutte le voci Messier, NGC, IC, Sharpless e Lynds. Gli oggetti fuori dalla lista si calcolano quando li apri; per quelli senza dati sufficienti è indicato il motivo.' },
+  { id: 'quanto', v: '0.13.0', detail: 'piano', sel: '#scen', t: 'Integrazione necessaria', d: 'Ore e notti per raggiungere il livello di qualità scelto, per ogni modo di gestire la Luna e per ogni luogo salvato.' },
+  { id: 'fotovere', v: '0.16.0', detail: 'piano', sel: '.real-card', hint: ['.real-card .rbar .me', 'ping'], when: () => !!(window.REAL && REAL.o[(tourSample() || {}).id]), t: 'Foto di riferimento', d: 'Integrazione delle foto di questo oggetto pubblicate su AstroBin da cieli Bortle 6–8 con camera a colori. Il punto verde è la stima per il tuo setup.' },
+  { id: 'meteo', v: '0.13.0', view: 'sky', sel: '#skyView .sk-nights', t: 'Meteo', d: 'Copertura nuvolosa da sette modelli, probabilità di sereno, seeing, trasparenza e rischio di condensa, ora per ora.' },
+  { id: 'progetti', v: '0.13.0', view: 'projects', sel: '#projView', t: 'Progetti', d: 'I target segnati come preferiti: il piano di stagione distribuisce fra loro le notti disponibili.' },
+  { id: 'autoguida', v: '0.19.0', view: 'setup', sel: '#stGuiding', t: 'Precisione di autoguida', d: 'Per ogni configurazione: scala d’immagine, dimensione attesa delle stelle ed errore di autoguida consigliato, con il criterio e le ipotesi usate. La guida si riapre da Setup.' },
 ];
 /* novità per versione (le più recenti in cima) */
 const NEWS = [
-  { v: '0.18.0', items: ['Il dettaglio si apre dal target toccato e ci torna quando lo chiudi', 'Sezioni e notti: l’indicatore scivola; la cupola ruota fino all’ora scelta', 'Fogli e dettaglio si chiudono con un lancio verso il basso'] },
-  { v: '0.17.0', items: ['Guida rifatta: nove passi brevi, un solo movimento per passo, i gesti mostrati da un dito'] },
-  { v: '0.16.0', items: ['Tempi ritarati su 1205 foto vere da cieli di città', 'Foto vere: per 93 target ore, filtri e sub di chi li ha ripresi da Bortle 6–8', 'In catalogo 20 camere, 30 telescopi e 13 filtri in più; qualità «profonda»'] },
-  { v: '0.15.0', items: ['Tutti i testi riscritti: più corti, in italiano e in inglese'] },
-  { v: '0.14.0', items: ['Logo nuovo all’avvio: dal campo stellare allo scatto sul target', 'Animazioni: in Setup scegli se seguire il sistema o averle sempre'] },
+  { v: '0.19.0', items: ['Tempi: fisica del rumore per filtri, cieli e strumenti; livello di qualità per oggetto tarato su 1990 foto e verificato su 160 oggetti esclusi dalla taratura', 'Filtri: scelta con un criterio esplicito (tempo minimo per il SNR) e un obiettivo nel profilo; colore delle stelle con una ripresa a banda larga separata', 'Cielo: SQM con origine e incertezza, Bortle come intervallo; il piano mostra l’intervallo di ore che ne deriva', 'Catalogo completo Messier, NGC, IC, Sharpless e Lynds nella ricerca; precisione di autoguida per ogni configurazione', 'Testi riscritti in forma più precisa, in italiano e in inglese'] },
+  { v: '0.18.0', items: ['Il dettaglio si apre dal target toccato e vi ritorna alla chiusura', 'Sezioni e notti: l’indicatore si sposta con continuità; la cupola ruota fino all’ora scelta', 'Fogli e dettaglio si chiudono trascinandoli verso il basso'] },
+  { v: '0.17.0', items: ['Guida rifatta: nove passi, un solo spostamento per passo, i gesti mostrati sullo schermo'] },
+  { v: '0.16.0', items: ['Tempi ritarati su 1205 foto reali da cieli Bortle 6–8', 'Foto di riferimento: per 93 target, integrazione, filtri e pose singole delle foto riprese da Bortle 6–8', '20 camere, 30 telescopi e 13 filtri aggiunti al catalogo; livello di qualità «profonda»'] },
+  { v: '0.15.0', items: ['Testi riscritti in italiano e in inglese'] },
+  { v: '0.14.0', items: ['Animazione del logo all’avvio', 'Animazioni: in Setup si può seguire l’impostazione del sistema o tenerle sempre attive'] },
   { v: '0.13.1', items: ['Android: il tasto indietro chiude fogli, dettaglio e guida invece di uscire', 'Android: gli avvisi ad app chiusa ora ricevono le notti da controllare'] },
   { v: '0.13.0', items: ['Questa guida passo passo, e le novità a ogni aggiornamento', 'Niente più collegamenti a siti meteo esterni: tutto dentro l’app'] },
   { v: '0.12.1', items: ['Registri la sessione con un tocco dal piano della notte', 'Le ore fatte con la Luna piena valgono per quello che rendono'] },
@@ -233,7 +236,7 @@ function tourBoot() {
   if (!seen) {
     if (!known) { setTimeout(() => tourStart(TOUR_STEPS), 700); return; }
     openSheet({
-      title: tx('Skyframe è cambiato'), body: `<p class="info-txt">${tx('Tempi tarati su foto vere, meteo astronomico, progetti con piano di stagione, avvisi. Un giro di un minuto?')}</p>`,
+      title: tx('Skyframe è cambiato'), body: `<p class="info-txt">${tx('Livelli di qualità tarati su foto reali, scelta dei filtri con un criterio esplicito, catalogo completo, precisione di guida. Vuoi vedere la guida (nove passi)?')}</p>`,
       foot: `<button type="button" class="btn" data-later>${tx('Più tardi')}</button><button type="button" class="btn primary" data-go>${tx('Fai il giro')}</button>`,
       onMount: (el, close) => el.addEventListener('click', (e) => {
         if (e.target.closest('[data-go]')) { close(); setTimeout(() => tourStart(TOUR_STEPS), 300); }

@@ -14,7 +14,7 @@ function fillEditorSelects() {
 function bandTxt(f) {
   const C = { Ha: 656.3, OIII: 500.7, SII: 672.4 };
   if (f.kind === 'nb' || f.kind === 'multi') return f.bands.map(([lo, hi]) => { const c = (lo + hi) / 2; const k = Object.keys(C).find((x) => Math.abs(C[x] - c) < 12) || (c < 510 ? 'Hβ+OIII' : '?'); return `${k === 'Ha' ? 'Hα' : k} ${it(hi - lo, 1)} nm`; }).join(' · ');
-  if (f.kind === 'lp') return tx('{n} bande · {w} nm utili', { n: f.bands.length, w: Math.round(f.bands.reduce((a, b) => a + b[1] - b[0], 0)) });
+  if (f.kind === 'lp') return tx('{n} bande · {w} nm di banda passante totale', { n: f.bands.length, w: Math.round(f.bands.reduce((a, b) => a + b[1] - b[0], 0)) });
   return `${f.bands[0][0]}–${f.bands[0][1]} nm`;
 }
 function renderFilterPick() {
@@ -38,13 +38,13 @@ function renderOptics() {
         <label class="field w2"><span>${tx('Nome')}</span><input data-k="name" value="${esc(o.name)}" maxlength="60"></label>
         <label class="field"><span>${tx('Apertura (mm)')}</span><input data-k="ap" type="number" min="10" step="1" value="${o.ap}"></label>
         <label class="field"><span>${tx('Focale nativa (mm)')}</span><input data-k="fl" type="number" min="10" step="1" value="${o.fl}"></label>
-        <label class="field"><span>${tx('Ostruzione (% diametro)')}</span><input data-k="obs" type="number" min="0" max="60" step="1" value="${o.obs || 0}"></label>
+        <label class="field"><span>${tx('Ostruzione centrale (% del diametro)')}</span><input data-k="obs" type="number" min="0" max="60" step="1" value="${o.obs || 0}"></label>
         <div class="field"><span>${tx('Nativo')}</span><div class="res">${Math.round(o.fl)} mm · f/${it(o.fl / o.ap, 1)}</div></div>
-        <label class="field w2" title="${tx('Oltre questa posa le stelle saturano (banda larga, ottica nuda). Con riduttori e Barlow si adatta da sola.')}"><span>${tx('Posa più lunga in banda larga (s)')}</span><input data-k="subMax" type="number" min="5" max="1800" step="5" value="${+o.subMax > 0 ? o.subMax : ''}" placeholder="${tx('automatica')}"></label>
+        <label class="field w2" title="${tx('Durata oltre la quale le stelle brillanti saturano, in banda larga e senza accessori. Con riduttori e Barlow viene scalata con il quadrato del fattore.')}"><span>${tx('Posa singola massima in banda larga (s)')}</span><input data-k="subMax" type="number" min="5" max="1800" step="5" value="${+o.subMax > 0 ? o.subMax : ''}" placeholder="${tx('automatica')}"></label>
       </div>
-      <label class="chk"><input type="checkbox" data-k="native" ${o.useNative !== false ? 'checked' : ''}> ${tx('Uso anche questo telescopio senza accessori')}</label>
-      <div class="accs">${accs || `<p class="hint" style="margin:0">${tx('Nessun accessorio: ottica nativa.')}</p>`}</div>
-      ${kind === 'fixed' ? `<p class="hint" style="margin:0">${tx('Correttore già integrato.')}</p>` : ''}
+      <label class="chk"><input type="checkbox" data-k="native" ${o.useNative !== false ? 'checked' : ''}> ${tx('Considera anche questo telescopio senza accessori')}</label>
+      <div class="accs">${accs || `<p class="hint" style="margin:0">${tx('Nessun accessorio: si usa la focale nativa.')}</p>`}</div>
+      ${kind === 'fixed' ? `<p class="hint" style="margin:0">${tx('Correttore integrato nel tubo.')}</p>` : ''}
       <div class="hzbar"><select class="sel" data-k="accPreset">${pres.map((x) => `<option value="${ACCESSORY_PRESETS.indexOf(x)}">${esc(txName(x[0]))}</option>`).join('')}<option value="custom">${tx('Personalizzato…')}</option></select><button class="btn sm" data-act="aadd" type="button">${tx('Aggiungi accessorio')}</button></div>
     </div>`;
   }).join('');
@@ -121,7 +121,7 @@ function openLocEditor(id, asNew) {
   F('f_site').value = d.site.name; F('f_lat').value = d.site.lat; F('f_lon').value = d.site.lon; F('f_bortle').value = String(d.site.bortle || sqmToBortle(d.site.sqm)); F('f_sqm').value = d.site.sqm; F('f_sqmMeas').checked = !!d.site.sqmMeas;
   F('f_elev').value = d.site.elev != null ? d.site.elev : ''; F('f_minalt').value = d.minAlt;
   F('edDelete').hidden = !!asNew || !!(src && src.unsaved);
-  F('hzPaste').hidden = true; F('hzMsg').textContent = ''; F('skyImp').hidden = true; F('skyMsg').textContent = asNew ? tx('Cerca il luogo o tocca la mappa: il resto arriva da solo.') : '';
+  F('hzPaste').hidden = true; F('hzMsg').textContent = ''; F('skyImp').hidden = true; F('skyMsg').textContent = asNew ? tx('Cerca il luogo o tocca la mappa: coordinate, altitudine, SQM stimato e orizzonte si compilano da soli.') : '';
   F('lpBtn').hidden = !(window.cielo && window.cielo.lpLookup);
   lpStatus(); drawHz(); drawLpPreview(F('lpSky'), d.site, d.horizon);
   showEditor(asNew);
@@ -163,7 +163,7 @@ function readLocForm() {
   const near = (at) => at && Math.abs(at[0] - d.site.lat) < 0.01 && Math.abs(at[1] - d.site.lon) < 0.01;
   if ((prev.lpGrid || prev.lpAz) && near(prev.lpAt)) {
     Object.assign(d.site, { lpGrid: prev.lpGrid, lpAz: prev.lpAz, lpAt: prev.lpAt, lpZen: prev.lpZen, lpSrcAtlas: prev.lpSrcAtlas });
-    d.site.lpSrc = Math.abs(d.site.sqm - prev.lpZen) < 0.01 ? prev.lpSrcAtlas : tx('SQM inserito, forma dall’atlante');
+    d.site.lpSrc = Math.abs(d.site.sqm - prev.lpZen) < 0.01 ? prev.lpSrcAtlas : tx('SQM inserito; distribuzione per direzione dall’atlante');
   }
   if (prev.skyMap && near(prev.skyMap.at)) {
     d.site.skyMap = prev.skyMap;
@@ -177,14 +177,14 @@ function lpStatus(txt) {
   const s = draft && draft.site; if (!s) return;
   F('skyRemove').hidden = !s.skyMap;
   if (!txt && s.skyMap) { F('lpMsg').textContent = tx('Mappa all-sky ({f}, {d}): zenit {z}.', { f: s.skyMap.file || 'lightpollutionmap', d: s.skyMap.date || '', z: it(s.skyMap.zenith, 2) }); return; }
-  F('lpMsg').textContent = txt || (s.lpZen != null ? `${tx(s.lpSrcAtlas || 'Atlante')}: ${tx('zenit')} ${it(s.lpZen, 2)} (Bortle ${sqmToBortle(s.lpZen)})${Math.abs(s.sqm - s.lpZen) >= 0.01 ? ' · ' + tx('in uso il tuo {v}', { v: it(s.sqm, 2) }) : ''}` : tx(window.cielo && window.cielo.lpLookup ? 'Non ancora calcolato per queste coordinate.' : 'Solo nell’app desktop: qui inserisci l’SQM a mano.'));
+  F('lpMsg').textContent = txt || (s.lpZen != null ? `${tx(s.lpSrcAtlas || 'Atlante')}: ${tx('zenit')} ${it(s.lpZen, 2)} (Bortle ${sqmToBortle(s.lpZen)})${Math.abs(s.sqm - s.lpZen) >= 0.01 ? ' · ' + tx('in uso il tuo {v}', { v: it(s.sqm, 2) }) : ''}` : tx(window.cielo && window.cielo.lpLookup ? 'Non ancora calcolato per queste coordinate.' : 'Disponibile solo nell’app desktop: inserisci l’SQM a mano.'));
 }
 let lpTimer = null;
 async function lpFetch() {
   if (!(window.cielo && window.cielo.lpLookup)) return;
   const lat = parseFloat(F('f_lat').value), lon = parseFloat(F('f_lon').value);
   if (!isFinite(lat) || !isFinite(lon)) return;
-  lpStatus(tx('Scarico l’atlante per queste coordinate…'));
+  lpStatus(tx('Scaricamento dell’atlante per queste coordinate…'));
   const r = await window.cielo.lpLookup(lat, lon);
   if (!draft) return;
   if (!r || r.error) { lpStatus(tx('Atlante non raggiungibile: inserisci l’SQM a mano.')); return; }
@@ -216,15 +216,15 @@ async function skyFileChosen(file) {
     // proposta dei due valori: tacche regolari della barra più l'SQM del luogo; vanno solo confermati
     const as = AllSky.autoScale(det, parseFloat(String(F('f_sqm').value).replace(',', '.')));
     if (as) { F('skyTop').value = it(as.top, 2); F('skyBot').value = it(as.bottom, 2); }
-    F('skyMsg').textContent = tx(det.kind === 'fisheye' ? 'Mappa all-sky (fisheye) riconosciuta.' : 'Panoramica riconosciuta.') + ' ' + tx(as ? 'Controlla i due valori ai capi della barra colori, poi Importa la mappa.' : 'Scrivi i due valori ai capi della barra colori.');
+    F('skyMsg').textContent = tx(det.kind === 'fisheye' ? 'Mappa all-sky (fisheye) riconosciuta.' : 'Panoramica riconosciuta.') + ' ' + tx(as ? 'Verifica i due valori agli estremi della barra dei colori, poi premi Importa la mappa.' : 'Inserisci i due valori agli estremi della barra dei colori (mag/″²).');
   } catch (e) { F('skyImp').hidden = true; toast(tx('Immagine non riconosciuta: {e}', { e: e.message })); }
 }
 function skyApply() {
   if (!skyImport || !draft) return;
   const top = parseFloat(F('skyTop').value.replace(',', '.')), bot = parseFloat(F('skyBot').value.replace(',', '.'));
-  if (!isFinite(top) || !isFinite(bot) || top <= bot) { F('skyMsg').textContent = tx('Servono i due valori della barra: in alto il più grande (es. 19,3 e 17,9).'); return; }
+  if (!isFinite(top) || !isFinite(bot) || top <= bot) { F('skyMsg').textContent = tx('Servono entrambi i valori della barra: in alto il più grande (per esempio 19,3 e 17,9).'); return; }
   readForm(); applySkyMap(skyImport.det, top, bot, skyImport.name);
-  F('skyMsg').textContent = tx('Mappa da {f} ({t}): barra {a} → {b}, zenit {z}. Salva il luogo.', { f: skyImport.name, t: fmtT(Date.now()), a: it(top, 2), b: it(bot, 2), z: it(draft.site.skyMap.zenith, 2) });
+  F('skyMsg').textContent = tx('Mappa da {f} ({t}): barra {a} → {b} mag/″², zenit {z}. Salva il luogo per usarla.', { f: skyImport.name, t: fmtT(Date.now()), a: it(top, 2), b: it(bot, 2), z: it(draft.site.skyMap.zenith, 2) });
   F('skyImp').hidden = true; skyImport = null;
 }
 /* griglia di luminosità dal lettore → profilo (SQM, mappa del cielo, orizzonte minimo dal terreno) */
@@ -249,7 +249,7 @@ async function lpmFetch() {
   const lat = parseFloat(F('f_lat').value), lon = parseFloat(F('f_lon').value);
   if (!isFinite(lat) || !isFinite(lon)) return;
   const sm = draft.site.skyMap; if (sm && sm.at && Math.abs(sm.at[0] - lat) < 0.002 && Math.abs(sm.at[1] - lon) < 0.002) return; // già fatta qui
-  lpmBusy = true; F('skyMsg').textContent = tx('Scarico la mappa all-sky (10–20 s)…');
+  lpmBusy = true; F('skyMsg').textContent = tx('Scaricamento della mappa all-sky (10–20 s)…');
   const btn = F('lpmBtn'), label = btn.textContent; btn.disabled = true; btn.textContent = tx('Scarico la mappa…');
   try {
     const r = await window.cielo.lpmAllSky(lat, lon);
@@ -262,17 +262,17 @@ async function lpmFetch() {
       if (!sc) continue;
       readForm(); applySkyMap(det, sc.top, sc.bottom, `lightpollutionmap ${r.year}`, r.year);
       if (isFinite(r.elev) && !F('f_elev').value) F('f_elev').value = Math.round(r.elev);
-      F('skyMsg').textContent = tx('Mappa all-sky {y} ({t}): barra {a} → {b}, zenit {z}. Salva il luogo.', { y: r.year, t: fmtT(Date.now()), a: it(sc.top, 2), b: it(sc.bottom, 2), z: it(r.sqm, 2) });
+      F('skyMsg').textContent = tx('Mappa all-sky {y} ({t}): barra {a} → {b} mag/″², zenit {z}. Salva il luogo per usarla.', { y: r.year, t: fmtT(Date.now()), a: it(sc.top, 2), b: it(sc.bottom, 2), z: it(r.sqm, 2) });
       done = true; break;
     }
     if (!done) { // scala non ricavabile: si chiede di leggere i due valori della barra
       const det = AllSky.detect(await AllSky.fromDataUrl(r.images[1] || r.images[0])); skyImport = { det, name: `lightpollutionmap ${r.year}` };
       const cv = F('skyBar'), { x, w, yt, yb } = det.bar; cv.width = Math.max(1, Math.round(w * 150 / (yb - yt))); cv.height = 150;
       cv.getContext('2d').drawImage(await AllSky.fromDataUrl(r.images[1] || r.images[0]), x, yt, w, yb - yt, 0, 0, cv.width, 150);
-      F('skyImp').hidden = false; F('skyMsg').textContent = tx('Scala non riconosciuta: scrivi i due valori ai capi della barra.');
+      F('skyImp').hidden = false; F('skyMsg').textContent = tx('Scala non riconosciuta: inserisci i due valori agli estremi della barra.');
     }
   } catch (e) {
-    F('skyMsg').textContent = tx('Mappa all-sky non ottenuta ({e}): importala a mano qui sopra.', { e: e.message });
+    F('skyMsg').textContent = tx('Mappa all-sky non ottenuta ({e}): importala a mano con i passi qui sopra.', { e: e.message });
   } finally { lpmBusy = false; btn.disabled = false; btn.textContent = label; }
 }
 function skyRemove() { if (!draft) return; readForm(); delete draft.site.skyMap; if (draft.site.lpZen != null) { draft.site.sqm = draft.site.lpZen; F('f_sqm').value = draft.site.lpZen; } draft.site.lpSrc = draft.site.lpSrcAtlas || ''; drawLpPreview(F('lpSky'), draft.site, draft.horizon); lpStatus(); }
@@ -367,8 +367,8 @@ function wireEditor() {
   F('hzFlat').onclick = () => { draft.horizon = []; draft.hzSrc = 'none'; drawHz(); };
   F('hzUseMap').onclick = () => { const t = draft.site.skyMap && draft.site.skyMap.terr; if (!t) return; draft.horizon = t.map((q) => q.slice()); draft.hzSrc = 'map'; edDirty = true; drawHz(); };
   F('hzPasteBtn').onclick = () => { F('hzPaste').hidden = !F('hzPaste').hidden; if (!F('hzPaste').hidden) { F('hzText').value = (draft.horizon || []).map((p) => p[0] + ' ' + p[1]).join('\n'); F('hzText').focus(); } };
-  F('hzApply').onclick = () => { const pts = parseHorizon(F('hzText').value); if (!pts.length) { F('hzMsg').textContent = tx('Nessun punto valido: servono righe “azimut altezza”.'); return; } draft.horizon = pts; draft.hzSrc = 'user'; drawHz(); F('hzMsg').textContent = tx('{n} punti importati.', { n: pts.length }); };
-  F('hzFile').onchange = (e) => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { const pts = parseHorizon(rd.result); if (!pts.length) { toast(tx('Nel file non ci sono righe “azimut altezza”.')); return; } draft.horizon = pts; draft.hzSrc = 'user'; drawHz(); toast(tx('{n} punti importati da {f}', { n: pts.length, f: f.name })); }; rd.readAsText(f); e.target.value = ''; };
+  F('hzApply').onclick = () => { const pts = parseHorizon(F('hzText').value); if (!pts.length) { F('hzMsg').textContent = tx('Nessun punto valido: servono righe “azimut altezza” in gradi.'); return; } draft.horizon = pts; draft.hzSrc = 'user'; drawHz(); F('hzMsg').textContent = tx('{n} punti importati.', { n: pts.length }); };
+  F('hzFile').onchange = (e) => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { const pts = parseHorizon(rd.result); if (!pts.length) { toast(tx('Il file non contiene righe “azimut altezza”.')); return; } draft.horizon = pts; draft.hzSrc = 'user'; drawHz(); toast(tx('{n} punti importati da {f}', { n: pts.length, f: f.name })); }; rd.readAsText(f); e.target.value = ''; };
   const hzText = () => (draft.horizon || []).slice().sort((a, b) => a[0] - b[0]).map((p) => `${p[0]} ${p[1]}`).join('\n');
   F('hzCopyNina').onclick = () => copyText(hzText());
   F('hzCopyStel').onclick = () => copyText(tx('# Orizzonte poligonale per Stellarium (polygonal_horizon_list): azimut altezza, gradi') + '\n' + hzText());
@@ -388,10 +388,10 @@ function drawHz() {
   // da dove viene l'orizzonte e cosa succede quando arriva una mappa all-sky nuova
   const terr = draft.site && draft.site.skyMap && draft.site.skyMap.terr;
   F('hzSrc').textContent = tx({
-    map: 'Orizzonte dal terreno: si aggiorna con la mappa. Se lo modifichi diventa tuo.',
+    map: 'Orizzonte ricavato dal terreno: si aggiorna con la mappa. Se lo modifichi, resta il tuo.',
     user: 'Orizzonte tuo: una nuova mappa lo alza solo dove il terreno è più alto.',
-    example: 'Orizzonte di esempio: disegnalo, importalo o prendi la mappa all-sky.',
-    none: 'Nessun orizzonte: conta solo l’altezza minima.',
+    example: 'Orizzonte di esempio: disegnalo, importalo o ricavalo dalla mappa all-sky.',
+    none: 'Nessun orizzonte: vale solo l’altezza minima.',
   }[draft.hzSrc] || '');
   F('hzUseMap').hidden = !(terr && draft.hzSrc !== 'map');
 }
