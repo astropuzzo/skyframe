@@ -150,7 +150,7 @@ function readProfForm() {
   const owned = $$('#filterPick input[data-fid]').filter((x) => x.checked).map((x) => x.dataset.fid);
   const type = d.camera.type; d.filters = { owned: owned.filter((id) => { const f = FDB_BY_ID.get(id); return f && (type === 'mono' ? f.for !== 'osc' : f.for !== 'mono'); }) };
   // l'altezza minima ora sta nel luogo; nel profilo resta quella di prima per le versioni vecchie
-  d.session = { minAlt: d.session && isFinite(+d.session.minAlt) ? +d.session.minAlt : 25, sunThr: +F('f_thr').value, from: F('f_from').value, to: F('f_to').value, quality: F('f_quality').value, qk: d.session && F('f_quality').value === (d.session.quality || 'good') ? d.session.qk : undefined, goal: F('f_goal').value, goalV: 2, moon: d.session && d.session.moon === 'dark' ? 'dark' : 'any' };
+  d.session = { minAlt: d.session && isFinite(+d.session.minAlt) ? +d.session.minAlt : 25, sunThr: +F('f_thr').value, from: F('f_from').value, to: F('f_to').value, quality: F('f_quality').value, goal: F('f_goal').value, goalV: 2, moon: d.session && d.session.moon === 'dark' ? 'dark' : 'any' };
   return d;
 }
 function readLocForm() {

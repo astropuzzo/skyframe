@@ -250,14 +250,14 @@ function skySource(site) {
   if (r && Math.abs(s - BORTLE_SQM[site.bortle]) < 0.01) return { k: 'bortle', sigma: Math.round(Math.max((r[1] - r[0]) / 1.35, 0.25) * 100) / 100 };
   return { k: 'inserito', sigma: 0.3 };
 }
-const QLABEL = { quick: 'rapida', good: 'buona', great: 'eccellente', deep: 'profonda' };
-/* Livello di qualità continuo: k moltiplica il SNR² della foto mediana (1 = «buona»). I quattro nomi sono punti della
-   scala (rapida 0,47, buona 1, eccellente 2, profonda 3,3: 25°, 50°, 75° e 90° percentile delle foto); session.qk, se
-   c'è, vale al posto del nome. */
-const QK = { min: 0.3, max: 30 };
-const qualityK = (s) => { const k = +(s && s.qk); return k > 0 ? Math.min(QK.max, Math.max(QK.min, k)) : ((QUALITY[s && s.quality] || QUALITY.good).k); };
+const QLABEL = { quick: 'mediocre', good: 'discreta', great: 'buona', deep: 'ottima', top: 'eccellente', max: 'estrema' };
+/* Livelli di qualità: k moltiplica il SNR² della foto mediana. Le chiavi restano quelle salvate nei profili; i primi quattro
+   sono il 25°, 50°, 75° e 90° percentile delle foto AstroBin, gli ultimi due vanno oltre (eccellente ≈ ×7: le foto più
+   lunghe dell'autore, estrema il doppio). */
+const QLEVELS = ['quick', 'good', 'great', 'deep', 'top', 'max'];
+const QDESC = { quick: '3 foto su 4 fanno meglio', good: 'come la foto media su AstroBin', great: 'meglio di 3 foto su 4', deep: 'meglio di 9 foto su 10', top: 'oltre quasi tutte le foto pubblicate', max: 'il doppio di eccellente' };
+const qualityK = (s) => (QUALITY[s && s.quality] || QUALITY.good).k;
 const qualityNear = (k) => Object.entries(QUALITY).reduce((a, x) => (Math.abs(Math.log(x[1].k / k)) < Math.abs(Math.log(a[1].k / k)) ? x : a))[0];
-const qualityName = (k) => { const n = qualityNear(k); return Math.abs(Math.log(QUALITY[n].k / k)) < 0.05 ? tx(QLABEL[n]) : '×' + it(k, k < 10 ? 1 : 0); };
 const accId = () => 'a' + Math.random().toString(36).slice(2, 8);
 
 function templateProfile() {
@@ -293,6 +293,7 @@ function migrateProfile(p) {
   }
   if (!p.filters) p.filters = { owned: [] };
   // 0.22: l'obiettivo predefinito diventa «tutte le righe» (SHO quando i filtri ci sono); una scelta fatta dopo resta
+  if (p.session && +p.session.qk > 0) { p.session.quality = qualityNear(+p.session.qk); delete p.session.qk; }
   if (p.session && p.session.goalV !== 2) { if (!p.session.goal || p.session.goal === 'snr') p.session.goal = 'lines'; p.session.goalV = 2; }
   return p;
 }
@@ -626,7 +627,7 @@ const F0 = 1000, MOON0 = Math.pow(10, -0.4 * 17.8);
    prevede dalla difficoltà fisica dell'oggetto con un setup di riferimento, perché le foto mostrano che sugli oggetti
    difficili si accetta un SNR più basso (log g = a + b·log D, b ≈ −0,7). k: i livelli sono i quantili delle foto dello
    stesso oggetto (tempo ×0,47 = 25°, ×2 = 75°, ×3,3 = 90° percentile). */
-const QUALITY = { quick: { main: 75, faint: 9.5, k: 0.47 }, good: { main: 75, faint: 9.5, k: 1 }, great: { main: 75, faint: 9.5, k: 2 }, deep: { main: 75, faint: 9.5, k: 3.3 } };
+const QUALITY = { quick: { main: 75, faint: 9.5, k: 0.47 }, good: { main: 75, faint: 9.5, k: 1 }, great: { main: 75, faint: 9.5, k: 2 }, deep: { main: 75, faint: 9.5, k: 3.3 }, top: { main: 75, faint: 9.5, k: 7 }, max: { main: 75, faint: 9.5, k: 15 } };
 const QOBJ = window.QUALITY_OBJ || null;
 /* Difficoltà di riferimento di un oggetto (log10 delle ore a SNR di riferimento con il setup di riferimento), la stessa
    usata da scripts/quality-fit.cjs: rifrattore 100 mm f/5,5, camera a colori IMX571, UV/IR e L-eXtreme, SQM 19,0,

@@ -493,8 +493,9 @@ button.st-item:hover, .st-item.tap:hover { background: var(--card-2); }
 .qk-top b { font: 600 17px var(--font-d); letter-spacing: .02em; }
 .qk-top span { font: 500 15px var(--font-m); color: var(--ink-2); }
 .st-item.qk input[type=range] { width: 100%; margin: 12px 0 2px; }
-.qk-ticks { position: relative; height: 16px; margin: 0 8px; }
-.qk-ticks span { position: absolute; transform: translateX(-50%); font: 500 10.5px var(--font-m); color: var(--ink-3); white-space: nowrap; }
+.qk-ticks { position: relative; height: 10px; margin: 0 9px; }
+.qk-ticks i { position: absolute; top: 2px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--ink-3); }
+.qk-d { display: block; margin-top: 2px; font-size: 12.5px; color: var(--ink-3); }
 .qk-prev { margin-top: 10px; display: grid; gap: 4px; }
 .qk-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 13.5px; padding: 5px 0; border-top: 1px solid var(--line); }
 .qk-row small { color: var(--ink-3); }

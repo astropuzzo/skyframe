@@ -234,36 +234,31 @@ function renderTopList() {
 }
 
 /* ---------- Setup ---------- */
-/* Qualità: slider continuo (scala logaritmica) sul profilo attivo; mentre si trascina, le ore di alcuni target (i progetti,
-   altrimenti i primi di stanotte) si ricalcolano in proporzione, perché le ore sono proporzionali a k. */
-const QK_TICKS = [0.5, 1, 2, 3.3, 10, 30];
-const qkPos = (k) => Math.round((Math.log(k / QK.min) / Math.log(QK.max / QK.min)) * 1000);
-const qkOf = (v) => { const k = QK.min * Math.pow(QK.max / QK.min, v / 1000), n = qualityNear(k); return Math.abs(Math.log(QUALITY[n].k / k)) < 0.06 ? QUALITY[n].k : k < 10 ? Math.round(k * 10) / 10 : Math.round(k); };
+/* Qualità: sei livelli a parole sul profilo attivo; mentre si sposta lo slider, le ore di alcuni target (i progetti,
+   altrimenti i primi di stanotte) si ricalcolano in proporzione, perché le ore sono proporzionali al livello. */
 function qkTargets() {
   const ok = (r) => r && r.e.best && isFinite(hoursOf(r.e.best));
   const mine = Object.keys(state.projects || {}).filter((id) => !isDone(id)).map((id) => state.byId.get(id)).filter(ok);
   return (mine.length ? mine : state.filtered.filter(ok)).slice(0, 6);
 }
-// nome del livello: uno dei quattro, altrimenti dove sta rispetto a loro
-const qkLabel = (k) => { const n = qualityNear(k); return Math.abs(Math.log(QUALITY[n].k / k)) < 0.05 ? tx(QLABEL[n]) : k > QUALITY.deep.k ? tx('oltre «profonda»') : k < QUALITY.quick.k ? tx('sotto «rapida»') : tx('fra i livelli'); };
+const qCap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const qkPreview = (k, k0) => qkTargets().map((r) => `<div class="qk-row"><span>${esc(r.o.id)}${r.o.nick ? ` <small>${esc(r.o.nick)}</small>` : ''}</span><b class="num">${fmtH(hoursOf(r.e.best) * k / k0)}</b></div>`).join('');
 function qualityHTML() {
   const p = activeProfile(); if (!p || !state.res) return '';
-  const k = qualityK(p.session);
+  const q = QUALITY[p.session.quality] ? p.session.quality : 'good', i = QLEVELS.indexOf(q);
   return `<div class="st-sec" id="stQuality"><h3>${tx('Qualità')}</h3><div class="st-list"><div class="st-item qk">
-    <div class="qk-top"><b id="qkV">${qkLabel(k)}</b><span id="qkX" class="num">×${it(k, k < 10 ? 1 : 0)}</span></div>
-    <input type="range" id="qkR" min="0" max="1000" step="1" value="${qkPos(k)}" aria-label="${tx('Qualità')}">
-    <div class="qk-ticks">${QK_TICKS.map((x) => `<span style="left:${qkPos(x) / 10}%">×${it(x, x < 10 && x % 1 ? 1 : 0)}</span>`).join('')}</div>
-    <div class="qk-prev" id="qkP">${qkPreview(k, k)}</div></div></div></div>`;
+    <div class="qk-top"><b id="qkV">${qCap(tx(QLABEL[q]))}</b></div><small class="qk-d" id="qkD">${tx(QDESC[q])}</small>
+    <input type="range" id="qkR" min="0" max="${QLEVELS.length - 1}" step="1" value="${i}" aria-label="${tx('Qualità')}">
+    <div class="qk-ticks">${QLEVELS.map((_, j) => `<i style="left:${(j / (QLEVELS.length - 1)) * 100}%"></i>`).join('')}</div>
+    <div class="qk-prev" id="qkP">${qkPreview(1, 1)}</div></div></div></div>`;
 }
 function wireQuality() {
   const r = $('#qkR'); if (!r) return;
   const k0 = qualityK(activeProfile().session);
-  const show = (k) => { $('#qkV').textContent = qkLabel(k); $('#qkX').textContent = '×' + it(k, k < 10 ? 1 : 0); $('#qkP').innerHTML = qkPreview(k, k0); };
-  r.oninput = () => show(qkOf(+r.value));
+  r.oninput = () => { const q = QLEVELS[+r.value]; $('#qkV').textContent = qCap(tx(QLABEL[q])); $('#qkD').textContent = tx(QDESC[q]); $('#qkP').innerHTML = qkPreview(QUALITY[q].k, k0); };
   r.onchange = () => {
-    const k = qkOf(+r.value), p = activeProfile(); if (Math.abs(k - k0) < 1e-6) return;
-    p.session = { ...p.session, qk: k, quality: qualityNear(k) }; p.updated = Date.now();
+    const q = QLEVELS[+r.value], p = activeProfile(); if (q === p.session.quality) return;
+    p.session = { ...p.session, quality: q }; delete p.session.qk; p.updated = Date.now();
     effMemo = null; saveStore(); refresh(true);
   };
 }
