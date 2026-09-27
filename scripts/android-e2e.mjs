@@ -114,7 +114,7 @@ try {
   await ev(`LS.set('sf.notify', true); await testNotify(); return 1`);
   await sleep(12000);
   const n1 = notifs();
-  out.checks.avviso_programmato = /skyframe/i.test(n1) && /(Stasera si scatta|Prova degli avvisi)/.test(n1);
+  out.checks.avviso_programmato = /skyframe/i.test(n1) && /(Stanotte sereno|Prova degli avvisi)/.test(n1);
   // script in background: una notte finta che parte ora, poi il suo controllo (a app aperta con selftest)
   log('script in background'); const cfg = `{ on: true, evening: true, change: true, lat: '45.464', lon: '9.190', tz: 60, nights: [{ id: 7, ds: 'e2e', d0: Date.now() + 30 * 60000, d1: Date.now() + 5 * 3600e3, alertAt: Date.now() - 60000, minH: 0, minClear: 0, good: false, appScheduled: false, body: 'prova e2e dallo script in background' }], txt: { title: 'Stasera si scatta: {w}', all: 'sereno tutta la notte', win: 'sereno {a}–{b}', pct: '{p}% del buio sereno', open: 'Si apre: {w}', bad: 'Cambio di programma', badBody: '{p}%' } }`;
   const BR = `Capacitor.Plugins.CapacitorBackgroundRunner`;
