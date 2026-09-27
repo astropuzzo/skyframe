@@ -24,6 +24,7 @@ const TOUR_STEPS = [
 ];
 /* novità per versione (le più recenti in cima) */
 const NEWS = [
+  { v: '0.23.0', items: ['Qualità: slider continuo in Setup, con le ore dei tuoi target mentre lo sposti'] },
   { v: '0.22.0', items: ['SHO consigliato sui soggetti adatti, se hai i filtri', 'Testi più brevi: solo i dati'] },
   { v: '0.21.0', items: ['Tempi tarati su 6918 foto, anche mono e da cieli bui', 'Bortle → SQM dai valori reali degli astrofotografi', 'Foto di riferimento con camera e cielo come i tuoi', 'Più camere, telescopi e filtri mono'] },
   { v: '0.20.0', items: ['Sensibilità del sensore per colore; 16 filtri, 2 camere, 6 telescopi', 'Filtri consigliati anche con la Luna'] },

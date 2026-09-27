@@ -234,6 +234,39 @@ function renderTopList() {
 }
 
 /* ---------- Setup ---------- */
+/* Qualità: slider continuo (scala logaritmica) sul profilo attivo; mentre si trascina, le ore di alcuni target (i progetti,
+   altrimenti i primi di stanotte) si ricalcolano in proporzione, perché le ore sono proporzionali a k. */
+const QK_TICKS = [0.5, 1, 2, 3.3, 10, 30];
+const qkPos = (k) => Math.round((Math.log(k / QK.min) / Math.log(QK.max / QK.min)) * 1000);
+const qkOf = (v) => { const k = QK.min * Math.pow(QK.max / QK.min, v / 1000), n = qualityNear(k); return Math.abs(Math.log(QUALITY[n].k / k)) < 0.06 ? QUALITY[n].k : k < 10 ? Math.round(k * 10) / 10 : Math.round(k); };
+function qkTargets() {
+  const ok = (r) => r && r.e.best && isFinite(hoursOf(r.e.best));
+  const mine = Object.keys(state.projects || {}).filter((id) => !isDone(id)).map((id) => state.byId.get(id)).filter(ok);
+  return (mine.length ? mine : state.filtered.filter(ok)).slice(0, 6);
+}
+// nome del livello: uno dei quattro, altrimenti dove sta rispetto a loro
+const qkLabel = (k) => { const n = qualityNear(k); return Math.abs(Math.log(QUALITY[n].k / k)) < 0.05 ? tx(QLABEL[n]) : k > QUALITY.deep.k ? tx('oltre «profonda»') : k < QUALITY.quick.k ? tx('sotto «rapida»') : tx('fra i livelli'); };
+const qkPreview = (k, k0) => qkTargets().map((r) => `<div class="qk-row"><span>${esc(r.o.id)}${r.o.nick ? ` <small>${esc(r.o.nick)}</small>` : ''}</span><b class="num">${fmtH(hoursOf(r.e.best) * k / k0)}</b></div>`).join('');
+function qualityHTML() {
+  const p = activeProfile(); if (!p || !state.res) return '';
+  const k = qualityK(p.session);
+  return `<div class="st-sec" id="stQuality"><h3>${tx('Qualità')}</h3><div class="st-list"><div class="st-item qk">
+    <div class="qk-top"><b id="qkV">${qkLabel(k)}</b><span id="qkX" class="num">×${it(k, k < 10 ? 1 : 0)}</span></div>
+    <input type="range" id="qkR" min="0" max="1000" step="1" value="${qkPos(k)}" aria-label="${tx('Qualità')}">
+    <div class="qk-ticks">${QK_TICKS.map((x) => `<span style="left:${qkPos(x) / 10}%">×${it(x, x < 10 && x % 1 ? 1 : 0)}</span>`).join('')}</div>
+    <div class="qk-prev" id="qkP">${qkPreview(k, k)}</div></div></div></div>`;
+}
+function wireQuality() {
+  const r = $('#qkR'); if (!r) return;
+  const k0 = qualityK(activeProfile().session);
+  const show = (k) => { $('#qkV').textContent = qkLabel(k); $('#qkX').textContent = '×' + it(k, k < 10 ? 1 : 0); $('#qkP').innerHTML = qkPreview(k, k0); };
+  r.oninput = () => show(qkOf(+r.value));
+  r.onchange = () => {
+    const k = qkOf(+r.value), p = activeProfile(); if (Math.abs(k - k0) < 1e-6) return;
+    p.session = { ...p.session, qk: k, quality: qualityNear(k) }; p.updated = Date.now();
+    effMemo = null; saveStore(); refresh(true);
+  };
+}
 /* precisione di guida consigliata per ogni configurazione del profilo attivo (model.js, guideAdvice) */
 const SAMP_TXT = { under: 'sottocampionato', ok: 'campionamento adeguato', over: 'sovracampionato' };
 function guideHTML() {
@@ -253,6 +286,7 @@ function renderSetup() {
   const red = !$('#veil').hidden, on = notifyOn(), nc = ncfg(), v = window.SKYFRAME_VERSION || '';
   el.innerHTML = `<div class="view-h"><h2>${tx('Setup')}</h2></div>
     <div class="st-sec"><h3>${tx('Attrezzatura')}</h3><div class="st-list">${prof}<button type="button" class="st-item" data-newp>${ic('plus')}<span class="tx"><b>${tx('Nuovo profilo')}</b><small>${tx('ottica, camera e filtri')}</small></span></button></div></div>
+    ${qualityHTML()}
     ${guideHTML()}
     <div class="st-sec"><h3>${tx('Luoghi')}</h3><div class="st-list">${locs}<button type="button" class="st-item" data-newl>${ic('plus')}<span class="tx"><b>${tx('Nuovo luogo')}</b><small>${tx('SQM e orizzonte dalla posizione')}</small></span></button></div></div>
     <div class="st-sec"><h3>${tx('Preferenze')}</h3><div class="st-list">
@@ -278,6 +312,7 @@ function renderSetup() {
       <button type="button" class="st-item" data-news>${ic('star')}<span class="tx"><b>${tx('Novità')}</b><small>${tx('le ultime versioni')}</small></span>${ic('chev-r')}</button>
     </div></div>
     <div class="st-sec"><h3>${tx('Informazioni')}</h3><p class="st-foot">Skyframe ${esc(v)} · <a href="https://github.com/astropuzzo/skyframe" target="_blank" rel="noopener">GitHub</a><br>${tx('Meteo')}: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · ${tx('Immagini')}: NSNS (S. Ziegenbalg), DSS2, Pan-STARRS (CDS), Wikimedia Commons · ${tx('Inquinamento luminoso')}: D. Lorenz, lightpollutionmap.info</p></div>`;
+  wireQuality();
   el.onclick = (e) => {
     const b = e.target.closest('[data-prof],[data-loc],[data-editp],[data-editl],[data-newp],[data-newl],[data-export],[data-import]'); if (!b) return;
     const d = b.dataset;

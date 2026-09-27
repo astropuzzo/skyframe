@@ -488,6 +488,17 @@ button.st-item:hover, .st-item.tap:hover { background: var(--card-2); }
 .idx-row .s.ok { color: var(--accent); }
 .st-item.gd .tx small { display: block; margin-top: 3px; line-height: 1.4; }
 .st-item.gd .gd-v { color: var(--ink); }
+.st-item.qk { display: block; padding: 14px; }
+.qk-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.qk-top b { font: 600 17px var(--font-d); letter-spacing: .02em; }
+.qk-top span { font: 500 15px var(--font-m); color: var(--ink-2); }
+.st-item.qk input[type=range] { width: 100%; margin: 12px 0 2px; }
+.qk-ticks { position: relative; height: 16px; margin: 0 8px; }
+.qk-ticks span { position: absolute; transform: translateX(-50%); font: 500 10.5px var(--font-m); color: var(--ink-3); white-space: nowrap; }
+.qk-prev { margin-top: 10px; display: grid; gap: 4px; }
+.qk-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 13.5px; padding: 5px 0; border-top: 1px solid var(--line); }
+.qk-row small { color: var(--ink-3); }
+.qk-row b { font: 500 14px var(--font-m); }
 .d-extra { margin: 4px 0 8px; font-size: 12.5px; color: var(--warn); line-height: 1.4; }
 .real-card { margin-top: 12px; border: 1px solid var(--line-2); background: var(--card); border-radius: var(--r3); padding: 14px 16px; }
 .real-card .head { display: flex; align-items: baseline; gap: 10px; }

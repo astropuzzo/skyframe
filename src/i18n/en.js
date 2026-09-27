@@ -848,4 +848,8 @@ window.I18N.en = {
   "SHO sui soggetti adatti": "SHO on suitable targets",
   "Minor tempo": "Shortest time",
   "SHO consigliato sui soggetti adatti, se hai i filtri": "SHO recommended on suitable targets, if you have the filters",
+  "oltre «profonda»": "beyond “deep”",
+  "sotto «rapida»": "below “quick”",
+  "fra i livelli": "between levels",
+  "Qualità: slider continuo in Setup, con le ore dei tuoi target mentre lo sposti": "Quality: continuous slider in Setup, with your targets’ hours as you move it",
 };

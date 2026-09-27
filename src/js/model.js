@@ -251,6 +251,13 @@ function skySource(site) {
   return { k: 'inserito', sigma: 0.3 };
 }
 const QLABEL = { quick: 'rapida', good: 'buona', great: 'eccellente', deep: 'profonda' };
+/* Livello di qualità continuo: k moltiplica il SNR² della foto mediana (1 = «buona»). I quattro nomi sono punti della
+   scala (rapida 0,47, buona 1, eccellente 2, profonda 3,3: 25°, 50°, 75° e 90° percentile delle foto); session.qk, se
+   c'è, vale al posto del nome. */
+const QK = { min: 0.3, max: 30 };
+const qualityK = (s) => { const k = +(s && s.qk); return k > 0 ? Math.min(QK.max, Math.max(QK.min, k)) : ((QUALITY[s && s.quality] || QUALITY.good).k); };
+const qualityNear = (k) => Object.entries(QUALITY).reduce((a, x) => (Math.abs(Math.log(x[1].k / k)) < Math.abs(Math.log(a[1].k / k)) ? x : a))[0];
+const qualityName = (k) => { const n = qualityNear(k); return Math.abs(Math.log(QUALITY[n].k / k)) < 0.05 ? tx(QLABEL[n]) : '×' + it(k, k < 10 ? 1 : 0); };
 const accId = () => 'a' + Math.random().toString(36).slice(2, 8);
 
 function templateProfile() {
@@ -960,7 +967,7 @@ function computePrep(cfgs, active, ds, now) {
   const sky = skyModel(active.site);
   const nowIn = now >= night.t[0] && now <= night.t[N];
   return {
-    cfgs, active, night, lut, minAlt, sky, Q: QUALITY[active.session.quality] || QUALITY.good, consts: cfgs.map(configConst),
+    cfgs, active, night, lut, minAlt, sky, Q: { ...QUALITY.good, k: qualityK(active.session) }, consts: cfgs.map(configConst),
     nowIn, nowLst: lstDeg(now, +active.site.lon), minDec: active.site.lat - 90 + minAlt,
     alt: new Float32Array(N + 1), az: new Float32Array(N + 1),
     U: { X: new Float32Array(N + 1), art: new Float32Array(N + 1), nat: new Float32Array(N + 1), mf: new Float32Array(N + 1), n: 0, h: 0 },
