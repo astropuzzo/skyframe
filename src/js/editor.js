@@ -9,7 +9,7 @@ function fillEditorSelects() {
   const brandOf = (n) => (n.match(/^(William Optics|Sky-Watcher|Explore Scientific|TS-Optics|TS-Photon|GSO \/ TS|Obiettivo)/) || [n.split(' ')[0]])[0].replace(/^TS-Photon|^GSO \/ TS/, 'TS-Optics');
   const groups = new Map(); OPTICS.filter((c) => c.id !== 'custom').forEach((c) => { const b = brandOf(c.name); if (!groups.has(b)) groups.set(b, []); groups.get(b).push(c); });
   OPTIC_OPTIONS = [...groups.keys()].sort((a, b) => a.localeCompare(b)).map((b) => `<optgroup label="${esc(b === 'Obiettivo' ? tx('Obiettivi fotografici') : b)}">${groups.get(b).map((c) => `<option value="${c.id}">${esc(txName(c.name))}</option>`).join('')}</optgroup>`).join('') + `<option value="custom">${tx('Personalizzato')}</option>`;
-  F('f_bortle').innerHTML = Object.keys(BORTLE_RANGE).map((b) => `<option value="${b}">${b} · SQM ${it(BORTLE_RANGE[b][0], 2)}–${it(BORTLE_RANGE[b][1], 2)}</option>`).join('');
+  F('f_bortle').innerHTML = Object.keys(BORTLE_RANGE).map((b) => `<option value="${b}">${b} · SQM ${it(BORTLE_SQM[b], 2)} (${it(BORTLE_RANGE[b][0], 2)}–${it(BORTLE_RANGE[b][1], 2)})</option>`).join('');
 }
 function bandTxt(f) {
   const C = { Ha: 656.3, OIII: 500.7, SII: 672.4 };

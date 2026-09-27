@@ -325,9 +325,21 @@ function closeDetail(fromPop, how) {
 /* da dove viene il livello di qualità di questo oggetto (model.js, objQualOf) */
 function qualTxt(o) {
   const [, src] = objQualOf(o), e = window.QUALITY_OBJ && QUALITY_OBJ.o[o.id], n = e ? e[2] : 0;
-  if (src === 'foto') return tx('Livello «buona»: il SNR della foto mediana di questo oggetto su AstroBin ({n} foto da cieli Bortle 6–8, camera a colori), riportato al tuo setup.', { n });
-  if (src === 'stima') return tx('Livello «buona»: stimato dalla difficoltà dell’oggetto (nessuna foto di riferimento; su oggetti simili l’errore tipico è un fattore 1,6).');
+  if (src === 'foto') return tx('Livello «buona»: il SNR della foto mediana di questo oggetto su AstroBin ({n} foto, ognuna riportata a una camera a colori sotto un cielo SQM 19), ottenuto con il tuo setup.', { n });
+  if (src === 'stima') return tx('Livello «buona»: stimato dalla difficoltà dell’oggetto (nessuna foto di riferimento; su oggetti simili l’errore tipico è un fattore 1,5).');
   return tx('Livello «buona»: SNR di riferimento del modello, senza taratura.');
+}
+/* Le ore dichiarate cambiano poco con camera e cielo: chi ha un setup più efficiente arriva a un SNR più alto
+   (quality.js, grp). Per la configurazione attiva: di quanto è più alto il SNR² tipico delle foto fatte così, e il livello
+   dell'app più vicino. Solo un'informazione: il tempo mostrato resta quello del livello scelto. */
+const LEVEL_K = [['quick', 0.47], ['good', 1], ['great', 2], ['deep', 3.3]];
+function peerTxt(p, sqm, o) {
+  const G = window.QUALITY_OBJ && QUALITY_OBJ.grp; if (!G) return '';
+  const t = p.camera.type, cam = t === 'mono' ? (LINES[o.lk] ? 'monoRighe' : 'monoContinuo') : t === 'dslr' ? 'reflex' : t === 'dslrmod' ? 'reflexMod' : null;
+  const F = Math.pow(10, (cam ? G[cam] : 0) + G.sky * (sqm - ((QUALITY_OBJ.ref || {}).sqm || 19))); if (Math.abs(Math.log10(F)) < 0.15) return '';
+  const near = LEVEL_K.reduce((a, x) => (Math.abs(Math.log(x[1] / F)) < Math.abs(Math.log(a[1] / F)) ? x : a)), over = F > 3.3 * 1.5;
+  const what = tx(t === 'mono' ? 'camera mono' : cam ? 'reflex' : 'camera a colori');
+  return tx('Con {c} e un cielo SQM {s}, le foto di riferimento arrivano in media a un SNR² {f} volte quello del livello «buona», con ore simili: chi riprende tende a usare lo stesso tempo con qualsiasi setup.', { c: what, s: it(sqm, 1), f: it(F, F < 1 ? 2 : 1) }) + ' ' + (over ? tx('È oltre il livello più alto, «profonda» (×3,3).') : tx('Il livello più vicino è «{l}».', { l: tx(QLABEL[near[0]]) }));
 }
 /* obiettivo del profilo e criterio con cui è stata scelta la strada (model.js, eligible e pickBest) */
 const GOAL_TXT = {
@@ -479,18 +491,30 @@ function wireGallery(r, e) {
 
 /* Foto vere (src/data/real.js): come è stato ripreso questo oggetto da cieli Bortle 6–8 con camera a colori, e dove cade
    la stima per il tuo setup. Scala logaritmica da mezz'ora a 80 ore. */
-const REAL_REC = { bb: 'Banda larga', lp: 'Anti-inquinamento', duo: 'Duo-band Hα+OIII', so: 'Duo-band SII+OIII', quad: 'Quad-band', sho: 'SHO con due duo-band', 'duo+rgb': 'Duo-band e banda larga', 'quad+rgb': 'Quad-band e banda larga', 'so+rgb': 'SII+OIII e banda larga' };
-function realHTML(o, mine, anim) {
-  const R = window.REAL && window.REAL.o[o.id]; if (!R) return '';
-  const [n, q1, md, q3, recs] = R, lo = Math.log(0.5), span = Math.log(80) - lo, me = mine > 0 && isFinite(mine);
+const REAL_REC = { bb: 'Banda larga', lp: 'Anti-inquinamento', duo: 'Duo-band Hα+OIII', so: 'Duo-band SII+OIII', quad: 'Quad-band', sho: 'SHO con due duo-band', 'duo+rgb': 'Duo-band e banda larga', 'quad+rgb': 'Quad-band e banda larga', 'so+rgb': 'SII+OIII e banda larga',
+  msho: 'SHO', mhoo: 'HOO', 'msho+rgb': 'SHO e RGB per le stelle', 'mhoo+rgb': 'HOO e RGB per le stelle', mhargb: 'Hα + RGB', mha: 'Solo Hα', mlrgb: 'LRGB', mrgb: 'RGB' };
+const REAL_SKY = { u: 'cieli urbani (SQM < 19,25)', p: 'cieli di periferia (SQM 19,25–20,8)', b: 'cieli bui (SQM ≥ 20,8)' };
+/* il gruppo di foto più simile: stessa camera (a colori o mono) e stessa fascia di cielo, con almeno 5 foto; altrimenti la
+   stessa camera con tutti i cieli */
+function realGroup(o, camType, sqm) {
+  const R = window.REAL && window.REAL.o[o.id]; if (!R) return null;
+  const c = camType === 'mono' ? 'm' : 'c', k = c + (sqm < 19.25 ? 'u' : sqm < 20.8 ? 'p' : 'b');
+  if (R[k] && R[k][0] >= 5) return { v: R[k], cam: c, sky: k[1] };
+  if (R[c] && R[c][0] >= 3) return { v: R[c], cam: c, sky: null };
+  return null;
+}
+function realHTML(o, mine, anim, camType, sqm) {
+  const G = realGroup(o, camType, sqm); if (!G) return '';
+  const [n, q1, md, q3, recs] = G.v, lo = Math.log(0.5), span = Math.log(80) - lo, me = mine > 0 && isFinite(mine);
+  const who = tx(G.cam === 'm' ? 'camera mono' : 'camera a colori'), sky = G.sky ? tx(REAL_SKY[G.sky]) : tx('tutti i cieli');
   const x = (h) => clamp(((Math.log(Math.max(h, 0.5)) - lo) / span) * 100, 0, 100).toFixed(1);
   const rows = recs.filter((r) => r[1] >= 2).slice(0, 4), max = Math.max(...rows.map((r) => r[1]), 1);
   const aria = tx('Foto di riferimento: mediana {m}, metà centrale fra {a} e {b}', { m: fmtH(md), a: fmtH(q1), b: fmtH(q3) }) + (me ? ' · ' + tx('stima per te {h}', { h: fmtH(mine) }) : '');
-  return `<div class="real-card${anim ? ' in' : ''}"><div class="head"><span class="t">${tx('Foto di riferimento')}</span><span class="n">${tx('{n} foto da cieli Bortle 6–8', { n })}</span></div>
+  return `<div class="real-card${anim ? ' in' : ''}"><div class="head"><span class="t">${tx('Foto di riferimento')}</span><span class="n">${tx('{n} foto', { n })}</span></div><div class="grp">${esc(who)} · ${esc(sky)}</div>
     <div class="rbar" role="img" aria-label="${esc(aria)}" style="--a:${x(q1)}%;--b:${x(q3)}%;--m:${x(md)}%${me ? `;--u:${x(mine)}%` : ''}"><span class="iqr"></span><span class="md"></span>${me ? '<span class="me"></span>' : ''}${[1, 3, 10, 30].map((h) => `<span class="tk" style="left:${x(h)}%">${h} h</span>`).join('')}</div>
     <div class="rleg"><span><i class="k-md"></i>${tx('mediana {h}', { h: fmtH(md) })}</span><span><i class="k-iqr"></i>${tx('metà centrale fra {a} e {b}', { a: fmtH(q1), b: fmtH(q3) })}</span>${me ? `<span><i class="k-me"></i>${tx('stima per te {h}', { h: fmtH(mine) })}</span>` : ''}</div>
     ${rows.length ? `<div class="recs"><div class="rec hd"><span>${tx('filtri')}</span><span></span><span>${tx('foto')}</span><span>${tx('ore')}</span><span>sub</span></div>${rows.map(([k, c, h, s], i) => `<div class="rec" style="--i:${i}"><span class="l">${esc(tx(REAL_REC[k] || k))}</span><span class="c"><i style="width:${Math.round((c / max) * 100)}%"></i></span><span class="v">${c}</span><span class="v">${fmtH(h)}</span><span class="v">${s ? s + ' s' : '—'}</span></div>`).join('')}</div>` : ''}
-    <p class="note">${tx('Foto con camera a colori da cieli Bortle 6–8 (dichiarati dagli autori), almeno 25 apprezzamenti su AstroBin, riprese dal 2024. Integrazione dichiarata dagli autori; esclusi i telescopi automatici.')}</p></div>`;
+    <p class="note">${tx('Foto su AstroBin con {c}, {s}: almeno 25 apprezzamenti, riprese dal {y}. Cielo dichiarato dagli autori (SQM o classe di Bortle), integrazione dichiarata dagli autori; esclusi i telescopi automatici. Le ore delle foto sono un’abitudine più che un fabbisogno: variano poco con camera e cielo.', { c: who, s: sky, y: window.REAL.since || 2020 })}</p></div>`;
 }
 const D_TABS = [['piano', 'Piano'], ['quando', 'Quando'], ['campo', 'Campo'], ['consigli', 'Consigli']];
 /* le animazioni d'ingresso del dettaglio (strisce, calendario) solo all'apertura o al cambio di scheda, non a ogni aggiornamento */
@@ -563,6 +587,7 @@ function renderDetail() {
   const planHTML = plan ? `<div class="plan-card"><div class="head"><span class="t">${esc(b.label)}</span><span class="h">≈ ${fmtH(planTot)}</span></div>
       <div class="pc-sub">${tx('livello {q} · {cfg}, {f}', { q: tx(QLABEL[p.session.quality] || 'buona'), cfg: esc(e.cfg.label), f: e.cfg.short })}</div>
       <div class="pc-sub">${qualTxt(o)}</div>
+      ${peerTxt(p, +p.site.sqm, o) ? `<div class="pc-sub">${peerTxt(p, +p.site.sqm, o)}</div>` : ''}
       <div class="pc-sub">${tx(GOAL_TXT[p.session.goal] || GOAL_TXT.snr)}</div>
       ${skyR && skyR[0] && skyR[1] ? `<div class="pc-sub">${tx('{a}–{b} con SQM ± {s} ({src})', { a: fmtH(skyR[0]), b: fmtH(skyR[1]), s: it(skyS.sigma, 1), src: tx(SKY_SRC[skyS.k]) })}</div>` : ''}
       ${b.deep ? `<div class="deep">${tx('Includendo l’Hα diffuso attorno all’oggetto ({r} R, mappa di Finkbeiner): <b>{h}</b> in totale.', { r: it(o.ha, 1), h: fmtH(planDeep) })}</div>` : ''}
@@ -593,7 +618,7 @@ function renderDetail() {
     ${scenHTML(r, e)}
     ${projHTML(r, e, b)}
     ${planHTML}
-    ${realHTML(o, b ? planTot : NaN, !renderDetail.same)}
+    ${realHTML(o, b ? planTot : NaN, !renderDetail.same, e.cfg.profile.camera.type, +p.site.sqm)}
   </section>
 
   <section class="tabp" data-tab="quando" ${tab === 'quando' ? '' : 'hidden'}>
@@ -624,7 +649,7 @@ function renderDetail() {
   </section>`;
   const HOW_IT = `<p>Per ogni filtro si usano le bande passanti e la trasmissione pubblicate dai produttori (i dati stimati sono segnalati nel catalogo dei filtri). In ogni banda si calcolano il segnale dell’oggetto (continuo e righe Hα, [NII], Hβ, OIII, [SII]) e il fondo cielo: SQM del luogo per direzione (continuo di tipo LED più righe di mercurio e sodio), luminescenza naturale, Luna a passi di 5 minuti, estinzione atmosferica ridotta con l’altitudine. Il segnale raccolto dipende dalla risposta spettrale del sensore (efficienza misurata su sensori Sony retroilluminati: 58% del picco a Hα, 54% a SII, 100% a OIII) e, nelle camere a colori, dalla trasmissione dei filtri rossi, verdi e blu dei pixel. Il target si segue lungo il suo percorso nella notte scelta. Il tempo mostrato è quello senza Luna lungo quel percorso; con la Luna della notte il tempo si ricalcola e, se un’altra combinazione è più rapida di almeno il 15%, la si indica a parte.</p>
     <p>Il rapporto segnale/rumore (SNR) si calcola per elemento di risoluzione, proporzionale al diametro (2,3″ a 200 mm, 4,7″ a 100 mm, oppure il pixel se è più grande), su tre strutture: il corpo dell’oggetto (per le nebulose a emissione dall’Hα misurato nelle survey NSNS e SHASSA), le parti deboli (aloni, bracci esterni) e le polveri circostanti. Il tempo segue il rumore fotonico: t ∝ SNR² × (segnale + fondo + rumore di lettura) / segnale². Filtri, cielo, telescopio e Luna cambiano il tempo solo attraverso questa relazione.</p>
-    <p>Il livello «buona» è il SNR raggiunto dalla foto mediana apprezzata su AstroBin di quell’oggetto (camere a colori, cieli Bortle 6–8 dichiarati dagli autori), calcolato con l’attrezzatura e il cielo di ciascuna foto e riportato al tuo setup. Per gli oggetti senza foto il livello si prevede dalla difficoltà fisica dell’oggetto, perché le foto mostrano che sugli oggetti difficili si accetta un SNR più basso. Taratura su 2054 foto di 259 oggetti; verifica su 743 foto di 161 oggetti esclusi dalla taratura: errore tipico sull’oggetto di un fattore 1,6, due oggetti su tre entro un fattore 2. La stessa foto ripresa da persone diverse varia già di un fattore 2,7 in ore.</p>
+    <p>Il livello «buona» è il SNR raggiunto dalla foto mediana apprezzata su AstroBin di quell’oggetto, calcolato con l’attrezzatura e il cielo di ciascuna foto (SQM dichiarato, oppure classe di Bortle convertita con i valori che gli autori stessi dichiarano) e riportato a una camera a colori sotto un cielo SQM 19. Il riporto usa effetti misurati sulle foto: a parità di oggetto, con una camera mono il SNR² raggiunto è 4 volte più alto, e 1,7 volte più alto per ogni magnitudine di cielo più buio, perché le ore cambiano poco con il setup. Per gli oggetti senza foto il livello si prevede dalla difficoltà fisica dell’oggetto. Taratura su 6918 foto di 311 oggetti (camere a colori, reflex e mono, cieli da Bortle 1 a 9); verifica su oggetti mai usati per tarare: errore tipico sull’oggetto di un fattore 1,6 per le foto a colori da città, 2 per tutte le foto. La stessa foto ripresa da persone diverse varia già di un fattore 2,7 in ore.</p>
     <p>Scelta dei filtri: fra le combinazioni ammesse dall’obiettivo del profilo (minor tempo per il SNR, tutte le righe, colori naturali) si sceglie quella con il tempo più breve, senza pesi aggiuntivi. Limiti: il modello non conosce qualità ottica, messa a fuoco, trasparenza reale ed elaborazione, che possono cambiare il risultato di un fattore 2; l’SQM del luogo è spesso una stima (±0,3 mag o più) e il piano mostra l’intervallo di ore che ne deriva. I tempi servono a pianificare, non sono garanzie.</p>`;
   if (LANG === 'it') $('#drawer details.how').innerHTML = `<summary>${tx('Come si stimano i tempi')}</summary>` + HOW_IT;
   $('#dClose').onclick = closeDetail;

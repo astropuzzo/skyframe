@@ -220,17 +220,26 @@ function opticKind(o) {
 }
 const presetsFor = (o) => { const k = opticKind(o); return ACCESSORY_PRESETS.filter((x) => x[2] === 'any' || x[2] === k); };
 /* Scala di Bortle e SQM. La scala di Bortle è una classificazione visuale (magnitudine limite, Via Lattea, luci): non ha
-   una conversione esatta in SQM. Intervalli di riferimento: Dark Skies Awareness (riportati in «Bortle scale»,
-   Wikipedia), con la classe 4,5 unita alla 4; altre tabelle pubblicate differiscono fino a ~0,5 mag. Per le classi 8 e 9
-   la fonte non dà l'estremo inferiore: quello qui è un'ipotesi. BORTLE_SQM è il centro dell'intervallo e si usa solo se
-   non c'è un valore SQM. */
-const BORTLE_RANGE = { 1: [21.76, 22.0], 2: [21.6, 21.76], 3: [21.3, 21.6], 4: [20.3, 21.3], 5: [19.25, 20.3], 6: [18.5, 19.25], 7: [18.0, 18.5], 8: [17.5, 18.0], 9: [16.8, 17.5] };
-const BORTLE_SQM = Object.fromEntries(Object.entries(BORTLE_RANGE).map(([k, [a, b]]) => [k, Math.round(((a + b) / 2) * 100) / 100]));
-const sqmToBortle = (s) => { for (let b = 1; b <= 8; b++) if (s >= BORTLE_RANGE[b][0]) return b; return 9; };
+   una conversione esatta in SQM. Due riferimenti:
+   - tabella di Dark Skies Awareness (BORTLE_DSA, riportata in «Bortle scale», Wikipedia; la classe 4,5 unita alla 4);
+   - i valori che gli astrofotografi dichiarano insieme alla classe su AstroBin (BORTLE_EMP): 1408 foto con entrambi i
+     valori, da 6 a 79 autori per classe; per ogni autore la mediana dei suoi SQM in quella classe, poi mediana e quartili fra autori
+     (così un autore con molte foto dallo stesso sito conta una volta). [mediana, 1° quartile, 3° quartile, autori].
+   Per le classi 1–5 i due riferimenti coincidono entro 0,1 mag; le classi 6, 7 e 8 dichiarate corrispondono a cieli più
+   bui della tabella DSA di 0,37, 0,35 e 0,25 mag. Si usa BORTLE_EMP: è il significato che la classe ha per chi riprende
+   (e per le foto con cui si tara il modello). BORTLE_SQM è la mediana e si usa solo se non c'è un valore SQM; la metà
+   centrale fra autori dà l'incertezza (skySource). La classe 9 ha solo 6 autori: incertezza minima 0,25. */
+const BORTLE_DSA = { 1: [21.76, 22.0], 2: [21.6, 21.76], 3: [21.3, 21.6], 4: [20.3, 21.3], 5: [19.25, 20.3], 6: [18.5, 19.25], 7: [18.0, 18.5], 8: [17.5, 18.0], 9: [16.8, 17.5] };
+const BORTLE_EMP = { 1: [21.85, 21.55, 22.0, 20], 2: [21.6, 21.3, 21.9, 33], 3: [21.41, 21.21, 21.6, 57], 4: [20.9, 20.4, 21.23, 79], 5: [19.8, 19.5, 20.1, 52], 6: [19.25, 18.94, 19.43, 24], 7: [18.6, 18.4, 18.77, 26], 8: [18.0, 17.9, 18.34, 12], 9: [17.8, 17.72, 17.85, 6] };
+const BORTLE_SQM = Object.fromEntries(Object.entries(BORTLE_EMP).map(([k, v]) => [k, v[0]]));
+const BORTLE_RANGE = Object.fromEntries(Object.entries(BORTLE_EMP).map(([k, v]) => [k, [v[1], v[2]]]));
+// classe dall'SQM: il confine è a metà fra le mediane di due classi vicine
+const sqmToBortle = (s) => { for (let b = 1; b <= 8; b++) if (s >= (BORTLE_SQM[b] + BORTLE_SQM[b + 1]) / 2) return b; return 9; };
 /* Da dove viene l'SQM di un luogo e quanto è incerto (σ, mag/″²): una misura con fotometro (σ 0,1: ripetibilità e
    variazioni da una notte all'altra), una stima da modello satellitare (mappa all-sky di lightpollutionmap o atlante di
    Lorenz: σ 0,3, ordine di grandezza dello scarto fra atlanti e misure a terra, da verificare), la classe di Bortle
-   (mezzo intervallo più lo scarto fra tabelle, 0,25), un valore inserito senza indicarne l'origine (σ 0,3). */
+   (la dispersione fra gli autori che la dichiarano: metà centrale / 1,35, almeno 0,25), un valore inserito senza
+   indicarne l'origine (σ 0,3). */
 const SKY_SRC = { misura: 'misurato con un fotometro', mappa: 'stima dalla mappa all-sky', atlante: 'stima dall’atlante di Lorenz', bortle: 'stima dalla classe di Bortle', inserito: 'valore inserito, origine non indicata' };
 function skySource(site) {
   const s = +site.sqm;
@@ -238,7 +247,7 @@ function skySource(site) {
   if (site.skyMap && Math.abs(s - site.skyMap.zenith) < 0.01) return { k: 'mappa', sigma: 0.3 };
   if (site.lpZen != null && Math.abs(s - site.lpZen) < 0.01) return { k: 'atlante', sigma: 0.3 };
   const r = BORTLE_RANGE[site.bortle];
-  if (r && Math.abs(s - BORTLE_SQM[site.bortle]) < 0.01) return { k: 'bortle', sigma: Math.round(Math.hypot((r[1] - r[0]) / 2, 0.25) * 100) / 100 };
+  if (r && Math.abs(s - BORTLE_SQM[site.bortle]) < 0.01) return { k: 'bortle', sigma: Math.round(Math.max((r[1] - r[0]) / 1.35, 0.25) * 100) / 100 };
   return { k: 'inserito', sigma: 0.3 };
 }
 const QLABEL = { quick: 'rapida', good: 'buona', great: 'eccellente', deep: 'profonda' };

@@ -19,7 +19,7 @@ Per ogni oggetto, ogni configurazione del profilo (telescopio con o senza access
 | Luminosità superficiale e dimensioni | OpenNGC, Sharpless, Lynds, tabelle di correzione | misura (dalla magnitudine) o stima (classe, opacità, valore tipico): vedi [CATALOGO.md](CATALOGO.md) |
 | Polvere attorno all'oggetto | mappa SFD 1998 di E(B−V) | misura |
 | Hα diffuso attorno | mappa di Finkbeiner 2003 | misura |
-| Fondo cielo allo zenit (SQM) | misura con fotometro, mappa all-sky, atlante di Lorenz, classe di Bortle | misura o stima con incertezza dichiarata (§ 6) |
+| Fondo cielo allo zenit (SQM) | misura con fotometro, mappa all-sky, atlante di Lorenz, classe di Bortle (convertita con i valori dichiarati dagli astrofotografi) | misura o stima con incertezza dichiarata (§ 6) |
 | Fondo cielo per direzione | mappa all-sky o atlante (forma), altrimenti profilo medio | stima |
 | Spettro della luce artificiale | 75% continuo tipo LED + righe di mercurio e sodio | ipotesi |
 | Luminescenza naturale | 22,0 mag/″² allo zenit, più chiara verso l'orizzonte | valore tipico |
@@ -48,37 +48,50 @@ Filtri, cielo, telescopio e Luna cambiano i tempi **solo** attraverso queste rel
 
 ## 5. Livello di qualità: dalle foto
 
-**Evidenza.** Per ogni foto di AstroBin con attrezzatura riconosciuta il modello rifà il conto con il telescopio, la camera, i filtri e il cielo (classe Bortle dichiarata) di quella foto e ottiene il tempo fisico a un SNR di riferimento, t_fis. Il rapporto g = ore dichiarate / t_fis dice quale SNR ha raggiunto la foto: SNR = SNR_rif · √g.
+**Evidenza.** Per ogni foto di AstroBin con attrezzatura riconosciuta il modello rifà il conto con il telescopio, la camera, i filtri e il cielo di quella foto (SQM dichiarato dall'autore o, in mancanza, la classe di Bortle convertita come in § 6) e ottiene il tempo fisico a un SNR di riferimento, t_fis. Il rapporto g = ore dichiarate / t_fis dice quale SNR ha raggiunto la foto: SNR = SNR_rif · √g.
 
-Tre osservazioni:
+Quattro osservazioni, su 6918 foto di 311 oggetti (camere a colori, reflex e mono; cieli da Bortle 1 a 9):
 
-- Le ore dichiarate dipendono poco dal tempo fisico: fra oggetti crescono come t_fis^0,2–0,3; per lo stesso oggetto quasi per niente (chi riprende non adegua le ore al proprio cielo o filtro). Le ore delle foto misurano quindi un'abitudine, non il tempo necessario.
-- Il SNR raggiunto dipende dall'oggetto: sugli oggetti difficili si accetta un SNR più basso. Fra oggetti, log g = a + b · log D con b = −0,71, dove D è la difficoltà fisica (ore a SNR di riferimento con un setup fisso: rifrattore 100 mm f/5,5, IMX571 a colori, UV/IR e L-eXtreme, SQM 19,0, latitudine 45°).
-- Le camere mono e i cieli bui raggiungono SNR molto più alti (g ×5–16), ma con pochi dati (90 e 80 foto).
+- **Le ore dichiarate sono soprattutto un'abitudine.** Fra le foto dello stesso autore le ore crescono appena con il tempo fisico (pendenza 0,17 in scala logaritmica: se le ore seguissero il fabbisogno sarebbe 1). In 46 casi lo stesso autore ha ripreso lo stesso oggetto con la stessa camera da cieli diversi (mediana 2,9 mag di differenza): il tempo fisico al cielo più buio è ×0,24, le ore dichiarate ×1,06.
+- **Quindi chi ha un setup più efficiente arriva a un SNR più alto.** A parità di oggetto (effetti fissi, minimi quadrati): con camera mono il SNR² raggiunto è ×5,2 sugli oggetti a righe (banda stretta) e ×2,8 su quelli a spettro continuo; con reflex ×0,24 (modificata ×0,40); per ogni magnitudine di cielo più buio ×1,75. Dentro le foto dello stesso autore, per chi ha usato camere o cieli diversi, gli effetti sono simili (mono ×3,3, cielo ×1,6 per magnitudine).
+- **Il SNR raggiunto dipende dall'oggetto:** sugli oggetti difficili si accetta un SNR più basso. Fra oggetti, log g = a + b · log D con b = −0,66, dove D è la difficoltà fisica (ore a SNR di riferimento con un setup fisso: rifrattore 100 mm f/5,5, IMX571 a colori, UV/IR e L-eXtreme, SQM 19,0, latitudine 45°).
+- **Le pose singole delle foto confermano quelle proposte:** mediana 300 s con i multibanda su camera a colori, 60–180 s in banda larga (60 s sotto f/3), 300 s in banda stretta 5–8 nm su mono, 300–600 s sotto i 4,5 nm.
 
-**Uso nel modello.** Il livello «buona» di un oggetto è il SNR della sua foto mediana: per gli oggetti con foto, la mediana delle loro g unita alla previsione con peso 6 foto; per gli altri la previsione da D. Il tempo mostrato è t_fis (con la tua attrezzatura, il tuo cielo, la tua Luna) × g × k, con k = 0,47 / 1 / 2 / 3,3 per rapida / buona / eccellente / profonda (25°, 50°, 75°, 90° percentile delle foto dello stesso oggetto). Nel dettaglio si vede se il livello viene dalle foto dell'oggetto o dalla previsione.
+**Uso nel modello.** Il livello «buona» di un oggetto è il SNR della sua foto mediana **riportata a un riferimento fisso**: camera a colori, cielo SQM 19,0. Ogni foto si riporta togliendo gli effetti di camera e cielo misurati sopra; per gli oggetti con foto si prende la mediana, unita alla previsione con peso 6 foto; per gli altri la previsione da D. Il tempo mostrato è t_fis (con la tua attrezzatura, il tuo cielo, la tua Luna) × g × k, con k = 0,47 / 1 / 2 / 3,3 per rapida / buona / eccellente / profonda. Il livello non dipende dal tuo setup, così il confronto fra luoghi, filtri e camere resta fisico. Con camera mono, reflex o cielo diverso da SQM 19 il piano indica di quanto è più alto (o più basso) il SNR² tipico delle foto fatte così, e il livello dell'app più vicino: è un'informazione, non cambia il tempo. La scheda «Foto di riferimento» mostra le foto con camera e cielo simili ai tuoi (camera a colori o mono; cielo urbano, di periferia o buio).
 
-**Differenza dalle versioni precedenti.** La 0.16–0.18 comprimeva il tempo fisico (ore ∝ √t_fis) per somigliare alle ore dichiarate: si avvicinava alle foto, ma attenuava anche le differenze fisiche fra filtri e cieli, quindi rendeva meno affidabile il confronto fra combinazioni. Ora la dipendenza dall'oggetto (evidenza) e la fisica (strumenti, cielo, filtri, Luna) sono separate.
+**Differenza dalle versioni precedenti.** Fino alla 0.20 il livello veniva dalle sole foto a colori da cieli Bortle 6–8 (2054 foto), con la classe convertita con la tabella DSA. Ora usa tutte le foto riportate al riferimento (3,4 volte di più, 311 oggetti invece di 259) e la conversione empirica della classe di Bortle. Molti livelli salgono (M 31 ×2,6, IC 1396 ×1,8): sulla verifica le foto a colori da città risultano ora centrate (rapporto mediano ×0,98, prima ×0,81).
 
 ### Dati usati
 
 | Insieme | Contenuto | Uso |
 | --- | --- | --- |
 | Prima raccolta (2026-09-25) | 190 foto di 23 oggetti, schede lette a mano, cieli e camere di ogni tipo | taratura della struttura del modello (elemento di risoluzione, dipendenza dalla luminosità superficiale, galassie) |
-| Seconda raccolta (2026-09-26, 1ª parte) | 1205 foto, 101 oggetti; camere a colori, Bortle 6–8, ≥30 apprezzamenti, dal 2024 | taratura dei livelli di qualità e delle pose singole |
-| Terza raccolta (2026-09-26, 2ª parte) | 2241 foto, 559 target cercati; 972 foto nuove, 192 target nuovi | **verifica** (i 161 oggetti confrontabili mai usati per tarare), poi inclusa nella taratura finale |
-| Foto utilizzabili | 2183 su 2241 con attrezzatura riconosciuta (0.19: 2107); 2054 a colori usate per il livello di qualità | taratura e verifica |
-| Foto scartate | 58: più telescopi o camere nella stessa foto (23), integrazione mancante (11), filtri non modellabili (19: filtri integrati dei telescopi intelligenti, filtri per l'infrarosso, un solo filtro di colore su camera a colori, nomi ambigui, filtri senza bande pubblicate), telescopi non identificabili (5: nomi generici o configurabili, autocostruiti) | escluse: dati insufficienti |
-| Camere mono (90 foto), cieli Bortle 1–5 (80 foto) | dalla prima raccolta | insufficienti per tarare un livello proprio; mostrano solo che quelle foto raggiungono SNR più alti |
-| Foto con SQM misurato | nessuna nella seconda e terza raccolta | assenti: il cielo delle foto viene dalla classe Bortle (§ 6) |
+| Seconda raccolta (2026-09-26, 1ª parte) | 1205 foto, 101 oggetti; camere a colori, Bortle 6–8, ≥30 apprezzamenti, dal 2024 | taratura |
+| Terza raccolta (2026-09-26, 2ª parte) | 2241 foto, 559 target cercati | verifica della 0.19 e 0.20, poi taratura |
+| Quarta raccolta (2026-09-27) | 6124 foto (5833 nuove), 239 oggetti, 57 mai visti; 2533 mono; Bortle 1–9; 1908 con SQM dichiarato | **verifica** sui 52 oggetti nuovi confrontabili, poi taratura; conversione Bortle → SQM (§ 6); verifica delle pose singole |
+| Foto utilizzabili | 7286 su 8074 (4608 camere a colori, 435 reflex, 2243 mono) | taratura e verifica |
+| Foto scartate | 788: telescopio non identificabile (184), filtri non modellabili (318: integrati nei telescopi intelligenti, infrarosso, set indicati senza distinguere i filtri, bande non pubblicate), più telescopi o camere (157), focale non ricavabile (57), camera sconosciuta o incoerente (37), integrazione mancante (35) | escluse: dati insufficienti |
+| Autore delle foto | per 2391 foto la raccolta indica il fondatore di AstroBin (dal piè di pagina) | autore considerato sconosciuto: escluse dalle analisi per autore |
 
 ## 6. SQM e classe di Bortle
 
-La scala di Bortle è una classificazione visuale; non ha una conversione esatta in SQM. Si usano gli intervalli di Dark Skies Awareness (riportati in «Bortle scale», Wikipedia; la classe 4,5 è unita alla 4): 1: 21,76–22,0 · 2: 21,6–21,76 · 3: 21,3–21,6 · 4: 20,3–21,3 · 5: 19,25–20,3 · 6: 18,5–19,25 · 7: 18,0–18,5 · 8: 17,5–18,0 (estremo inferiore ipotizzato) · 9: < 17,5. Altre tabelle differiscono fino a ~0,5 mag.
+La scala di Bortle è una classificazione visuale; non ha una conversione esatta in SQM. Due riferimenti:
 
-Ogni luogo porta l'origine del suo SQM e un'incertezza: misura con fotometro ±0,1; mappa all-sky o atlante ±0,3 (ordine di grandezza dello scarto fra modelli satellitari e misure a terra: da verificare con misure); classe di Bortle: mezzo intervallo più 0,25; valore inserito senza origine ±0,3. Il piano mostra l'intervallo di ore che ne deriva (la parte artificiale del fondo scala come 10^(0,4 ΔSQM)).
+| Classe | Dark Skies Awareness | Dichiarato su AstroBin: mediana fra autori (metà centrale) | Autori |
+| --- | --- | --- | --- |
+| 1 | 21,76–22,0 | 21,85 (21,55–22,00) | 20 |
+| 2 | 21,6–21,76 | 21,60 (21,30–21,90) | 33 |
+| 3 | 21,3–21,6 | 21,41 (21,21–21,60) | 57 |
+| 4 | 20,3–21,3 | 20,90 (20,40–21,23) | 79 |
+| 5 | 19,25–20,3 | 19,80 (19,50–20,10) | 52 |
+| 6 | 18,5–19,25 | 19,25 (18,94–19,43) | 24 |
+| 7 | 18,0–18,5 | 18,60 (18,40–18,77) | 26 |
+| 8 | 17,5–18,0 | 18,00 (17,90–18,34) | 12 |
+| 9 | < 17,5 | 17,80 (17,72–17,85) | 6 |
 
-Nelle foto di riferimento il cielo è la classe Bortle dichiarata dall'autore, portata al centro dell'intervallo. Spostare tutti i centri di ±0,3 mag sposta il livello di qualità di −20% / +24%: è l'incertezza principale della taratura.
+I valori dichiarati vengono da 1408 foto con classe e SQM; per ogni autore la mediana dei suoi valori in quella classe, così un autore con molte foto dallo stesso sito conta una volta. Per le classi 1–5 i due riferimenti coincidono entro 0,1 mag; le classi 6, 7 e 8 dichiarate corrispondono a cieli più bui della tabella DSA di 0,37, 0,35 e 0,25 mag. Il modello usa i valori dichiarati: è il significato che la classe ha per chi riprende, e per le foto con cui si tara. Spostare di 0,3 mag la conversione delle classi 6–8 cambiava il livello di qualità del 20–25%: era l'incertezza principale della taratura, ora misurata.
+
+Ogni luogo porta l'origine del suo SQM e un'incertezza: misura con fotometro ±0,1; mappa all-sky o atlante ±0,3 (ordine di grandezza dello scarto fra modelli satellitari e misure a terra: da verificare con misure); classe di Bortle: la dispersione fra gli autori (metà centrale / 1,35, almeno 0,25); valore inserito senza origine ±0,3. Il piano mostra l'intervallo di ore che ne deriva (la parte artificiale del fondo scala come 10^(0,4 ΔSQM)). L'SQM dichiarato dagli autori non è sempre una misura: molti valori si ripetono identici (21,94, 18,48), segno che vengono da un atlante.
 
 ## 7. Scelta dei filtri
 
@@ -106,35 +119,40 @@ Ipotesi e limiti: profili gaussiani, ottica limitata dalla diffrazione, errore u
 
 ## 9. Verifiche
 
-**Fuori campione.** Livelli adattati solo sulla prima parte della seconda raccolta, verificati sulle foto della terza raccolta di oggetti mai usati (0.15–0.19: 720 foto di 160 oggetti; 0.20: 743 foto di 161 oggetti, perché l'attrezzatura aggiunta rende utilizzabili altre 23 foto):
+**Fuori campione, oggetti della seconda raccolta** (verifica usata dalla 0.15 alla 0.20: livelli adattati sulla prima raccolta, confronto sugli oggetti che la prima non aveva):
 
-| Modello | rapporto mediano ore vere / modello | errore mediano sull'oggetto | oggetti entro ×2 | entro ×3 |
-| --- | --- | --- | --- | --- |
-| 0.15 (fisica, livello unico) | ×0,27 | ×4,07 | 26% | 40% |
-| 0.16–0.18 (tempo fisico compresso) | ×0,80 | ×1,76 | 57% | 81% |
-| 0.19 (fisica + livello per oggetto) | ×0,75 | ×1,66 | 59% | 76% |
-| 0.20 (con la risposta spettrale del sensore) | ×0,80 | ×1,60 | 65% | 78% |
+| Modello | foto (oggetti) | rapporto mediano ore vere / modello | errore mediano sull'oggetto | entro ×2 | entro ×3 |
+| --- | --- | --- | --- | --- | --- |
+| 0.15 (fisica, livello unico) | 720 (160) | ×0,27 | ×4,07 | 26% | 40% |
+| 0.16–0.18 (tempo fisico compresso) | 720 (160) | ×0,80 | ×1,76 | 57% | 81% |
+| 0.19 (fisica + livello per oggetto) | 720 (160) | ×0,75 | ×1,66 | 59% | 76% |
+| 0.20 (risposta spettrale del sensore) | 743 (161) | ×0,80 | ×1,60 | 65% | 78% |
+| 0.21, foto a colori da città | 745 (165) | ×0,98 | ×1,59 | 67% | 83% |
+| 0.21, tutte le foto riportate al riferimento | 2095 (213) | ×0,84 | ×1,61 | 64% | 85% |
 
-Il modello attuale prevede le ore delle foto meglio della 0.18, pur restando fisicamente coerente nel confronto fra filtri e cieli. Con la risposta spettrale del sensore lo scarto per tipo di filtro, misurato rispetto alla mediana del proprio oggetto, si avvicina a 1 per le foto SHO (da ×1,22 a ×1,00) e per i resti di supernova in banda stretta (da ×1,10 a ×1,00), ma si allontana per le planetarie in banda larga (da ×1,15 a ×1,65, 61 foto). Questo confronto non è una verifica pulita dei rapporti fra filtri: chi sceglie la banda larga su una planetaria può cercare un risultato diverso (§ 10). Sulla verifica i globulari restavano sovrastimati (×0,45): nella taratura c'erano solo tre globulari celebri; con la taratura finale (23 globulari) il livello si corregge.
+**Fuori campione, oggetti nuovi della quarta raccolta** (livelli adattati sulle raccolte precedenti; 237 foto di 52 oggetti mai visti): 0.20 errore ×2,37, 31% entro ×2 (le foto mono ×13,7); 0.21 ×1,96, 50% entro ×2 (mono ×2,35). Le raccolte precedenti avevano solo 90 foto mono: l'effetto della camera mono stimato lì (×5,6–6,8) è più alto di quello stimato su tutte le foto (×2,8–5,2).
 
-**Taratura finale** (tutte le foto, 259 oggetti, 2054 foto a colori): log g = 0,018 − 0,707 · log D; errore sull'oggetto lasciato fuori ×1,55; per gli oggetti con foto, previsione unita a metà delle foto e verificata sull'altra metà: ×1,48. La stessa foto fatta da persone diverse varia di un fattore 2,7 (0,44 dex): nessun modello può fare molto meglio sulla singola foto.
+**Verifica incrociata fra oggetti** (metà degli oggetti per tarare, con tutte le loro foto, l'altra metà per verificare, e viceversa): errore sull'oggetto ×1,45 e ×1,47, 74% e 70% entro ×2; foto mono ×1,55 e ×1,58, senza scarto sistematico (×0,99 e ×1,02).
 
-**Casi rappresentativi.** Camera a colori e mono, SQM 18,0 / 19,3 / 21,3, emissione e spettro continuo, un filtro o combinazioni, con e senza Luna, con il confronto con la 0.19: [VERIFICA-casi.md](VERIFICA-casi.md). Principali differenze: con due duo-band (L-eXtreme + L-Synergy) la 0.18 imponeva lo SHO con penalità arbitrarie (11–76 h), ora si sceglie la combinazione più rapida e lo SHO resta un obiettivo esplicito; con cielo buio la banda larga diventa competitiva sulle nebulose luminose, come previsto dalla fisica.
+**Taratura finale** (6918 foto di 311 oggetti): log g = 0,104 − 0,657 · log D; errore sull'oggetto lasciato fuori ×1,47. La stessa foto fatta da persone diverse varia di un fattore 2,7 (0,43 dex dopo aver tolto oggetto, camera e cielo): nessun modello può fare molto meglio sulla singola foto.
 
-**Riferimenti dell'autore.** Cocoon (IC 5146) e WR 134 dal terrazzo (SQM ~19,3, 800 mm f/5, camera a colori): ~100 h e ~95 h per un SNR ritenuto discreto. Il livello «buona» (foto mediana) dà 4,4 h e 6,2 h, «profonda» (90° percentile) 14,5 h e 20,5 h: lo standard dell'autore è molto sopra quello delle foto apprezzate su AstroBin; per questo ci sono i livelli superiori.
+**Rapporti fra filtri e fra cieli.** Le foto non li verificano: le ore sono in gran parte un'abitudine, quindi una combinazione più efficiente produce un SNR più alto, non meno ore. Restano relazioni fisiche (§ 4) con i loro dati di ingresso (bande dei filtri, risposta del sensore, spettro del cielo).
+
+**Casi rappresentativi.** Camera a colori e mono, SQM 18,0 / 19,3 / 21,3, emissione e spettro continuo, un filtro o combinazioni, con e senza Luna, con il confronto con la 0.20: [VERIFICA-casi.md](VERIFICA-casi.md).
+
+**Riferimenti dell'autore.** Cocoon (IC 5146) e WR 134 dal terrazzo (SQM ~19,3, 800 mm f/5, camera a colori, L-eXtreme + L-Synergy): ~100 h e ~95 h per un SNR ritenuto discreto. Il livello «buona» (foto mediana) dà 3,4 h e 9,4 h, «profonda» (×3,3) 11 h e 31 h: lo standard dell'autore resta sopra quello delle foto apprezzate su AstroBin.
 
 ## 10. Limiti e dati che servono
 
 | Dati | Intervallo e metadati | Cosa migliorerebbero |
 | --- | --- | --- |
-| Foto con **camera monocromatica** | SQM 18–21,5 (Bortle 2–8); nebulose a emissione, resti di SN, planetarie, galassie; filtri Hα/OIII/SII 3–7 nm e LRGB; per ogni filtro integrazione e posa singola; guadagno; telescopio (apertura, focale, riduttore); Bortle o SQM misurato | un livello di qualità proprio per le camere mono (oggi solo 90 foto) |
-| Foto a colori da **cieli bui** | Bortle 1–5 (SQM ≥ 19,25), stessi metadati | capire se il SNR accettato dipende dal cielo e tarare il livello per chi riprende da siti bui (oggi 80 foto) |
-| Foto con **SQM misurato** | qualsiasi cielo, valore SQM-L o simile | ridurre l'incertezza della conversione Bortle → SQM (oggi ±20% sul livello) |
-| **Confronti dello stesso autore** | stesso oggetto e stessa attrezzatura con due filtri o due cieli, con un giudizio sul risultato (come la Cocoon 60 h dal terrazzo e 6 h da un sito buio) | l'unico modo di verificare i rapporti fisici fra filtri e fra cieli: le ore delle foto sono abitudini, non tempi necessari |
+| **Confronti dello stesso autore** con un giudizio sul risultato | stesso oggetto e stessa attrezzatura con due filtri o due cieli, dicendo quale dei due risultati è accettabile (come la Cocoon 60 h dal terrazzo e 6 h da un sito buio) | l'unico modo di verificare i rapporti fisici fra filtri e fra cieli: le ore delle foto sono abitudini, non tempi necessari |
+| **Sessioni registrate** in Skyframe con un giudizio sul risultato | le tue notti, con filtri e ore | una taratura personale del livello di qualità (il tuo standard è sopra il 90° percentile delle foto) |
+| Foto con **SQM misurato con un fotometro** | qualsiasi cielo, indicando lo strumento | distinguere le misure dai valori copiati da un atlante (oggi non distinguibili) |
+| Autore corretto nella raccolta | il nome dell'autore di ogni foto (oggi per 2391 foto compare il fondatore di AstroBin) | più analisi dentro lo stesso autore, che separano abitudini e fisica |
 | Più foto di **ammassi e galassie deboli** | galassie oltre mag 11, ammassi aperti e globulari meno fotografati | il livello degli oggetti oggi previsto dalla sola difficoltà |
-| **Sessioni registrate** in Skyframe con un giudizio sul risultato | le tue notti, con filtri e ore | una taratura personale del livello di qualità |
 | Misure di **trasmissione dei filtri** «stima» | Antlia Quad Band, ALP-T 3 nm, ALP-T SII+Hβ, Seestar LP, SV220 3 nm e SII, SV240, IDAS NB1 e NB3, Baader UHC-S, Optolong UHC, Altair 6 nm SII+OIII, filtri singoli Antlia e SVBony | bande reali al posto di quelle stimate |
-| **Curve di efficienza** di altri sensori | sensori STARVIS (IMX585, IMX462, IMX678), Panasonic MN34230 (ASI1600), reflex: efficienza a 500, 656 e 672 nm relativa al picco, da misure pubblicate | la risposta spettrale oggi è quella dei Sony retroilluminati da 3,76 µm per tutte le camere |
+| **Curve di efficienza** di altri sensori | STARVIS (IMX585, IMX462, IMX678), Panasonic MN34230 (ASI1600), CCD Kodak/ON Semi, reflex: efficienza a 500, 656 e 672 nm relativa al picco, da misure pubblicate | la risposta spettrale oggi è quella dei Sony retroilluminati da 3,76 µm per tutte le camere |
 | **Confronti con e senza Luna** dello stesso autore | stesso oggetto, attrezzatura e filtri, una sessione con Luna oltre il 60% e una senza, con ore e giudizio | verificare il modello della luce lunare diffusa e la soglia per cambiare combinazione |
 
-Ipotesi ancora da verificare: rapporti fra righe tipici per tipo; spettro della luce artificiale (75% continuo); incertezza ±0,3 mag degli atlanti; livello «buona» uguale per camere a colori e mono; una sola curva di risposta spettrale per tutti i sensori.
+Ipotesi ancora da verificare: rapporti fra righe tipici per tipo; spettro della luce artificiale (75% continuo); incertezza ±0,3 mag degli atlanti; effetti di camera e cielo uguali per tutti gli oggetti dello stesso tipo (righe o continuo); una sola curva di risposta spettrale per tutti i sensori.

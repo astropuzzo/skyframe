@@ -11,7 +11,8 @@ const root = path.join(__dirname, '..'), src = (f) => path.join(root, 'src', f);
 global.window = {};
 ['data/filters.js', 'data/dso.js', 'data/sky.js'].forEach((f) => require(src(f)));
 // il livello di qualità per oggetto (src/data/quality.js); CAL_NOQ=1: senza, cioè il tempo fisico a SNR di riferimento
-if (!process.env.CAL_NOQ && fs.existsSync(src('data/quality.js'))) require(src('data/quality.js'));
+// CAL_Q=percorso: un altro quality.js (per esempio quello di una versione precedente)
+if (!process.env.CAL_NOQ && fs.existsSync(process.env.CAL_Q || src('data/quality.js'))) require(process.env.CAL_Q || src('data/quality.js'));
 const I18N_STUB = "const LANG = 'it', LOCALE = 'it-IT', txName = (n) => n, tx = (s, p) => (p ? s.replace(/[{](\\w+)[}]/g, (m, k) => (k in p ? p[k] : m)) : s);";
 // CAL_PATCH='[["da","a"],…]': sostituzioni nel testo del modello, per provare costanti diverse senza toccarlo
 function calPatch(t) { for (const [x, y] of JSON.parse(process.env.CAL_PATCH || '[]')) { if (!t.includes(x)) throw new Error('CAL_PATCH: non trovo ' + x); t = t.split(x).join(y); } return t; }
@@ -32,16 +33,27 @@ const PICK = {
 // senza argomento: le foto della prima raccolta e quelle convertite da scripts/astrobin-convert.cjs
 const files = process.argv[2] ? [process.argv[2]] : ['astrobin-calib.jsonl', 'astrobin-calib2.jsonl', 'astrobin-calib3.jsonl'].map((n) => path.join(root, 'scripts', 'raw', n)).filter((p) => fs.existsSync(p));
 const recs = files.flatMap((p) => fs.readFileSync(p, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)));
-/* CAL_SET: quali foto usare. «taratura» = prima raccolta (e le schede lette a mano), «verifica» = foto della seconda raccolta
-   sui target che la prima non aveva (mai usate per scegliere le costanti), «tutte» (predefinito). */
-const FIRST_DS = '2026-09-26T19-21', firstT = new Set(recs.filter((r) => r.ds === FIRST_DS).map((r) => r.t));
-const inSet = (r) => { const S = process.env.CAL_SET || 'tutte'; if (S === 'tutte') return true; const test = !!r.ds && r.ds !== FIRST_DS && !firstT.has(r.t); return S === 'verifica' ? test : !test && (!r.ds || r.ds === FIRST_DS); };
+/* CAL_SET: quali foto usare. «taratura» = raccolte precedenti a CAL_SPLIT (e le schede lette a mano), «verifica» = foto
+   delle raccolte da CAL_SPLIT in poi sui target che la taratura non aveva (mai usate per scegliere le costanti),
+   «tutte» (predefinito). CAL_SPLIT predefinito: la seconda raccolta (verifica della 0.19 e 0.20). */
+const SPLIT = process.env.CAL_SPLIT || '2026-09-26T23-13', trainT = new Set(recs.filter((r) => !r.ds || r.ds < SPLIT).map((r) => r.t));
+// CAL_FOLD=a|b: metà degli oggetti (scelti con un hash del nome), per la verifica incrociata fra oggetti
+const foldOf = (t) => { let h = 0; for (const c of String(t)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h % 2 ? 'b' : 'a'; };
+const inSet = (r) => { if (process.env.CAL_FOLD && foldOf(r.t) !== process.env.CAL_FOLD) return false; const S = process.env.CAL_SET || 'tutte'; if (S === 'tutte') return true; const test = !!r.ds && r.ds >= SPLIT && !trainT.has(r.t); return S === 'verifica' ? test : !test && (!r.ds || r.ds < SPLIT); };
+// filtri generici delle foto mono (gear.cjs, monoFilterOf): «nbg-riga-ampiezza», banda centrata sulla riga, trasmissione 90%
+function nbgEnsure(id) {
+  const m = id.match(/^nbg-(Ha|OIII|SII)-([\d.]+)$/); if (!m || M.FDB_BY_ID.has(id)) return;
+  const c = { Ha: 656.3, OIII: 500.7, SII: 672.4 }[m[1]], bw = +m[2];
+  M.FDB_BY_ID.set(id, { id, brand: 'Generico', name: `${m[1]} ${bw} nm`, series: `generico ${bw} nm`, for: 'both', kind: 'nb', ch: m[1], bands: [[c - bw / 2, c + bw / 2, 0.9]] });
+}
 const L = Math.log10, rows = [];
 // Bortle con decimali (6,87): interpolato fra i valori interi
 const sqmOf = (b) => { const lo = Math.floor(b), hi = Math.ceil(b), a = M.BORTLE_SQM[lo], z = M.BORTLE_SQM[hi]; return a + (z - a) * (b - lo); };
 /* foto con l'attrezzatura vera (scripts/astrobin-dataset.cjs): filtri usati, camera, telescopio. Si confronta la strada che la
    persona ha scelto davvero: solo banda larga, un multibanda, due multibanda (SHO) o i due insieme (banda larga + stretta). */
 function ownRow(r, o) {
+  r.own.forEach(nbgEnsure);
+  if (r.cam === 'mono') return monoRow(r, o);
   const kinds = r.own.map((id) => M.FDB_BY_ID.get(id)), bbs = kinds.filter((f) => f.kind === 'bb' || f.kind === 'lp'), multis = kinds.filter((f) => f.kind === 'multi' || f.kind === 'nb');
   const most = (list) => list.slice().sort((a, b) => (r.split[b.id] || 0) - (r.split[a.id] || 0))[0];
   const hasG = (f, g) => f.bands.some(([lo, hi]) => (g === 'Ha' ? lo <= 656.3 && hi >= 656.3 : lo <= 672.4 && hi >= 671.6));
@@ -51,6 +63,24 @@ function ownRow(r, o) {
   else if (multis.length === 1) { pick = 'nb-' + multis[0].id; kind = bbs.length ? 'nb+bb' : 'nb'; if (bbs.length) real = r.split[multis[0].id]; }
   else { const a = multis.find((f) => hasG(f, 'Ha')), b = multis.find((f) => f !== a && hasG(f, 'SII'));
     if (a && b) { pick = `sho-${a.id}-${b.id}`; real = (r.split[a.id] || 0) + (r.split[b.id] || 0); kind = 'sho'; } else { const m = most(multis); pick = 'nb-' + m.id; real = multis.reduce((x, f) => x + (r.split[f.id] || 0), 0); kind = 'nb'; } }
+  return rowProfile(r, pick, real, kind);
+}
+/* camera mono: SHO o HOO (le ore di banda stretta; l'RGB per le stelle è a parte), Hα + RGB, solo Hα, LRGB o RGB (le ore di
+   banda larga; nelle galassie l'Hα serve alle regioni HII e si esclude) */
+function monoRow(r, o) {
+  const has = (k) => r.own.some((id) => id === k || id.startsWith('nbg-' + k + '-'));
+  const hrs = (pred) => r.own.filter(pred).reduce((a, id) => a + (r.split[id] || 0), 0);
+  const isNB = (id) => id.startsWith('nbg-'), isBB = (id) => ['L', 'R', 'G', 'B'].includes(id), rgb = has('R') && has('G') && has('B'), line = !!M.LINES[o.lk];
+  let pick, real, kind;
+  if (line && has('Ha') && has('OIII') && has('SII')) { pick = 'sho'; real = hrs(isNB); kind = 'mono-sho'; }
+  else if (line && has('Ha') && has('OIII')) { pick = 'hoo'; real = hrs(isNB); kind = 'mono-hoo'; }
+  else if (line && has('Ha') && rgb) { pick = 'hargb'; real = r.h; kind = 'mono-hargb'; }
+  else if (line && has('Ha') && !has('OIII') && !has('SII')) { pick = 'ha'; real = hrs((id) => id.startsWith('nbg-Ha')); kind = 'mono-ha'; }
+  else if (rgb) { pick = has('L') ? 'lrgb' : 'rgb'; real = hrs(isBB); kind = has('L') ? 'mono-lrgb' : 'mono-rgb'; }
+  else return null;
+  return rowProfile(r, pick, real, kind);
+}
+function rowProfile(r, pick, real, kind) {
   if (!(real > 0.2)) return null;
   const p = M.templateProfile();
   p.camera = { preset: 'x', name: 'x', w: r.cw, h: r.ch, pix: r.pix, type: r.cam, qe: r.qe, rn: r.rn };
@@ -63,14 +93,14 @@ for (const r of recs) {
   const o = M.CAT_BY_ID.get(r.t); if (!o || (!OWN[r.kind] && !r.own)) continue;
   if (r.own) {
     const w = ownRow(r, o); if (!w) continue;
-    const sqm = r.bortle ? sqmOf(r.bortle) : M.BORTLE_SQM[4], p = w.p;
+    const useSqm = r.sqm && process.env.CAL_SKY !== 'bortle', sqm = useSqm ? r.sqm : r.bortle ? sqmOf(r.bortle) : M.BORTLE_SQM[4], p = w.p;
     p.site = { name: 'x', lat: 45, lon: 10, bortle: Math.round(r.bortle || 4), sqm }; p.horizon = []; p.session.minAlt = 20; p.session.quality = 'good';
     const mon = ((Math.round(3 + (o.ra / 15 - 12) / 2) % 12) + 12) % 12, ds = `2026-${String(mon + 1).padStart(2, '0')}-10`;
     const x = M.computeObj(M.computePrep(M.profileConfigs(p), p, ds, Date.now()), o); if (!x) continue;
     const st = x.evals[0].strat.find((z) => z.id === w.pick); if (!st) continue;
     const model = M.hoursOf(st) / (st.panels || 1); if (!isFinite(model)) continue;
     r.kind = w.kind; r.scale = +(206.265 * r.pix / r.fl).toFixed(2); r.drive = st.steps.map((z) => z.drive).join('+');
-    rows.push({ r, o, sqm, model, lr: L(w.real / model), mono: false, sky: !!r.bortle, own: true, skip: false });
+    rows.push({ r, o, sqm, model, lr: L(w.real / model), mono: r.cam === 'mono', sky: !!(r.bortle || r.sqm), sqmSrc: useSqm ? 'sqm' : r.bortle ? 'bortle' : 'nessuno', own: true, skip: !(r.bortle || r.sqm) });
     continue;
   }
   const sqm = r.sqm || M.BORTLE_SQM[r.bortle || 4]; // senza dato: Bortle 4
@@ -109,4 +139,4 @@ grp('apertura < 80 mm', (x) => x.r.ap < 80); grp('apertura 80–200 mm', (x) => 
 console.log('per oggetto (rispetto alla media):');
 console.log('  ' + Object.entries(om).map(([k, v]) => `${k} ${f(v - mean)} (${byO[k].length})`).join(' · '));
 // CAL_DUMP=file.json: tutte le righe confrontate, per analisi a parte
-if (process.env.CAL_DUMP) fs.writeFileSync(process.env.CAL_DUMP, JSON.stringify(rows.map((x) => ({ ...x.r, type: x.o.type, lk: x.o.lk, sb: x.o.sb, a: x.o.a, sqm: x.sqm, model: x.model, lr: x.lr, mono: x.mono, skip: x.skip }))));
+if (process.env.CAL_DUMP) fs.writeFileSync(process.env.CAL_DUMP, JSON.stringify(rows.map((x) => ({ ...x.r, type: x.o.type, lk: x.o.lk, sb: x.o.sb, a: x.o.a, sqm: x.sqm, sqmSrc: x.sqmSrc, model: x.model, lr: x.lr, mono: x.mono, skip: x.skip }))));

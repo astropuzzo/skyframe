@@ -491,7 +491,8 @@ button.st-item:hover, .st-item.tap:hover { background: var(--card-2); }
 .real-card { margin-top: 12px; border: 1px solid var(--line-2); background: var(--card); border-radius: var(--r3); padding: 14px 16px; }
 .real-card .head { display: flex; align-items: baseline; gap: 10px; }
 .real-card .head .t { font: 600 16px var(--font-d); letter-spacing: .03em; }
-.real-card .head .n { margin-left: auto; font-size: 12.5px; color: var(--ink-3); }
+.real-card .head .n { margin-left: auto; font-size: 12.5px; color: var(--ink-3); white-space: nowrap; }
+.real-card .grp { margin-top: 2px; font-size: 12.5px; color: var(--ink-3); }
 .rbar { position: relative; height: 34px; margin: 14px 4px 2px; }
 .rbar::before { content: ''; position: absolute; left: 0; right: 0; top: 10px; height: 6px; border-radius: 3px; background: var(--card-3); }
 .rbar .iqr { position: absolute; top: 10px; height: 6px; left: var(--a); width: calc(var(--b) - var(--a)); border-radius: 3px; background: linear-gradient(90deg, rgba(230, 180, 75, .45), rgba(230, 180, 75, .8)); }
