@@ -126,10 +126,10 @@
               <option value="score">Punteggio</option>
               <option value="usable">Ore utili stanotte</option>
               <option value="hours">Integrazione più breve</option>
-              <option value="fill">Riempimento del frame</option>
+              <option value="fill">Riempimento del campo</option>
               <option value="transit">Orario di culmine</option>
               <option value="now">Più alto all'ora scelta</option>
-              <option value="sb">Più debole (sfida)</option>
+              <option value="sb">Luminosità superficiale più bassa</option>
               <option value="gain" hidden>Più rapidi da un altro luogo salvato</option>
             </select></label>
           <button type="button" class="btn" id="advBtn" aria-expanded="false"><svg class="ic"><use href="#i-filter"/></svg><span>Filtri</span> <span class="badge" id="advCount" hidden>0</span></button>
@@ -142,11 +142,11 @@
         <div class="adv-body">
           <div class="f wide"><span class="lbl">Cataloghi</span><div class="chips" id="srcChips"></div></div>
           <label class="f"><span class="rv"><span>Ore utili stanotte, almeno</span><b class="num" id="minUseV"></b></span><input type="range" id="minUse" min="0" max="8" step="0.5"></label>
-          <label class="f"><span class="rv"><span>Chiudibile in al massimo</span><b class="num" id="maxNightsV"></b></span><input type="range" id="maxNights" min="1" max="11" step="1"></label>
+          <label class="f"><span class="rv"><span>Integrazione completabile in al massimo</span><b class="num" id="maxNightsV"></b></span><input type="range" id="maxNights" min="1" max="11" step="1"></label>
           <label class="f"><span class="rv"><span>Luminosità superficiale fino a</span><b class="num" id="maxSbV"></b></span><input type="range" id="maxSb" min="19" max="26" step="0.25"></label>
           <label class="f"><span class="lbl">Inquadratura</span><select id="fillSel" class="sel"><option value="any">Qualsiasi</option><option value="fits">Sta nel campo e lo riempie</option><option value="small">Piccoli (da ritagliare)</option><option value="mosaic">Richiedono mosaico</option></select></label>
           <label class="f" id="cfgF" hidden><span class="lbl">Consigliati con</span><select id="cfgSel" class="sel"></select></label>
-          <label class="f"><span class="lbl">Tecnica</span><select id="bandSel" class="sel"><option value="any">Qualsiasi</option><option value="nb">Si fanno in banda stretta</option><option value="bb">Solo banda larga</option></select></label>
+          <label class="f"><span class="lbl">Tecnica</span><select id="bandSel" class="sel"><option value="any">Qualsiasi</option><option value="nb">Emissione a righe (banda stretta)</option><option value="bb">Spettro continuo (solo banda larga)</option></select></label>
           <label class="f"><span class="lbl">Costellazione</span><select id="conSel" class="sel"></select></label>
           <div class="f wide checks">
             <label class="chk"><input type="checkbox" id="hideClassic"> Nascondi gli oggetti più noti (Messier e simili)</label>
@@ -231,8 +231,8 @@
               <div class="hzbar" style="margin:6px 0 4px"><button class="btn sm" id="lpmBtn" type="button">Prendi la mappa all-sky dal sito</button><span class="hint" style="margin:0">Si scarica automaticamente quando sposti lo spillo.</span></div>
               <p class="hint" style="margin:4px 0 0">In alternativa, a mano:</p>
               <ol>
-                <li data-t><a id="lpmOpen" href="https://www.lightpollutionmap.info" target="_blank" rel="noopener">Apri lightpollutionmap sul tuo punto</a>, scegli il livello <i>Sky brightness</i> e clicca sul terrazzo.</li>
-                <li data-t>Nel riquadro premi <i>All-sky</i>, poi salva l’immagine (fisheye o panoramica vanno bene).</li>
+                <li data-t><a id="lpmOpen" href="https://www.lightpollutionmap.info" target="_blank" rel="noopener">Apri lightpollutionmap sul tuo luogo</a>, scegli il livello <i>Sky brightness</i> e clicca sul punto di osservazione.</li>
+                <li data-t>Nel riquadro premi <i>All-sky</i> e salva l’immagine (proiezione fisheye o panoramica).</li>
                 <li data-t>Trascinala qui oppure <label class="linklike" for="skyFile">scegli il file</label>.</li>
               </ol>
               <input id="skyFile" type="file" accept="image/png,image/jpeg,image/webp" hidden>

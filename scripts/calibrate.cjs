@@ -42,7 +42,7 @@ const sqmOf = (b) => { const lo = Math.floor(b), hi = Math.ceil(b), a = M.BORTLE
 /* foto con l'attrezzatura vera (scripts/astrobin-dataset.cjs): filtri usati, camera, telescopio. Si confronta la strada che la
    persona ha scelto davvero: solo banda larga, un multibanda, due multibanda (SHO) o i due insieme (banda larga + stretta). */
 function ownRow(r, o) {
-  const kinds = r.own.map((id) => M.FDB_BY_ID.get(id)), bbs = kinds.filter((f) => f.kind === 'bb' || f.kind === 'lp'), multis = kinds.filter((f) => f.kind === 'multi');
+  const kinds = r.own.map((id) => M.FDB_BY_ID.get(id)), bbs = kinds.filter((f) => f.kind === 'bb' || f.kind === 'lp'), multis = kinds.filter((f) => f.kind === 'multi' || f.kind === 'nb');
   const most = (list) => list.slice().sort((a, b) => (r.split[b.id] || 0) - (r.split[a.id] || 0))[0];
   const hasG = (f, g) => f.bands.some(([lo, hi]) => (g === 'Ha' ? lo <= 656.3 && hi >= 656.3 : lo <= 672.4 && hi >= 671.6));
   const line = !!M.LINES[o.lk];

@@ -6,7 +6,7 @@
    posto. Le ore contano col meteo: un'ora al 50% di cielo sgombro vale mezz'ora, e dove è coperto non si mette niente. */
 const PLAN_MIN = 9; // passi da 5 min: 45 minuti
 const hexA = (h, a) => `rgba(${parseInt(h.slice(1, 3), 16)},${parseInt(h.slice(3, 5), 16)},${parseInt(h.slice(5, 7), 16)},${a})`;
-const planOk = (r) => r.usableH >= 0.25 && r.e.best && isFinite(r.e.best.tonight) && !isDone(r.o.id);
+const planOk = (r) => r.usableH >= 0.25 && tonightStrat(r.e) && isFinite(tonightStrat(r.e).tonight) && !isDone(r.o.id);
 /* il piano si corregge a mano: per ogni notte i target aggiunti (dal dettaglio) e quelli tolti (dal piano) */
 const planEd = (ds) => { const e = LS.get('sf.planEd', {})[ds]; return { pin: (e && e.pin) || [], skip: (e && e.skip) || [] }; };
 function setPlanEd(ds, fn) {
@@ -39,7 +39,7 @@ function planNight(n, cand, mine, pins = []) {
     const id = r.o.id, prio = pins.includes(id) ? 1.6 : hasSessions(id) ? 1.3 : isFav(id) ? 1.15 : 1;
     let lastUse = -1; for (let i = n.first; i <= n.last; i++) if (r.use[i]) lastUse = i;
     const sinMax = Math.sin(Math.max(5, r.maxA) * D2R);
-    return { r, id, prio: prio * (0.6 + r.score / 250), need: (1 - projProgress(id)) * r.e.best.tonight, got: 0, lastUse, sinMax };
+    return { r, id, prio: prio * (0.6 + r.score / 250), need: (1 - projProgress(id)) * tonightStrat(r.e).tonight, got: 0, lastUse, sinMax };
   });
   const val = (t, i) => { const a = t.r.alt[i]; const urg = 1 + 0.6 * clamp(1 - (t.lastUse - i) / 24, 0, 1); return t.prio * (Math.sin(Math.max(a, 1) * D2R) / t.sinMax) * urg; };
   const asg = new Array(N + 1).fill(-1);
@@ -64,7 +64,7 @@ function planNight(n, cand, mine, pins = []) {
   for (const bl of blocks) { const prev = out[out.length - 1]; if (bl.i1 - bl.i0 + 1 < 4 && prev && prev.i1 === bl.i0 - 1) prev.i1 = bl.i1; else if (prev && prev.k === bl.k && prev.i1 === bl.i0 - 1) prev.i1 = bl.i1; else out.push({ ...bl }); }
   for (const bl of out) {
     const t = T[bl.k]; let hw = 0, hs = 0; for (let i = bl.i0; i <= bl.i1; i++) { const f = wxAt(n.t[i]); hw += (f == null ? 1 : f) * STEP / 60; hs += STEP / 60; }
-    Object.assign(bl, { r: t.r, id: t.id, t0: n.t[bl.i0], t1: n.t[bl.i1] + DT, h: hs, hClear: hw, frac: t.r.e.best.tonight > 0 ? hw / t.r.e.best.tonight : 0 });
+    Object.assign(bl, { r: t.r, id: t.id, t0: n.t[bl.i0], t1: n.t[bl.i1] + DT, h: hs, hClear: hw, frac: tonightStrat(t.r.e).tonight > 0 ? hw / tonightStrat(t.r.e).tonight : 0, s: tonightStrat(t.r.e) });
   }
   return { blocks: out, mine };
 }
@@ -79,7 +79,7 @@ function logBtn(n, b) {
 function logFromPlan(id) {
   const n = state.res.night, P = tonightPlan(), b = P.blocks.find((x) => x.id === id); if (!b) return;
   // quanto vale: le ore che servirebbero con notti come questa (Luna compresa), come nel piano
-  const r = b.r, e = r.e, s = e.best, l = activeLoc(), need = isFinite(s.tonight) && s.tonight > 0 ? s.tonight : needHours(id, e.cfg.key, s.id, l.id), h = Math.max(0.25, Math.round(b.hClear * 4) / 4);
+  const r = b.r, e = r.e, s = tonightStrat(e), l = activeLoc(), need = isFinite(s.tonight) && s.tonight > 0 ? s.tonight : needHours(id, e.cfg.key, s.id, l.id), h = Math.max(0.25, Math.round(b.hClear * 4) / 4);
   addSession(id, { date: n.ds, h, loc: l.id, locName: l.site.name, cfg: e.cfg.key, cfgLabel: e.cfg.label, strat: s.id, stratLabel: s.label, need, frac: need ? h / need : 0 });
   toast(need ? tx('{t}: {h} registrate, +{p}% dell’integrazione', { t: id, h: fmtH(h), p: Math.round(h / need * 100) }) : tx('Sessione salvata'));
 }
@@ -107,7 +107,7 @@ function renderTonight() {
   for (let ms = h0.getTime() + 3600000; ms < n.t[i1]; ms += 3600000) { if (new Date(ms).getHours() % 2) continue; ticks.push(`<span style="left:${X(ms)}%">${String(new Date(ms).getHours()).padStart(2, '0')}</span>`); }
   const wtxt = wn ? (wn.clear >= 0.85 ? tx('Previsto sereno') : wn.clear < 0.15 ? tx('Previsto coperto') : wn.win && wn.winH >= 1 ? tx('Sereno solo {a}–{b}', { a: fmtT(wn.win[0]), b: fmtT(wn.win[1]) }) : tx('Nuvolosità variabile · {p}% del buio sereno', { p: Math.round(wn.clear * 100) })) : '';
   el.innerHTML = head + `<div class="tn-g"><div class="tn-track">${track}</div><div class="tn-ax">${ticks.join('')}</div></div>
-    <ol class="tn-l">${P.blocks.map((b) => `<li><button type="button" class="tn-row" data-id="${esc(b.id)}"><i style="background:${TYPE_COLOR[b.r.o.type]}"></i><span class="nm"><span class="l1"><b>${esc(b.id)}</b>${b.r.o.nick ? `<small>${esc(b.r.o.nick)}</small>` : ''}</span><span class="tm num">${fmtT(b.t0)}–${fmtT(b.t1)}</span></span><span class="hh num">${fmtH(b.hClear)}${b.frac > 0.005 ? `<b>+${Math.round(Math.min(1, b.frac) * 100)}% ${tx('del lavoro')}</b>` : ''}</span></button>${logBtn(n, b)}<button type="button" class="icon-btn tn-x" data-skip="${esc(b.id)}" title="${tx('Togli dal piano')}" aria-label="${tx('Togli {t} dal piano', { t: b.id })}">${ic('x', 'sm')}</button></li>`).join('')}</ol>
+    <ol class="tn-l">${P.blocks.map((b) => `<li><button type="button" class="tn-row" data-id="${esc(b.id)}"><i style="background:${TYPE_COLOR[b.r.o.type]}"></i><span class="nm"><span class="l1"><b>${esc(b.id)}</b>${b.r.o.nick ? `<small>${esc(b.r.o.nick)}</small>` : ''}</span><span class="tm num">${fmtT(b.t0)}–${fmtT(b.t1)}<span class="fs">${esc(b.s.short)}${b.r.e.moonBest ? ' ' + ic('moon', 'sm') : ''}</span></span></span><span class="hh num">${fmtH(b.hClear)}${b.frac > 0.005 ? `<b>+${Math.round(Math.min(1, b.frac) * 100)}% ${tx('del lavoro')}</b>` : ''}</span></button>${logBtn(n, b)}<button type="button" class="icon-btn tn-x" data-skip="${esc(b.id)}" title="${tx('Togli dal piano')}" aria-label="${tx('Togli {t} dal piano', { t: b.id })}">${ic('x', 'sm')}</button></li>`).join('')}</ol>
     ${P.edited ? `<div class="note">${tx('Modificato da te')} · <button type="button" class="link" data-reset>${tx('ripristina')}</button></div>` : ''}
     ${wtxt ? `<div class="note">${esc(wtxt)}${WX.d ? ' · ' + tx('meteo Open-Meteo') : ''}</div>` : ''}`;
   wire();

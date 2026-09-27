@@ -156,7 +156,7 @@ function readProfForm() {
 function readLocForm() {
   const d = draft, n = (id) => parseFloat(F(id).value);
   const sqm = n('f_sqm'), lat = n('f_lat'), lon = n('f_lon'), prev = d.site;
-  d.site = { name: F('f_site').value.trim() || tx('Il mio terrazzo'), lat: isFinite(lat) ? clamp(lat, -89.9, 89.9) : 45, lon: isFinite(lon) ? clamp(lon, -180, 180) : 9, bortle: +F('f_bortle').value, sqm: isFinite(sqm) ? clamp(sqm, 16, 22.2) : BORTLE_SQM[F('f_bortle').value], sqmMeas: F('f_sqmMeas').checked };
+  d.site = { name: F('f_site').value.trim() || tx('Il mio luogo di osservazione'), lat: isFinite(lat) ? clamp(lat, -89.9, 89.9) : 45, lon: isFinite(lon) ? clamp(lon, -180, 180) : 9, bortle: +F('f_bortle').value, sqm: isFinite(sqm) ? clamp(sqm, 16, 22.2) : BORTLE_SQM[F('f_bortle').value], sqmMeas: F('f_sqmMeas').checked };
   if (prev.example && prev.lat === d.site.lat && prev.lon === d.site.lon && prev.name === d.site.name) d.site.example = true;
   const elev = n('f_elev'); if (isFinite(elev)) d.site.elev = Math.round(elev);
   // dati della luce: validi solo per le coordinate con cui sono stati ottenuti (entro ~1 km)

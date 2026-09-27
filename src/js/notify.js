@@ -1,12 +1,12 @@
 'use strict';
 /* ============================ avvisi ============================
    Quattro avvisi, ognuno si accende e spegne da Setup:
-   - «Stasera si scatta»: prima del buio (anticipo a scelta), se la notte arriva almeno al voto scelto e il piano ha un
+   - «Stanotte sereno»: prima del buio (anticipo a scelta), se la notte arriva almeno al voto scelto e il piano ha un
      posto per i tuoi target: finestra serena, probabilità, target con gli orari, seeing, condensa e vento;
-   - «Notte ottima in arrivo»: il giorno prima, per una notte dei prossimi tre giorni senza Luna, serena con buona
+   - «Notte ottima prevista»: il giorno prima, per una notte dei prossimi tre giorni senza Luna, serena con buona
      probabilità, con i target che il piano di stagione le assegna;
    - «Il meteo è cambiato»: stanotte si apre (o si chiude dopo l'avviso);
-   - «Ultime settimane»: un tuo target sta per uscire di stagione e il lavoro non è finito.
+   - «Ultime settimane di visibilità»: un tuo target sta per uscire di stagione e il lavoro non è finito.
    Si ricalcolano quando l'app si apre o aggiorna il meteo. Su Android sono avvisi del sistema e arrivano ad app chiusa;
    in più uno script in background (src/runners/background.js) riscarica le nuvole ogni 15-30 minuti e manda da solo
    l'avviso della sera, «si apre» e «cambio di programma». Sul computer e nel browser arrivano se l'app è aperta. */
@@ -50,7 +50,7 @@ function evalNight(n, plan) {
     w && w.dew != null && w.dew <= 2 ? tx('condensa: riscalda l’ottica') : '', w && w.gust != null && w.gust >= 30 ? tx('raffiche {v} km/h', { v: w.gust }) : '',
   ].filter(Boolean).join(' · ');
   const body = [blocks.slice(0, 3).map((b) => `${b.id} ${fmtT(b.t0)}–${fmtT(b.t1)}`).join(' · '), extra].filter(Boolean).join('\n');
-  return { n, q, w, good, when, body, title: tx('Stasera si scatta: {w}', { w: when }), d0: n.t[n.first], d1: n.t[n.last] + DT };
+  return { n, q, w, good, when, body, title: tx('Stanotte sereno: {w}', { w: when }), d0: n.t[n.first], d1: n.t[n.last] + DT };
 }
 const addDays = (ds, k) => { const d = new Date(ds + 'T12:00:00'); d.setDate(d.getDate() + k); return dateStr(d); };
 
@@ -80,7 +80,7 @@ async function planNotifications() {
   const t = nights.find((x) => x.k === 0);
   if (t && c.change && now > t.ev.d0 - 6 * 3600e3 && now < t.ev.d1 - 2 * 3600e3) {
     const prev = LS.get('sf.nstate', {})[t.ds];
-    if (prev && !prev.good && t.ev.good && !sent[t.ds + 'o']) { out.push({ id: 41, at: now + 2000, title: tx('Si apre: {w}', { w: t.ev.when }), body: t.ev.body }); sentMark(t.ds + 'o'); }
+    if (prev && !prev.good && t.ev.good && !sent[t.ds + 'o']) { out.push({ id: 41, at: now + 2000, title: tx('Schiarita prevista: {w}', { w: t.ev.when }), body: t.ev.body }); sentMark(t.ds + 'o'); }
     else if (prev && prev.good && !t.ev.good && t.ev.w && (sent[t.ds + 'e'] || now > t.ev.d0 - lead) && !sent[t.ds + 'b']) { out.push({ id: 51, at: now + 2000, title: tx('Cambio di programma: nuvole'), body: tx('Previsione aggiornata: solo il {p}% del buio è sereno.', { p: Math.round(t.ev.w.clear * 100) }) }); sentMark(t.ds + 'b'); }
     LS.set('sf.nstate', { [t.ds]: { good: t.ev.good } });
     if (t.ev.good && now > t.ev.d0 - lead) sentMark(t.ds + 'e');
@@ -117,7 +117,7 @@ async function planNotifications() {
     window.cielo.bgConfig({
       on: true, evening: c.evening, change: c.change, lat: (+L.lat).toFixed(3), lon: (+L.lon).toFixed(3), tz: -new Date().getTimezoneOffset(),
       nights: nights.map((x) => ({ id: 1 + x.k, ds: x.ds, d0: x.ev.d0, d1: x.ev.d1, alertAt: x.ev.d0 - lead, minH: 1.5, minClear: c.min >= 4 ? 0.7 : c.min >= 3 ? 0.5 : 0.3, good: x.ev.good, appScheduled: !bgOk && x.ev.good && c.evening, body: x.ev.body })),
-      txt: { title: tx('Stasera si scatta: {w}'), all: tx('sereno tutta la notte'), win: tx('sereno {a}–{b}'), pct: tx('{p}% del buio sereno'), open: tx('Si apre: {w}'), bad: tx('Cambio di programma: nuvole'), badBody: tx('Previsione aggiornata: solo il {p}% del buio è sereno.') },
+      txt: { title: tx('Stanotte sereno: {w}'), all: tx('sereno tutta la notte'), win: tx('sereno {a}–{b}'), pct: tx('{p}% del buio sereno'), open: tx('Schiarita prevista: {w}'), bad: tx('Cambio di programma: nuvole'), badBody: tx('Previsione aggiornata: solo il {p}% del buio è sereno.') },
     });
   }
 }

@@ -49,6 +49,8 @@ const CAMERAS = [
   { id: 'uranusc', name: 'Player One Uranus-C', w: 3840, h: 2160, pix: 2.9, type: 'osc', qe: 80, rn: 1 },
   { id: 'asi715mc', name: 'ZWO ASI715MC', w: 3840, h: 2160, pix: 1.45, type: 'osc', qe: 80, rn: 0.9 },
   { id: 'asi676mc', name: 'ZWO ASI676MC', w: 3552, h: 3552, pix: 2, type: 'osc', qe: 80, rn: 0.9 },
+  { id: 'qhy168c', name: 'QHY168C', w: 4952, h: 3288, pix: 4.78, type: 'osc', qe: 50, rn: 2.3 },
+  { id: 'sv605cc', name: 'SVBony SV605CC', w: 3008, h: 3008, pix: 3.76, type: 'osc', qe: 80, rn: 1.5 },
   { id: 'seestars50', name: 'ZWO Seestar S50 (camera integrata)', w: 1920, h: 1080, pix: 2.9, type: 'osc', qe: 80, rn: 1 },
   { id: 'seestars30', name: 'ZWO Seestar S30 (camera integrata)', w: 1920, h: 1080, pix: 2.9, type: 'osc', qe: 80, rn: 1 },
   { id: 'seestars30p', name: 'ZWO Seestar S30 Pro (camera integrata)', w: 3840, h: 2160, pix: 2.9, type: 'osc', qe: 80, rn: 1 },
@@ -187,6 +189,12 @@ const OPTICS = [
   { id: 'tecno90', name: 'Tecnosky 90/540 FPL55', ap: 90, fl: 540, obs: 0, acc: [['Riduttore 0,79×', 0.79]] },
   { id: 'tecno80', name: 'Tecnosky EDT 80/480', ap: 80, fl: 480, obs: 0, acc: [['Riduttore 0,79×', 0.79]] },
   { id: 'svr90t', name: 'Stellarvue SVR90T', ap: 90, fl: 495, obs: 0 },
+  { id: 'at60ed', name: 'Astro-Tech AT60ED / AT60EDP', ap: 60, fl: 360, obs: 0 },
+  { id: 'al107ph', name: 'Sharpstar AL-107PH', ap: 107, fl: 695, obs: 0 },
+  { id: 'carbon150', name: 'Apertura CarbonStar 150', ap: 150, fl: 600, obs: 35 },
+  { id: 'reddwarf8', name: 'Noctutec Red Dwarf Mark II 8" f/4', ap: 203, fl: 812, obs: 35 },
+  { id: 'skymax180', name: 'Sky-Watcher Skymax 180 (Maksutov)', ap: 180, fl: 2700, obs: 30 },
+  { id: 'mk127', name: 'SVBony MK127 (Maksutov)', ap: 127, fl: 1500, obs: 30 },
   { id: 'lens200', name: 'Obiettivo 200 mm f/2,8', ap: 71.4, fl: 200, obs: 0 },
   { id: 'samyang135', name: 'Samyang 135 mm f/2', ap: 67.5, fl: 135, obs: 0 },
   { id: 'lens85', name: 'Obiettivo 85 mm f/1,8 (a f/2,8)', ap: 30.4, fl: 85, obs: 0 },
@@ -371,8 +379,22 @@ function bayer(l) {
   const B = l <= 490 ? 0.9 : l <= 515 ? 0.45 : 0.04;
   return { R, G, B };
 }
+/* Risposta spettrale del sensore: efficienza quantica relativa al picco (il "qe" della camera è il valore al picco).
+   Misure su banco ottico di sensori Sony retroilluminati con pixel da 3,76 µm (IMX455 e IMX411, stessa tecnologia di
+   IMX571 e IMX533): Alarcon et al. 2023, PASP 135, 055001 (picco a 475 nm, 50% del picco a 700 nm, 12% a 900 nm);
+   Betoule et al. 2023, A&A, arXiv:2211.04913 (sopra il 95% del picco fra 440 e 570 nm, circa il 60% a 387 e a 650 nm,
+   44% a 700 nm, 24% a 790 nm). Fra i punti la curva è lineare. Si usa per tutte le camere: i sensori con risposta estesa
+   nel vicino infrarosso (serie STARVIS) e quelli illuminati frontalmente (ASI1600, reflex) ne differiscono; per le
+   camere a colori si moltiplica per la trasmissione dei filtri Bayer (bayer). Conseguenza: a 656 nm (Hα) il sensore
+   rende il 58% del picco, a 672 nm (SII) il 54%, a 501 nm (OIII) il 100%. */
+const SI_QE = [[350, 0.3], [387, 0.6], [440, 0.95], [480, 1], [530, 1], [570, 0.95], [650, 0.6], [700, 0.47], [790, 0.24], [900, 0.1], [1000, 0.02]];
+function qeRel(l) {
+  if (l <= SI_QE[0][0]) return SI_QE[0][1];
+  for (let i = 1; i < SI_QE.length; i++) { const [l1, q1] = SI_QE[i]; if (l <= l1) { const [l0, q0] = SI_QE[i - 1]; return q0 + (q1 - q0) * (l - l0) / (l1 - l0); } }
+  return SI_QE[SI_QE.length - 1][1];
+}
 const PIX_FRAC = { mono: 1, all: 1, R: 0.25, GB: 0.75 };
-function wAt(w, l) { if (w === 'mono') return 1; const b = bayer(l); return w === 'R' ? 0.25 * b.R : w === 'GB' ? 0.5 * b.G + 0.25 * b.B : 0.25 * b.R + 0.5 * b.G + 0.25 * b.B; }
+function wAt(w, l) { const q = qeRel(l); if (w === 'mono') return q; const b = bayer(l); return q * (w === 'R' ? 0.25 * b.R : w === 'GB' ? 0.5 * b.G + 0.25 * b.B : 0.25 * b.R + 0.5 * b.G + 0.25 * b.B); }
 const TAt = (f, l) => { for (const [lo, hi, t] of f.bands) if (l >= lo && l <= hi) return t; return 0; };
 /* integrali di un canale (filtro × risposta pixel), calcolati una volta */
 function channelSpec(f, w, target, extra) {
@@ -395,14 +417,15 @@ function buildStrategies(camType, ownedIds) {
   if (camType !== 'mono') {
     const bbs = owned.filter((f) => (f.kind === 'bb' || f.kind === 'lp') && f.for !== 'mono');
     if (!bbs.length) bbs.push(FDB_BY_ID.get('uvir'));
-    const multis = owned.filter((f) => f.kind === 'multi' && f.for !== 'mono');
+    const multis = owned.filter((f) => (f.kind === 'multi' && f.for !== 'mono') || f.kind === 'nb');
     for (const f of bbs) S.push({ id: 'bb-' + f.id, label: fname(f), short: f.kind === 'lp' ? f.name : 'RGB', suits: 'all', pal: 'natural', steps: [{ f, ch: [channelSpec(f, 'all', 'all', { key: 'all' })] }] });
     const stepOf = (f) => { const g = groupsIn(f), ch = [];
       if (g.has('Ha')) ch.push(channelSpec(f, 'R', ['Ha'], { key: 'Ha' }));
       if (g.has('SII')) ch.push(channelSpec(f, 'R', ['SII'], { key: 'SII' }));
       if (g.has('OIII')) ch.push(channelSpec(f, 'GB', ['OIII', 'Hb'], { key: 'OIII' }));
+      else if (g.has('Hb')) ch.push(channelSpec(f, 'GB', ['Hb'], { key: 'Hb' })); // Hβ senza OIII (ALP-T SII+Hβ)
       return { f, ch }; };
-    for (const f of multis) { const st = stepOf(f); if (st.ch.length) S.push({ id: 'nb-' + f.id, label: fname(f), short: f.name, suits: 'line', pal: groupsIn(f).has('SII') ? 'sho' : 'hoo', steps: [st] }); }
+    for (const f of multis) { const st = stepOf(f); if (st.ch.length) S.push({ id: 'nb-' + f.id, label: fname(f), short: f.name, suits: 'line', pal: st.ch.length === 1 ? 'mono' : groupsIn(f).has('SII') ? 'sho' : 'hoo', steps: [st] }); }
     const withHa = multis.filter((f) => groupsIn(f).has('Ha')), withS = multis.filter((f) => groupsIn(f).has('SII'));
     for (const a of withHa) for (const b of withS) if (a !== b) {
       const sa = stepOf(a), sb = stepOf(b); sb.ch = sb.ch.filter((c) => c.key !== 'Ha'); // l'OIII arriva con tutti e due i filtri e si somma
@@ -421,7 +444,7 @@ function buildStrategies(camType, ownedIds) {
     if (Ha && rgb) S.push({ id: 'hargb', label: L ? 'HaLRGB' : 'HaRGB', short: L ? 'HaLRGB' : 'HaRGB', suits: 'line', pal: 'natural', steps: [one(Ha, 'Ha', ['Ha'], 1), ...(L ? [one(L, 'L', 'all', 0.7)] : []), ...rgb] });
     if (Ha && O) S.push({ id: 'hoo', label: 'HOO', short: 'HOO', suits: 'line', pal: 'hoo', steps: [one(Ha, 'Ha', ['Ha']), one(O, 'OIII', ['OIII'])] });
     if (Ha && O && Si) S.push({ id: 'sho', label: 'SHO', short: 'SHO', suits: 'line', pal: 'sho', steps: [one(Si, 'SII', ['SII']), one(Ha, 'Ha', ['Ha']), one(O, 'OIII', ['OIII'])] });
-    const duo = owned.find((f) => f.kind === 'multi' && f.for === 'both');
+    const duo = owned.find((f) => f.kind === 'multi' && f.for === 'both' && !f.ch);
     if (duo) S.push({ id: 'duo-mono', label: `${fname(duo)} (${tx('Hα+OIII insieme')})`, short: 'HO', suits: 'line', pal: 'ha', steps: [{ f: duo, ch: [channelSpec(duo, 'mono', ['Ha', 'OIII', 'Hb'], { key: 'HaO' })] }] });
     if (!S.length) { const f = { id: 'nofilter', name: tx('senza filtri'), brand: 'Generico', bands: [[400, 700, 1]] }; S.push({ id: 'none', label: tx('Senza filtri'), short: 'L', suits: 'all', pal: 'mono', steps: [one(f, 'L', 'all', 1)] }); }
     S.starFilter = R && G && B ? { id: 'rgb-stars', brand: 'Generico', name: 'R + G + B', kind: 'bb', bands: [[400, 700, 1]] } : null;
@@ -832,16 +855,8 @@ function evalStrategies(o, S, K, U, Q, T, field) {
     return { id: s.id, label: s.label, short: s.short, pal: s.pal, star, steps, ideal, tonight, dark, nights, idealDeep, tonightDeep, darkDeep, deep: idealDeep > ideal * 1.15, alt: s0.alt, lineOnly: s0.suits === 'line', hybrid: s !== s0 };
   });
 }
-/* Sotto un cielo non buio l'emissione si riprende in banda stretta (la banda larga resta per stelle e polveri):
-   il solo SNR premierebbe la banda larga quando le polveri la rendono comunque necessaria, ma il contrasto delle
-   strutture in Hα/OIII sotto l'inquinamento luminoso non lo misura. */
-/* Scelta della strategia. Oggetti a emissione (nebulose, resti di supernova, planetarie, bolle WR): se ci sono filtri a
-   banda stretta si usa la banda stretta, anche sotto un cielo buio (la banda larga resta per le stelle, facoltativa, o per
-   le polveri attorno). Fra le strade in banda stretta si preferisce quella che raccoglie tutte le righe importanti
-   dell'oggetto (SHO dove c'è SII, HOO nelle planetarie), purché non costi più di 6 volte la più rapida (su una camera a
-   colori l'SII passa solo dai pixel rossi ed è debole: costa, ma è la combinazione giusta). Il resto: tempo
-   senza Luna × penalità. */
-const LINE_KEYS = { Ha: ['Ha'], OIII: ['OIII'], SII: ['SII'], HaO: ['Ha', 'OIII'], all: ['Ha', 'OIII', 'SII'], L: ['Ha', 'OIII', 'SII'], R: ['Ha', 'SII'], G: [], B: ['OIII'] };
+/* righe raccolte da ogni canale */
+const LINE_KEYS = { Ha: ['Ha'], OIII: ['OIII'], SII: ['SII'], Hb: [], HaO: ['Ha', 'OIII'], all: ['Ha', 'OIII', 'SII'], L: ['Ha', 'OIII', 'SII'], R: ['Ha', 'SII'], G: [], B: ['OIII'] };
 /* righe importanti di un oggetto: almeno il 12% della più forte (la SII di una regione HII tipica è ~17% dell'Hα) */
 function linesOf(lk) { const L = LINES[lk]; if (!L) return []; const m = Math.max(L.Ha, L.OIII, L.SII); return ['Ha', 'OIII', 'SII'].filter((g) => L[g] >= 0.12 * m); }
 const covers = (s, need) => { const got = new Set(s.steps.flatMap((st) => st.keys.flatMap((k) => LINE_KEYS[k] || []))); return need.every((g) => got.has(g)); };
@@ -865,10 +880,23 @@ function eligible(strat, o, goal) {
   if (goal === 'lines') { const full = pool.filter((s) => s.lineOnly && covers(s, need)); if (full.length) pool = full; }
   return pool;
 }
-function pickBest(strat, o, goal = 'snr') {
-  let best = null; for (const s of eligible(strat, o, goal)) if (!best || hoursOf(s) < hoursOf(best)) best = s;
+function pickBest(strat, o, goal = 'snr', cost = hoursOf) {
+  let best = null; for (const s of eligible(strat, o, goal)) if (!best || cost(s) < cost(best)) best = s;
   return best;
 }
+/* La Luna ha spettro continuo (luce solare riflessa): un filtro ne lascia passare una quota proporzionale all'integrale
+   della sua banda, come per il continuo del cielo. Per questo con la Luna la combinazione più rapida può cambiare (dalla
+   banda larga alla banda stretta, o fra due banda stretta di larghezza diversa). Si calcola la più rapida con la Luna
+   della notte scelta, con le stesse regole di ammissione; si propone solo se riduce il tempo di almeno il 15%, perché
+   cambiare combinazione a metà progetto ha un costo pratico (flat e integrazioni separate, un'altra elaborazione). */
+const MOON_SWITCH = 0.85;
+function pickMoon(strat, o, goal, best, moonSky) {
+  if (!best || !moonSky) return null;
+  const m = pickBest(strat, o, goal, moonHoursOf);
+  return m && m !== best && moonHoursOf(m) < moonHoursOf(best) * MOON_SWITCH ? m : null;
+}
+/* combinazione da usare stanotte: quella con la Luna, se conviene, altrimenti quella senza Luna */
+const tonightStrat = (e) => (e ? e.moonBest || e.best : null);
 /* Precisione di guida consigliata per una configurazione.
    Grandezze (tutte in secondi d'arco): scala d'immagine p = 206,265 · pixel µm · binning / focale mm; seeing = FWHM
    atmosferica allo zenit (previsione della notte o, se manca, un valore tipico dichiarato come ipotesi); diffrazione =
@@ -940,6 +968,7 @@ function computeObj(C, o) {
     }
   }
   if (maxAll < minAlt) return null;
+  let moonSky = false; for (let u = 0; u < U.n; u++) if (U.mf[u] > 0) { moonSky = true; break; }
   if (maxI < 0) for (let i = night.w0; i <= night.w1; i++) if (alt[i] > maxA) { maxA = alt[i]; maxI = i; }
   U.h = U.n * STEP / 60;
   const usableH = U.h, altT = clamp(maxA, 20, 90), azT = maxI >= 0 ? az[maxI] : 180;
@@ -949,10 +978,10 @@ function computeObj(C, o) {
   const evals = cfgs.map((cfg, ci) => {
     const fill = fillInfo(o, cfg.geom, field);
     const strat = scalePanels(evalStrategies(o, cfg.strategies, consts[ci], U, Q, T, field), fill.nx * fill.ny);
-    const best = pickBest(strat, o, active.session.goal);
-    let effort = 0.05; if (best) { const n = isFinite(best.nights) ? best.nights : 99; effort = n <= 1 ? 1 : 1 / Math.sqrt(n); }
+    const best = pickBest(strat, o, active.session.goal), moonBest = pickMoon(strat, o, active.session.goal, best, moonSky), tb = moonBest || best;
+    let effort = 0.05; if (tb) { const n = isFinite(tb.nights) ? tb.nights : 99; effort = n <= 1 ? 1 : 1 / Math.sqrt(n); }
     const score = vis > 0 ? Math.round(100 * Math.pow(fill.score, 0.45) * Math.pow(vis, 0.35) * Math.pow(effort, 0.3) * interestOf(o)) : 0;
-    return { cfg, ci, strat, best, fill, effort, score, K: consts[ci] };
+    return { cfg, ci, strat, best, moonBest, fill, effort, score, K: consts[ci] };
   });
   let bestE = evals[0]; for (const e of evals) if (e.score > bestE.score) bestE = e;
   let nowAlt = null, nowAz = null, nowUse = false;
@@ -962,7 +991,7 @@ function computeObj(C, o) {
 }
 /* Interesse fotografico: a parità di inquadratura, ore e fatica, una nebulosa vale più di un ammasso aperto (che esce in
    un'ora ma raramente è il soggetto di una foto). Gli oggetti con un nome proprio o nella lista dei classici pesano un
-   po' di più; quelli senza sono le "gemme" da cercare apposta (filtro "fuori dai soliti"). */
+   po' di più; quelli senza sono le "gemme" da cercare apposta (filtro "fuori dai classici"). */
 const TYPE_INTEREST = { EN: 1, RN: 1, SNR: 1, PN: 0.9, Gx: 0.9, DN: 0.8, GC: 0.7, OC: 0.45 };
 const interestOf = (o) => (TYPE_INTEREST[o.type] || 0.8) * (o.nick || o.classic ? 1 : 0.85);
 function computeAll(cfgs, active, ds, now) {
@@ -1193,7 +1222,7 @@ function framingTip(o, fr, field) {
 }
 
 /* ============================ piano e consigli ============================ */
-const KEY_LABEL = { all: 'banda larga', L: 'L', R: 'R', G: 'G', B: 'B', Ha: 'Hα', OIII: 'OIII', SII: 'SII', HaO: 'Hα+OIII' };
+const KEY_LABEL = { all: 'banda larga', L: 'L', R: 'R', G: 'G', B: 'B', Ha: 'Hα', OIII: 'OIII', SII: 'SII', Hb: 'Hβ', HaO: 'Hα+OIII' };
 const DRIVE_LABEL = { main: 'parte principale', faint: 'parti deboli', dust: 'polveri attorno', ctxHa: 'nebulosità deboli attorno', diffHa: 'Hα diffuso attorno', shell: 'guscio OIII' };
 /* a cosa servono le ore di un filtro, detto per esteso (è il requisito più lento fra quelli che quel filtro deve soddisfare) */
 const DRIVE_WHY = {
@@ -1221,8 +1250,7 @@ function adviceFor(r, e, ctx) {
     const extra = b.tonight / hoursOf(b) - 1;
     if (extra > 0.4 && r.minSep < 180) {
       let t = tx('Luna al {ill}% a {sep}° di distanza: tempo +{x}%.', { ill: Math.round(n.moonIll * 100), sep: Math.round(r.minSep), x: Math.round(extra * 100) });
-      const nbAlt = e.strat.filter((s) => s.lineOnly && s !== b).sort((x, y) => x.tonight - y.tonight)[0];
-      if (!b.lineOnly && nbAlt) t += ' ' + tx('Con {s}: {h}.', { s: nbAlt.label, h: fmtH(nbAlt.tonight) });
+      if (e.moonBest) t += ' ' + tx('Con la Luna di questa notte la combinazione più rapida è {s}: {h} invece di {h0}.', { s: e.moonBest.label, h: fmtH(e.moonBest.tonight), h0: fmtH(b.tonight) });
       if (b.hybrid) t += ' ' + tx('Banda larga (polveri) nelle notti senza Luna; banda stretta anche con la Luna.');
       if (ctx.nextDark) t += ' ' + tx('Prossime notti senza Luna: {d}.', { d: ctx.nextDark });
       tips.push({ k: 'Luna', t });
@@ -1246,7 +1274,7 @@ function adviceFor(r, e, ctx) {
     tips.push({ k: 'Quando', t: t + '.' });
     if (b && b.steps.some((s) => s.keys.includes('OIII')) && b.steps.length > 1) tips.push({ k: 'Quando', t: tx('Riprendi l’OIII vicino al transito: a 500 nm l’estinzione atmosferica è maggiore che per Hα e SII.') });
   }
-  if (r.maxA < 32 && r.usableH > 0) tips.push({ k: 'Quota', t: tx('Raggiunge solo {a}° di altezza: riprendi attorno al transito.', { a: Math.round(r.maxA) }) });
+  if (r.maxA < 32 && r.usableH > 0) tips.push({ k: 'Altezza', t: tx('Raggiunge solo {a}° di altezza: riprendi attorno al transito.', { a: Math.round(r.maxA) }) });
   const f = e.fill;
   if (f.nx * f.ny > 1) tips.push({ k: 'Campo', t: tx('Mosaico {n} a {fl} mm: {p} per pannello, {t} in totale. Con un riduttore l’oggetto entra in un solo campo.', { n: `${f.nx}×${f.ny}`, fl: Math.round(g.fEff), p: fmtH(b ? b.ideal / (f.nx * f.ny) : NaN), t: fmtH(b ? b.ideal : NaN) }) });
   if (ctx.framing) tips.push({ k: 'Rotazione', t: framingTip(o, ctx.framing, r.field) });
@@ -1260,11 +1288,11 @@ function adviceFor(r, e, ctx) {
     const mins = b.steps.map((s) => Math.max(...s.subs.map((x) => x.min)));
     let t = tx('Pose singole: {subs}. Sotto {mins} il rumore di lettura diventa rilevante rispetto a quello del fondo cielo.', { subs: subs.join(', '), mins: mins.map((m) => Math.max(1, m) + ' s').join(' / ') });
     if (b.steps.some((s) => s.f.kind === 'bb' || s.f.kind === 'lp')) t += ' ' + (e.K.subMax ? tx('In banda larga si usa la posa massima indicata nel telescopio ({s} s).', { s: e.K.subMax }) : tx('In banda larga si propone la posa più usata nelle foto di riferimento; se il setup consente pose più lunghe senza saturare le stelle, indica il massimo nel telescopio.'));
-    tips.push({ k: 'Sub', t });
+    tips.push({ k: 'Pose singole', t });
   }
   if (!b) tips.push({ k: 'Filtri', t: tx('Con i filtri del profilo non si può: {t} emettono uno spettro continuo e richiedono la banda larga.', { t: tx(TYPES_PL[o.type]).toLowerCase() }) });
   if (o.type === 'DN' || o.type === 'RN') tips.push({ k: 'Filtri', t: tx('Luce stellare riflessa (spettro continuo): la banda stretta non raccoglie il segnale; serve banda larga e un cielo buio.') });
-  if (ctx.alt && b) tips.push({ k: 'E se…', t: tx('Con {n}: {a} invece di {b}.', { n: ctx.alt.name, a: fmtH(ctx.alt.h), b: fmtH(hoursOf(b)) }) });
+  if (ctx.alt && b) tips.push({ k: 'Altri filtri', t: tx('Con {n}: {a} invece di {b}.', { n: ctx.alt.name, a: fmtH(ctx.alt.h), b: fmtH(hoursOf(b)) }) });
   ((window.TIPS && o.tip && window.TIPS[o.tip]) || []).forEach((t) => tips.push({ k: 'Nota', t: tx(t) }));
   return tips;
 }

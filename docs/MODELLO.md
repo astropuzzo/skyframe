@@ -13,7 +13,8 @@ Per ogni oggetto, ogni configurazione del profilo (telescopio con o senza access
 | Apertura, focale, ostruzione, fattore di riduttori e Barlow | profilo | dato inserito |
 | Pixel, dimensioni del sensore, binning, QE di picco, rumore di lettura, tipo (colori, mono, reflex, reflex modificata) | profilo (catalogo camere) | dati di catalogo, QE e rumore di lettura tipici del sensore |
 | Bande passanti e trasmissione dei filtri | `src/data/filters.js`, schede dei produttori | misura pubblicata; «stima» dove il produttore non dà numeri |
-| Risposta dei pixel R, G, B della matrice di Bayer | modello a gradini (`bayer()`) | approssimazione |
+| Risposta spettrale del sensore (efficienza relativa al picco) | curva misurata su banco ottico per sensori Sony retroilluminati con pixel da 3,76 µm (IMX455, IMX411; stessa tecnologia di IMX571 e IMX533): Alarcon et al. 2023, PASP 135, 055001; Betoule et al. 2023, A&A (arXiv:2211.04913) | misura per quella famiglia; approssimazione per gli altri sensori (§ 10) |
+| Risposta dei pixel R, G, B della matrice di Bayer | modello a gradini (`bayer()`), moltiplicato per la risposta del sensore | approssimazione |
 | Spettro dell'oggetto: continuo e righe Hα, [NII], Hβ, OIII, [SII] | rapporti tipici per tipo (`LINES`); Hα misurato (NSNS, SHASSA) per molte nebulose | misura per l'Hα, ipotesi per i rapporti fra righe |
 | Luminosità superficiale e dimensioni | OpenNGC, Sharpless, Lynds, tabelle di correzione | misura (dalla magnitudine) o stima (classe, opacità, valore tipico): vedi [CATALOGO.md](CATALOGO.md) |
 | Polvere attorno all'oggetto | mappa SFD 1998 di E(B−V) | misura |
@@ -37,7 +38,7 @@ Per ogni oggetto, ogni configurazione del profilo (telescopio con o senza access
 
 ## 4. Relazioni fisiche
 
-1. **Segnale e fondo per canale.** Per ogni banda del filtro si integrano spettro dell'oggetto, spettro del cielo, trasmissione del filtro, risposta del pixel, area efficace (apertura, ostruzione, QE, 85% di trasmissione dell'ottica).
+1. **Segnale e fondo per canale.** Per ogni banda del filtro si integrano spettro dell'oggetto, spettro del cielo, trasmissione del filtro, risposta spettrale del sensore, filtro Bayer del pixel (camere a colori), area efficace (apertura, ostruzione, QE di picco, 85% di trasmissione dell'ottica). La risposta del sensore rende il 58% del picco a Hα (656 nm), il 54% a SII (672 nm), il 100% a OIII (501 nm): fino alla 0.19 si usava un valore costante, che sopravvalutava Hα e SII di 1,7–1,8 volte rispetto all'OIII.
 2. **Elemento di risoluzione.** Il SNR si misura su un elemento di dimensione max(pixel, 468″·mm / D): quattro volte il limite di diffrazione. Scelta tarata sulle foto (prima taratura): con un elemento fisso le foto reali divergevano dal modello come D^2,6.
 3. **Tempo.** t = SNR² × (S + B + N) / S², con S segnale, B fondo cielo, N rumore di lettura e termico per elemento. È rumore fotonico: vale per ogni camera, filtro e cielo.
 4. **Pose singole.** La posa minima è quella per cui il fondo cielo per pixel vale 10 volte il rumore di lettura al quadrato; il valore proposto è quello più usato nelle foto di riferimento (evidenza, § 5), mai sotto il minimo fisico.
@@ -65,8 +66,9 @@ Tre osservazioni:
 | --- | --- | --- |
 | Prima raccolta (2026-09-25) | 190 foto di 23 oggetti, schede lette a mano, cieli e camere di ogni tipo | taratura della struttura del modello (elemento di risoluzione, dipendenza dalla luminosità superficiale, galassie) |
 | Seconda raccolta (2026-09-26, 1ª parte) | 1205 foto, 101 oggetti; camere a colori, Bortle 6–8, ≥30 apprezzamenti, dal 2024 | taratura dei livelli di qualità e delle pose singole |
-| Terza raccolta (2026-09-26, 2ª parte) | 2241 foto, 559 target cercati; 972 foto nuove, 192 target nuovi | **verifica** (i 160 oggetti confrontabili mai usati per tarare), poi inclusa nella taratura finale |
-| Foto scartate | attrezzatura non riconosciuta (21 telescopi, 4 camere, 75 filtri), più telescopi o camere, integrazione mancante | escluse: dati insufficienti |
+| Terza raccolta (2026-09-26, 2ª parte) | 2241 foto, 559 target cercati; 972 foto nuove, 192 target nuovi | **verifica** (i 161 oggetti confrontabili mai usati per tarare), poi inclusa nella taratura finale |
+| Foto utilizzabili | 2183 su 2241 con attrezzatura riconosciuta (0.19: 2107); 2054 a colori usate per il livello di qualità | taratura e verifica |
+| Foto scartate | 58: più telescopi o camere nella stessa foto (23), integrazione mancante (11), filtri non modellabili (19: filtri integrati dei telescopi intelligenti, filtri per l'infrarosso, un solo filtro di colore su camera a colori, nomi ambigui, filtri senza bande pubblicate), telescopi non identificabili (5: nomi generici o configurabili, autocostruiti) | escluse: dati insufficienti |
 | Camere mono (90 foto), cieli Bortle 1–5 (80 foto) | dalla prima raccolta | insufficienti per tarare un livello proprio; mostrano solo che quelle foto raggiungono SNR più alti |
 | Foto con SQM misurato | nessuna nella seconda e terza raccolta | assenti: il cielo delle foto viene dalla classe Bortle (§ 6) |
 
@@ -90,6 +92,10 @@ Nelle foto di riferimento il cielo è la classe Bortle dichiarata dall'autore, p
 
 **Regole.** Il risultato dev'essere a colori quando è possibile (solo L o solo Hα restano alternative). Gli oggetti a spettro continuo (galassie, nebulose a riflessione, oscure, ammassi) si riprendono in banda larga: la banda stretta non raccoglie il loro segnale e il calcolo lo mostra da solo. Quando la combinazione scelta è a banda stretta, il colore delle stelle viene da una ripresa a banda larga separata: il segnale di una stella di magnitudine 16 arriva a SNR 10 in secondi o minuti, quindi il tempo proposto è quello di 20 pose (il minimo per scartare pixel anomali con il clipping statistico). Ogni passo del piano indica il suo ruolo (corpo dell'oggetto, parti deboli, polveri, guscio OIII, colore delle stelle).
 
+**Luna.** La luce lunare è luce solare riflessa: spettro continuo. Un filtro ne lascia passare una quota proporzionale all'integrale della sua banda, come per il continuo del cielo; per questo, a parità di cielo, la Luna pesa di più sulla banda larga, dove il fondo domina già il rumore, che sulla banda stretta. La combinazione senza Luna serve al confronto fra luoghi e filtri. Con la Luna della notte scelta si calcola anche la combinazione più rapida, con le stesse regole di ammissione; se riduce il tempo di almeno il 15% la si mostra nel piano (con i suoi passi) e la usa il piano della notte. La soglia è pratica, non fisica: cambiare combinazione durante un progetto richiede flat e integrazioni separate. Il calendario delle notti usa una sola combinazione per progetto. Esempio (camera a colori, UV/IR + L-eXtreme, SQM 21,3, Luna piena): NGC 7000 passa da UV/IR (13,5 h con quella Luna) a L-eXtreme (3,9 h); a SQM 19,3 la combinazione resta L-eXtreme, già scelta senza Luna ([VERIFICA-casi.md](VERIFICA-casi.md)).
+
+**Filtri singoli su camera a colori.** Un filtro a una sola riga (Hα, OIII, SII) su camera a colori lavora con i soli pixel che vedono quella riga (rossi per Hα e SII, verdi e blu per OIII) e dà un'immagine monocromatica: da solo resta un'alternativa, combinato con un duo-band forma una combinazione SHO. Un filtro che passa Hβ senza OIII (ALP-T SII+Hβ) ha un canale Hβ proprio.
+
 ## 8. Precisione di guida consigliata
 
 Scala d'immagine p = 206,265 · pixel (µm) · binning / focale (mm). FWHM attesa delle stelle F = √(seeing² + diffrazione² + (0,68 p)²), con diffrazione 1,03 λ/D a 550 nm e 0,68 p la larghezza equivalente del pixel. Un errore di guida gaussiano con RMS σ per asse aggiunge (2,355 σ)².
@@ -100,21 +106,22 @@ Ipotesi e limiti: profili gaussiani, ottica limitata dalla diffrazione, errore u
 
 ## 9. Verifiche
 
-**Fuori campione.** Livelli adattati solo sulla prima parte della seconda raccolta, verificati sulle foto della terza raccolta di 160 oggetti mai usati (720 foto):
+**Fuori campione.** Livelli adattati solo sulla prima parte della seconda raccolta, verificati sulle foto della terza raccolta di oggetti mai usati (0.15–0.19: 720 foto di 160 oggetti; 0.20: 743 foto di 161 oggetti, perché l'attrezzatura aggiunta rende utilizzabili altre 23 foto):
 
 | Modello | rapporto mediano ore vere / modello | errore mediano sull'oggetto | oggetti entro ×2 | entro ×3 |
 | --- | --- | --- | --- | --- |
 | 0.15 (fisica, livello unico) | ×0,27 | ×4,07 | 26% | 40% |
 | 0.16–0.18 (tempo fisico compresso) | ×0,80 | ×1,76 | 57% | 81% |
-| attuale (fisica + livello per oggetto) | ×0,75 | ×1,66 | 59% | 76% |
+| 0.19 (fisica + livello per oggetto) | ×0,75 | ×1,66 | 59% | 76% |
+| 0.20 (con la risposta spettrale del sensore) | ×0,80 | ×1,60 | 65% | 78% |
 
-Il modello attuale prevede le ore delle foto come la 0.18, pur restando fisicamente coerente nel confronto fra filtri e cieli. Sulla verifica i globulari restavano sovrastimati (×0,45): nella taratura c'erano solo tre globulari celebri; con la taratura finale (23 globulari) il livello si corregge.
+Il modello attuale prevede le ore delle foto meglio della 0.18, pur restando fisicamente coerente nel confronto fra filtri e cieli. Con la risposta spettrale del sensore lo scarto per tipo di filtro, misurato rispetto alla mediana del proprio oggetto, si avvicina a 1 per le foto SHO (da ×1,22 a ×1,00) e per i resti di supernova in banda stretta (da ×1,10 a ×1,00), ma si allontana per le planetarie in banda larga (da ×1,15 a ×1,65, 61 foto). Questo confronto non è una verifica pulita dei rapporti fra filtri: chi sceglie la banda larga su una planetaria può cercare un risultato diverso (§ 10). Sulla verifica i globulari restavano sovrastimati (×0,45): nella taratura c'erano solo tre globulari celebri; con la taratura finale (23 globulari) il livello si corregge.
 
-**Taratura finale** (tutte le foto, 258 oggetti, 1990 foto a colori): log g = 0,069 − 0,710 · log D; errore sull'oggetto lasciato fuori ×1,60; per gli oggetti con foto, previsione unita a metà delle foto e verificata sull'altra metà: ×1,48. La stessa foto fatta da persone diverse varia di un fattore 2,7 (0,44 dex): nessun modello può fare molto meglio sulla singola foto.
+**Taratura finale** (tutte le foto, 259 oggetti, 2054 foto a colori): log g = 0,018 − 0,707 · log D; errore sull'oggetto lasciato fuori ×1,55; per gli oggetti con foto, previsione unita a metà delle foto e verificata sull'altra metà: ×1,48. La stessa foto fatta da persone diverse varia di un fattore 2,7 (0,44 dex): nessun modello può fare molto meglio sulla singola foto.
 
-**Casi rappresentativi.** Camera a colori e mono, SQM 18,0 / 19,3 / 21,3, emissione e spettro continuo, un filtro o combinazioni, con il confronto con la 0.18: [VERIFICA-casi.md](VERIFICA-casi.md). Principali differenze: con due duo-band (L-eXtreme + L-Synergy) la 0.18 imponeva lo SHO con penalità arbitrarie (11–76 h), ora si sceglie la combinazione più rapida e lo SHO resta un obiettivo esplicito; con cielo buio la banda larga diventa competitiva sulle nebulose luminose, come previsto dalla fisica.
+**Casi rappresentativi.** Camera a colori e mono, SQM 18,0 / 19,3 / 21,3, emissione e spettro continuo, un filtro o combinazioni, con e senza Luna, con il confronto con la 0.19: [VERIFICA-casi.md](VERIFICA-casi.md). Principali differenze: con due duo-band (L-eXtreme + L-Synergy) la 0.18 imponeva lo SHO con penalità arbitrarie (11–76 h), ora si sceglie la combinazione più rapida e lo SHO resta un obiettivo esplicito; con cielo buio la banda larga diventa competitiva sulle nebulose luminose, come previsto dalla fisica.
 
-**Riferimenti dell'autore.** Cocoon (IC 5146) e WR 134 dal terrazzo (SQM ~19,3, 800 mm f/5, camera a colori): ~100 h e ~95 h per un SNR ritenuto discreto. Il livello «buona» (foto mediana) dà 4 h e 9 h, «profonda» (90° percentile) 14 h e 28 h: lo standard dell'autore è molto sopra quello delle foto apprezzate su AstroBin; per questo ci sono i livelli superiori.
+**Riferimenti dell'autore.** Cocoon (IC 5146) e WR 134 dal terrazzo (SQM ~19,3, 800 mm f/5, camera a colori): ~100 h e ~95 h per un SNR ritenuto discreto. Il livello «buona» (foto mediana) dà 4,4 h e 6,2 h, «profonda» (90° percentile) 14,5 h e 20,5 h: lo standard dell'autore è molto sopra quello delle foto apprezzate su AstroBin; per questo ci sono i livelli superiori.
 
 ## 10. Limiti e dati che servono
 
@@ -126,6 +133,8 @@ Il modello attuale prevede le ore delle foto come la 0.18, pur restando fisicame
 | **Confronti dello stesso autore** | stesso oggetto e stessa attrezzatura con due filtri o due cieli, con un giudizio sul risultato (come la Cocoon 60 h dal terrazzo e 6 h da un sito buio) | l'unico modo di verificare i rapporti fisici fra filtri e fra cieli: le ore delle foto sono abitudini, non tempi necessari |
 | Più foto di **ammassi e galassie deboli** | galassie oltre mag 11, ammassi aperti e globulari meno fotografati | il livello degli oggetti oggi previsto dalla sola difficoltà |
 | **Sessioni registrate** in Skyframe con un giudizio sul risultato | le tue notti, con filtri e ore | una taratura personale del livello di qualità |
-| Misure di **trasmissione dei filtri** «stima» | Antlia Quad Band, Seestar LP, ALP-T 3 nm, SV220 3 nm e SII | bande reali al posto di quelle stimate |
+| Misure di **trasmissione dei filtri** «stima» | Antlia Quad Band, ALP-T 3 nm, ALP-T SII+Hβ, Seestar LP, SV220 3 nm e SII, SV240, IDAS NB1 e NB3, Baader UHC-S, Optolong UHC, Altair 6 nm SII+OIII, filtri singoli Antlia e SVBony | bande reali al posto di quelle stimate |
+| **Curve di efficienza** di altri sensori | sensori STARVIS (IMX585, IMX462, IMX678), Panasonic MN34230 (ASI1600), reflex: efficienza a 500, 656 e 672 nm relativa al picco, da misure pubblicate | la risposta spettrale oggi è quella dei Sony retroilluminati da 3,76 µm per tutte le camere |
+| **Confronti con e senza Luna** dello stesso autore | stesso oggetto, attrezzatura e filtri, una sessione con Luna oltre il 60% e una senza, con ore e giudizio | verificare il modello della luce lunare diffusa e la soglia per cambiare combinazione |
 
-Ipotesi ancora da verificare: rapporti fra righe tipici per tipo; spettro della luce artificiale (75% continuo); incertezza ±0,3 mag degli atlanti; livello «buona» uguale per camere a colori e mono.
+Ipotesi ancora da verificare: rapporti fra righe tipici per tipo; spettro della luce artificiale (75% continuo); incertezza ±0,3 mag degli atlanti; livello «buona» uguale per camere a colori e mono; una sola curva di risposta spettrale per tutti i sensori.

@@ -1,1 +1,1 @@
-window.SKYFRAME_VERSION = '0.19.0';
+window.SKYFRAME_VERSION = '0.20.0';

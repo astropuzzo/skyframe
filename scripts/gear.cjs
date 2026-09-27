@@ -18,7 +18,7 @@ const SCOPES = [
   [/Vixen VC200L/i, 200, 1800, 38], [/Meade LXD75 SN10|SN-?10/i, 254, 1000, 30],
   [/10" f\/8 Ritchey|RC ?10|10" RC/i, 254, 2000, 47], [/8" f\/8 Ritchey|RC ?8|8" .*Ritchey|8".*RC\b|203\/1624/i, 203, 1624, 47], [/6" f\/9 Ritchey|RC ?6|6" RC/i, 152, 1370, 47],
   [/CDK ?12/i, 318, 2541, 49], [/CDK ?17/i, 432, 2939, 45],
-  [/Epsilon-130/i, 130, 430, 48], [/Epsilon-160/i, 160, 530, 44], [/Epsilon-180/i, 180, 500, 35],
+  [/Epsilon[- ]?130/i, 130, 430, 48], [/Epsilon-160/i, 160, 530, 44], [/Epsilon-180/i, 180, 500, 35],
   [/Hypergraph 6/i, 152, 547, 45], [/Hypergraph 8/i, 203, 690, 43], [/Hypergraph 10/i, 254, 864, 40],
   // Newton e Maksutov-Newton
   [/Quattro 150/i, 150, 600, 42], [/Quattro 200/i, 200, 800, 35], [/Quattro 250/i, 254, 1000, 32], [/Quattro 300/i, 305, 1200, 33],
@@ -60,6 +60,10 @@ const SCOPES = [
   [/SQA85/i, 85, 382, 0], [/Askar 65PHQ/i, 65, 416, 0], [/Photoline 70mm f\/6|TSAPO704/i, 70, 420, 0], [/Evostar 120ED|Black Diamond 120ED/i, 120, 900, 0],
   [/16" F\/4/i, 406, 1624, 25], [/13028HNT/i, 130, 364, 48], [/Planewave CDK14/i, 356, 2563, 48], [/PHOTON 300mm\/12" f\/4/i, 305, 1200, 30], [/BKP 150/i, 150, 750, 30],
   [/Askar 160 APO|160mm f\/7 Triplet/i, 160, 1120, 0], [/SV545/i, 80, 480, 0], [/FS-60/i, 60, 355, 0], [/StellaMira 90/i, 90, 540, 0], [/Askar 50P/i, 50, 250, 0],
+  // comparsi nella seconda raccolta, aggiunti con la 0.20
+  [/Orion Optics UK IDEAL 8/i, 203, 955, 28], // 8″; il rapporto f/4,7 lo dichiarano le foto (lo usa astrobin-dataset.cjs)
+  [/AT60ED/i, 60, 360, 0], [/CarbonStar 150/i, 150, 600, 35], [/AL-107PH/i, 107, 695, 0], [/Skymax 180/i, 180, 2700, 30], [/MK127/i, 127, 1500, 30],
+  [/Red Dwarf.*8"|Noctutec.*8"/i, 203, 812, 35], [/Photoline 115/i, 115, 800, 0],
   // obiettivi fotografici: apertura = focale / f (tutta aperta)
   [/Samyang 135|Rokinon 135/i, 67.5, 135, 0], [/Sigma 135mm F1\.8/i, 75, 135, 0], [/Sigma 105mm F2\.8/i, 37.5, 105, 0], [/Sigma 40mm F1\.4/i, 28.6, 40, 0],
   [/Sigma 150-600/i, 95, 600, 0], [/EF 100-400mm/i, 71, 400, 0], [/75-300mm|70-300mm/i, 53.6, 300, 0], [/Sigma 400mm F\/5\.6/i, 71.4, 400, 0], [/EF 400mm f\/5\.6/i, 71.4, 400, 0], [/EF 600mm f\/4/i, 150, 600, 0],
@@ -81,6 +85,7 @@ const CAMS = [
   [/533MC|Ares-C|533 ?C\b|DeepSkyPro533/i, 3.76, 3008, 3008, 80, 1.5, 'osc'],
   [/294MC|Hypercam 294C|Artemis-C|SV405CC|10300 ?KPA/i, 4.63, 4144, 2822, 75, 1.8, 'osc'],
   [/585MC|ATR585C|TS585CP|Uranus-C|SV705C/i, 2.9, 3840, 2160, 80, 1.0, 'osc'],
+  [/QHY ?168 ?C/i, 4.78, 4952, 3288, 50, 2.3, 'osc'], [/SV605CC/i, 3.76, 3008, 3008, 80, 1.5, 'osc'],
   [/183MC/i, 2.4, 5496, 3672, 80, 1.6, 'osc'], [/071MC/i, 4.78, 4944, 3284, 50, 2.3, 'osc'], [/1600MC/i, 3.8, 4656, 3520, 60, 1.2, 'osc'],
   [/ATR2600C/i, 3.76, 6248, 4176, 80, 1.5, 'osc'], [/485MC/i, 2.9, 3840, 2160, 80, 1.0, 'osc'], [/462MC/i, 2.9, 1920, 1080, 80, 1.0, 'osc'], [/DWARF ?3/i, 2.0, 3840, 2160, 80, 1.0, 'osc'],
   [/715MC|715C/i, 1.45, 3840, 2160, 80, 0.9, 'osc'], [/676MC/i, 2.0, 3552, 3552, 80, 0.9, 'osc'], [/662MC/i, 2.9, 1920, 1080, 80, 0.9, 'osc'], [/678MC/i, 2.0, 3840, 2160, 80, 0.9, 'osc'],
@@ -102,7 +107,7 @@ function camOf(name) {
 // nome del filtro → id del catalogo (src/data/filters.js). I «≈» sono filtri senza bande pubblicate in numeri: si usa il
 // più vicino del catalogo, solo per la taratura.
 const FILTERS = [
-  [/^$|^\(nessuno\)$|\d+×\d|Clear|Luminance|L-[123] |UV\/?\s?IR|UV IR|UVIR|V-Pro Luminance|Fringe Killer/i, 'uvir'],
+  [/^$|^\(nessuno\)$|\d+×\d|Clear|Luminance|L-[123] |UV\/?\s?IR|UV IR|UV ?& ?IR|UVIR|IR Blocker|HEUIB|V-Pro Luminance|Fringe Killer/i, 'uvir'],
   [/Anti-Halo UV/i, 'poahuvir'],
   [/Triband RGB Ultra Filter II|Triband RGB Ultra II/i, 'triband2'], [/Tri ?band RGB (Ultra|Pro)/i, 'triband'],
   [/Quad Band Anti-Light/i, 'aquad'], [/Radian Triad Ultra|Triad Ultra/i, 'triad'],
@@ -115,6 +120,14 @@ const FILTERS = [
   [/Altair Ha\+OIII ULTRA DualBand 4nm/i, 'altair4'], [/Altair SII\+OIII ULTRA DualBand 4nm/i, 'altair4s'],
   [/Seestar S(30|50).*LP Filter/i, 'seestar'],
   [/Anti-Halo Pro Dual-Band/i, 'poahpro'], [/ZWO Duo-Band/i, 'zwoduo'], [/STC.*Duo/i, 'stcduo'],
+  // aggiunti con la 0.20
+  [/ALP-T.*S ?II ?(&|and|\+) ?H-?(b|beta)/i, 'alptsh'], [/SV240/i, 'sv240'], [/Nebula Booster NB1|IDAS NB1\b/i, 'nb1'], [/Nebula Booster NB3|IDAS NB3\b/i, 'nb3'],
+  [/Altair SII\+OIII ULTRA DualBand 6nm/i, 'altair6s'], [/Colou?r Magic E2/i, 'askare2'], [/Astronomik UHC-E/i, 'uhce'], [/Optolong UHC/i, 'ouhc'], [/UHC-S/i, 'buhcs'],
+  [/EDGE S ?II/i, 'edge-SII'], [/SV227 OIII/i, 'sv227-OIII'], [/Antlia 3\.5 ?nm.*H-?alpha/i, 'ant35-Ha'],
+  [/Chroma H-?alpha 5 ?nm/i, 'chr5-Ha'], [/Chroma OIII 5 ?nm/i, 'chr5-OIII'], [/Baader S-?II 6[.,]5/i, 'bd65-SII'], [/Optolong H-?Alpha 7 ?nm/i, 'opt7-Ha'],
+  [/Antlia 3\.5 ?nm.*Sulfur/i, 'ant35-SII'], [/SV227 SII/i, 'sv227-SII'], [/Antlia 3\.5 ?nm.*Oxygen/i, 'ant35-OIII'], [/ALP-T.*3 ?nm.*S ?II ?(&|and|\+) ?O ?III/i, 'alpt3s'],
+  // senza bande pubblicate: il più vicino del catalogo (solo taratura)
+  [/Golden Duo-?Band 7 ?nm/i, 'duo7'], [/SV260/i, 'lpro'], [/Contrast Booster|UHC-L Booster|Natural Night/i, 'lpro'],
   // anti-inquinamento a banda larga senza bande pubblicate: ≈ L-Pro
   [/IDAS LPS-(D1|D2|D3|P1|P2|P3)|IDAS GNB|LoGlow|Light Pollution for RASA|Neodymium|Moon (&|and) Skyglow|CLS/i, 'lpro'],
   [/Altair Ha\+OIII ULTRA DualBand 6nm/i, 'askard1'],

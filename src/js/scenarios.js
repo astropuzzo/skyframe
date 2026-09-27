@@ -66,7 +66,7 @@ function scenHTML(r, e) {
       <button type="button" class="icon-btn" data-scinfo title="${tx('Come leggere i tempi')}" aria-label="${tx('Come leggere i tempi')}">${ic('info')}</button></div>
     ${dayAxis(state.res.C, D)}
     <div class="sc-rows">${rows}<div id="scLocs"></div></div>
-    <div class="sc-leg"><span><i class="use"></i>${tx('si riprende')}</span><span><i class="skip"></i>${tx('saltata per la Luna')}</span><span><i class="cloud"></i>${tx('nuvole previste')}</span><span><i class="no"></i>${tx('non si vede')}</span></div>
+    <div class="sc-leg"><span><i class="use"></i>${tx('notte di ripresa')}</span><span><i class="skip"></i>${tx('saltata per la Luna')}</span><span><i class="cloud"></i>${tx('nuvole previste')}</span><span><i class="no"></i>${tx('non si vede')}</span></div>
     <p class="sc-say">${scenSay(cals)}</p></div>`;
 }
 /* la frase: quanto costa la Luna, e se un altro luogo conviene lo dice la riga del luogo */
@@ -90,7 +90,7 @@ function renderScenLocs(r) {
   box.innerHTML = state.locs.filter((l) => l.id !== state.locId).map((l) => {
     const x = cmpFull(l, r.o), C = x && cmpCtx(l), c = x && x.e.best ? shootCalendar(C, x, x.e, false, mode) : null;
     if (c && c.done && here && (!here.done || c.hours < here.hours * 0.6) && (!best || c.hours < best.c.hours)) best = { l, c };
-    return `<div class="sc-row loc"><span class="sc-h">${ic('pin')}<span class="sc-t" title="${x && x.skyMag != null ? tx('cielo in direzione del target {m}', { m: it(x.skyMag, 2) }) : ''}"><b>${esc(l.site.name)}</b><small>SQM ${it(+l.site.sqm, 2)} · ${Math.round(kmBetween(activeLoc().site, l.site))} km</small></span><span class="sc-v"><b class="num">${c && c.done ? fmtH(c.hours) : '—'}</b><small>${c ? nightsTxt2(c) + (c.complete ? '' : ' · ' + endTxt(c)) : tx('non si vede')}</small></span><button type="button" class="btn sm" data-loc="${esc(l.id)}">${tx('Passa qui')}</button></span>${dayStrip(c, D)}</div>`;
+    return `<div class="sc-row loc"><span class="sc-h">${ic('pin')}<span class="sc-t" title="${x && x.skyMag != null ? tx('cielo in direzione del target {m}', { m: it(x.skyMag, 2) }) : ''}"><b>${esc(l.site.name)}</b><small>SQM ${it(+l.site.sqm, 2)} · ${Math.round(kmBetween(activeLoc().site, l.site))} km</small></span><span class="sc-v"><b class="num">${c && c.done ? fmtH(c.hours) : '—'}</b><small>${c ? nightsTxt2(c) + (c.complete ? '' : ' · ' + endTxt(c)) : tx('non si vede')}</small></span><button type="button" class="btn sm" data-loc="${esc(l.id)}">${tx('Usa questo luogo')}</button></span>${dayStrip(c, D)}</div>`;
   }).join('');
   if (best) { const say = $('#scen .sc-say'); if (say) say.textContent = scenSay(scenCals(r, r.e), tx('Da {l}: {h} ({n}), {x} volte meno.', { l: best.l.site.name, h: fmtH(best.c.hours), n: nNights(best.c.sessions), x: it(here.done ? here.hours / best.c.hours : 99, 1) })); }
 }

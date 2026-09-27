@@ -48,7 +48,7 @@ function skyGrid(x) {
     row(tx('Probabilità'), tx('51 scenari ECMWF'), (w) => (w && w.prob != null ? ` style="background:${skyCol(w.prob)};color:${w.prob > 0.5 ? '#E6EBF2' : '#0B1018'}">${Math.round(w.prob * 100)}` : '>')),
     row(tx('Accordo'), tx('fra i modelli'), (w) => { const l = w && agreeLvl(w.spread); return l ? ` title="${tx(l.t)}"><i class="dot" style="background:${LVL_COL[l.i]}"></i>` : '>'; }),
     row(tx('Seeing'), '″', (w) => { const l = w && seeLvl(w.see); return l ? ` style="${lvlBg(l)}">${it(w.see, 1)}` : '>'; }),
-    row(tx('Getto'), 'm/s', (w) => (w && w.jet != null ? ` style="${w.jet >= 30 ? 'color:var(--warn)' : ''}">${w.jet}` : '>')),
+    row(tx('Corrente a getto'), 'm/s', (w) => (w && w.jet != null ? ` style="${w.jet >= 30 ? 'color:var(--warn)' : ''}">${w.jet}` : '>')),
     row(tx('Trasparenza'), 'AOD', (w) => { const l = w && traLvl(w.aod); return l ? ` style="${lvlBg(l)}">${String(w.aod).replace(/^0/, '')}` : '>'; }),
     row(tx('Umidità'), '%', (w) => (w && w.rh != null ? ` style="${w.t != null && w.td != null && w.t - w.td <= 2 ? 'color:var(--warn);font-weight:600' : ''}">${w.rh}` : '>')),
     row(tx('Raffiche'), 'km/h', (w) => (w && w.gust != null ? ` style="${w.gust >= 25 ? `color:${LVL_COL[w.gust >= 40 ? 4 : 2]}` : ''}">${w.gust}` : '>')),

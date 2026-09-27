@@ -24,6 +24,7 @@ const TOUR_STEPS = [
 ];
 /* novità per versione (le più recenti in cima) */
 const NEWS = [
+  { v: '0.20.0', items: ['Sensori e filtri: risposta spettrale del sensore misurata in laboratorio (Hα e SII rendono circa il 55% dell’OIII); 16 filtri, 2 camere e 6 telescopi nuovi', 'Luna: con la Luna della notte si ricalcola la combinazione più rapida e il piano della notte la usa', 'Taratura rifatta su 2054 foto; verifica su 161 oggetti esclusi: due su tre entro un fattore 2', 'Testi rivisti: orizzonte e nuvole distinti, avvisi e consigli con nomi descrittivi'] },
   { v: '0.19.0', items: ['Tempi: fisica del rumore per filtri, cieli e strumenti; livello di qualità per oggetto tarato su 1990 foto e verificato su 160 oggetti esclusi dalla taratura', 'Filtri: scelta con un criterio esplicito (tempo minimo per il SNR) e un obiettivo nel profilo; colore delle stelle con una ripresa a banda larga separata', 'Cielo: SQM con origine e incertezza, Bortle come intervallo; il piano mostra l’intervallo di ore che ne deriva', 'Catalogo completo Messier, NGC, IC, Sharpless e Lynds nella ricerca; precisione di autoguida per ogni configurazione', 'Testi riscritti in forma più precisa, in italiano e in inglese'] },
   { v: '0.18.0', items: ['Il dettaglio si apre dal target toccato e vi ritorna alla chiusura', 'Sezioni e notti: l’indicatore si sposta con continuità; la cupola ruota fino all’ora scelta', 'Fogli e dettaglio si chiudono trascinandoli verso il basso'] },
   { v: '0.17.0', items: ['Guida rifatta: nove passi, un solo spostamento per passo, i gesti mostrati sullo schermo'] },
@@ -31,13 +32,13 @@ const NEWS = [
   { v: '0.15.0', items: ['Testi riscritti in italiano e in inglese'] },
   { v: '0.14.0', items: ['Animazione del logo all’avvio', 'Animazioni: in Setup si può seguire l’impostazione del sistema o tenerle sempre attive'] },
   { v: '0.13.1', items: ['Android: il tasto indietro chiude fogli, dettaglio e guida invece di uscire', 'Android: gli avvisi ad app chiusa ora ricevono le notti da controllare'] },
-  { v: '0.13.0', items: ['Questa guida passo passo, e le novità a ogni aggiornamento', 'Niente più collegamenti a siti meteo esterni: tutto dentro l’app'] },
-  { v: '0.12.1', items: ['Registri la sessione con un tocco dal piano della notte', 'Le ore fatte con la Luna piena valgono per quello che rendono'] },
-  { v: '0.11.0', items: ['Quattro avvisi da scegliere in Setup, anche ad app chiusa su Android'] },
+  { v: '0.13.0', items: ['Guida passo per passo e novità a ogni aggiornamento', 'Previsioni meteo consultabili nell’app, senza collegamenti a siti esterni'] },
+  { v: '0.12.1', items: ['Sessioni registrabili con un tocco dal piano della notte', 'Le ore riprese con la Luna contano per il segnale che raccolgono'] },
+  { v: '0.11.0', items: ['Quattro tipi di avviso, attivabili in Setup; su Android funzionano anche ad app chiusa'] },
   { v: '0.10.0', items: ['Progetti: piano di stagione, calendario con chi riprendere ogni notte, le stagioni'] },
   { v: '0.9.0', items: ['«Quanto ci vuole»: ore, notti e data di fine per ogni modo di riprendere e ogni luogo', 'Calendario di sei settimane per ogni target'] },
   { v: '0.8.0', items: ['Sezione Cielo: sette modelli meteo, probabilità, seeing, trasparenza'] },
-  { v: '0.7.0', items: ['Interfaccia nuova a sezioni, le prossime 14 notti, icona nuova'] },
+  { v: '0.7.0', items: ['Interfaccia divisa in sezioni, riepilogo delle prossime 14 notti, nuova icona'] },
 ];
 const verNum = (v) => String(v || '0').split('.').reduce((a, x) => a * 1000 + (+x || 0), 0);
 /* target: gli elementi da illuminare (null = nessuno, scheda al centro); ready: la scena è pronta e il faro può muoversi;
@@ -168,7 +169,7 @@ async function tourGo(i) {
   card.querySelector('[data-t=skip]').textContent = tx(last ? 'Chiudi' : 'Salta');
   body.innerHTML = `${st.hero ? `<div class="tour-hero"><canvas class="in-cv" aria-hidden="true"></canvas><div class="intro"><svg class="in-final" viewBox="0 0 32 32" aria-hidden="true"><use href="#i-logo"/></svg></div></div>` : ''}<h3>${tx(st.t)}</h3><p>${tx(st.d)}</p>`;
   card.querySelector('.tour-acts').innerHTML = `${i > 0 ? `<button type="button" class="btn ghost" data-t="prev" aria-label="${tx('Indietro')}">${ic('chev-l')}</button>` : '<span></span>'}
-    ${cta ? `<button type="button" class="btn" data-t="next">${tx('Dopo')}</button><button type="button" class="btn primary" data-t="cta">${tx(cta[0])}</button>` : `<button type="button" class="btn primary" data-t="next">${tx(last ? 'Fine' : i === 0 ? 'Iniziamo' : 'Avanti')}${last ? '' : ic('chev-r')}</button>`}`;
+    ${cta ? `<button type="button" class="btn" data-t="next">${tx('Dopo')}</button><button type="button" class="btn primary" data-t="cta">${tx(cta[0])}</button>` : `<button type="button" class="btn primary" data-t="next">${tx(last ? 'Fine' : i === 0 ? 'Inizia' : 'Avanti')}${last ? '' : ic('chev-r')}</button>`}`;
   card.querySelector('.tour-bar i').style.transform = `scaleX(${(i + 1) / n})`;
   // 3. si aspetta che la scena stia ferma, poi la si porta nella zona libera
   await frame(); if (seq !== TOUR.seq) return;
@@ -236,11 +237,11 @@ function tourBoot() {
   if (!seen) {
     if (!known) { setTimeout(() => tourStart(TOUR_STEPS), 700); return; }
     openSheet({
-      title: tx('Skyframe è cambiato'), body: `<p class="info-txt">${tx('Livelli di qualità tarati su foto reali, scelta dei filtri con un criterio esplicito, catalogo completo, precisione di guida. Vuoi vedere la guida (nove passi)?')}</p>`,
-      foot: `<button type="button" class="btn" data-later>${tx('Più tardi')}</button><button type="button" class="btn primary" data-go>${tx('Fai il giro')}</button>`,
+      title: tx('Skyframe è stato aggiornato'), body: `<p class="info-txt">${tx('Livelli di qualità tarati su foto reali, scelta dei filtri con un criterio esplicito, catalogo completo, precisione di guida. Vuoi vedere la guida (nove passi)?')}</p>`,
+      foot: `<button type="button" class="btn" data-later>${tx('Più tardi')}</button><button type="button" class="btn primary" data-go>${tx('Apri la guida')}</button>`,
       onMount: (el, close) => el.addEventListener('click', (e) => {
         if (e.target.closest('[data-go]')) { close(); setTimeout(() => tourStart(TOUR_STEPS), 300); }
-        else if (e.target.closest('[data-later]')) { LS.set('sf.tourV', cur); close(); toast(tx('La guida è in Setup, quando vuoi')); }
+        else if (e.target.closest('[data-later]')) { LS.set('sf.tourV', cur); close(); toast(tx('La guida si riapre da Setup')); }
       }),
     });
     return;
@@ -254,7 +255,7 @@ function openNews(news, steps) {
   openSheet({
     title: tx('Novità in Skyframe'),
     body: news.map((n) => `<div class="news"><b>${esc(n.v)}</b><ul>${n.items.map((x) => `<li>${tx(x)}</li>`).join('')}</ul></div>`).join(''),
-    foot: steps && steps.length ? `<button type="button" class="btn" data-close2>${tx('Chiudi')}</button><button type="button" class="btn primary" data-go>${tx('Mostramele')}</button>` : `<button type="button" class="btn primary" data-close2>${tx('Chiudi')}</button>`,
+    foot: steps && steps.length ? `<button type="button" class="btn" data-close2>${tx('Chiudi')}</button><button type="button" class="btn primary" data-go>${tx('Mostra')}</button>` : `<button type="button" class="btn primary" data-close2>${tx('Chiudi')}</button>`,
     onMount: (el, close) => el.addEventListener('click', (e) => {
       if (e.target.closest('[data-go]')) { close(); setTimeout(() => tourStart(steps), 300); } else if (e.target.closest('[data-close2]')) close();
     }),
