@@ -84,16 +84,20 @@ try {
     // ogni passo prepara la schermata sotto il faro, senza aprire un editor modificabile
     await ev(`tourGo(Math.min(${k}, TOUR.steps.length - 1)); return 1`);
     await until(`TOUR.el && TOUR.ready && (TOUR.el.querySelector('.tour-card.on .tour-n') || {}).textContent === (TOUR.i + 1) + ' / ' + TOUR.steps.length`, 20000);
-    await sleep(500); shot(`04-guida-${String(k).padStart(2, '0')}-${name}`);
+    await sleep(1100); shot(`04-guida-${String(k).padStart(2, '0')}-${name}`);
     const g = await ev(`const st = TOUR.steps[TOUR.i], els = tourEls(st), z = freeZone(els), r = els.length ? unionRect(els) : null;
       const room = z.bottom - z.top, overlap = r ? Math.max(0, Math.min(r.bottom, z.bottom) - Math.max(r.top, z.top)) : 0;
+      const pad = 8, x = r ? Math.max(4, r.left - pad) : 0, y = r ? Math.max(z.top - 4, r.top - pad) : 0;
+      const box = r ? [x, y, Math.max(0, Math.min(innerWidth - 4, r.right + pad) - x), Math.max(0, Math.min(z.bottom + 12, r.bottom + pad) - y)] : [];
       return { id: st.id, view: UI.view, expectedView: st.view || 'targets', target: !!r,
         top: r && Math.round(r.top), bottom: r && Math.round(r.bottom), zone: [Math.round(z.top), Math.round(z.bottom)],
         overlap: Math.round(overlap), visible: !!r && (r.height > room ? overlap >= Math.min(40, room * 0.3) : r.top >= z.top - 5 && r.bottom <= z.bottom + 5),
+        holeAligned: !!r && !TOUR.el.querySelector('.tour-hole').hidden && box.every((n, j) => Math.abs(n - TOUR.hole.x[j]) < 12),
+        textVisible: !!TOUR.el.querySelector('.tour-card h3')?.textContent && +getComputedStyle(TOUR.el.querySelector('.tour-body')).opacity > 0.95,
         tab: document.querySelector('#nav [data-view="' + UI.view + '"]')?.getAttribute('aria-current'),
         drawer: !document.getElementById('drawer').hidden };`);
     out.tourGeometry.push(g);
-    seen.push(g.target && g.visible && g.tab === 'page' && g.view === g.expectedView && (['preferito', 'quanto', 'registra', 'fotovere', 'quando', 'campo'].includes(name) === g.drawer));
+    seen.push(g.target && g.visible && g.holeAligned && g.textVisible && g.tab === 'page' && g.view === g.expectedView && (['preferito', 'quanto', 'registra', 'fotovere', 'quando', 'campo'].includes(name) === g.drawer));
   }
   out.checks.guida_passi = seen.every(Boolean);
   out.checks.guida_sessione_visibile = out.tourGeometry.find((g) => g.id === 'sessione')?.visible === true;

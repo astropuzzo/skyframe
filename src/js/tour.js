@@ -1,6 +1,6 @@
 'use strict';
 /* ============================ guida ============================
-   Un giro breve: una scheda ancorata (in basso sul telefono, in un angolo sul computer) e un faro che illumina un
+   Una scheda ancorata (in basso sul telefono, in un angolo sul computer) e un faro che illumina un
    elemento dell'app. Coreografia fissa, un solo movimento per passo:
      1. il testo esce, sotto un velo la scena si prepara (sezione, dettaglio, scorrimento: tutto istantaneo);
      2. appena l'elemento sta fermo il faro ci scivola sopra con una molla critica (senza rimbalzi né ritorni),
@@ -26,7 +26,7 @@ const TOUR_STEPS = [
   { id: 'attrezzatura', v: '0.25.1', view: 'setup', preview: 'prof', sel: '#f_cam', t: '6. Camera', d: 'Nel profilo scegli la camera. Per un modello personalizzato inserisci dimensioni del sensore, pixel, QE e rumore di lettura.' },
   { id: 'ottica', v: '0.25.1', view: 'setup', preview: 'prof', sel: '#optics select[data-k="preset"]', t: '7. Telescopio', d: 'Qui scegli il telescopio o inserisci apertura e focale. Puoi aggiungere riduttori e Barlow al profilo.' },
   { id: 'filtri', v: '0.25.1', view: 'setup', preview: 'prof', sel: '#filterPick .fbox', t: '8. Filtri', d: 'Nel profilo selezioni i filtri che possiedi e usi con questa camera.' },
-  { id: 'sessione', v: '0.25.1', view: 'setup', preview: 'prof', sel: '#f_quality', t: '9. Sessione', d: 'Qui scegli il livello di qualità e, se serve, limiti l’orario della sessione. Il profilo si salva al termine.' },
+  { id: 'sessione', v: '0.25.1', view: 'setup', preview: 'prof', sel: '#f_quality', t: '9. Sessione', d: 'Qualità e orario si impostano nel profilo. Dopo la guida, torna a Setup, compila il profilo e premi Salva profilo.' },
   { id: 'notti', v: '0.13.0', view: 'tonight', sel: '#nightBar', hint: ['#nightBar > :nth-child(2)', 'tap'], t: 'Scegli la notte', d: 'La striscia mostra buio, Luna e nuvole previste. Tocca una data per aggiornare target e piano.' },
   { id: 'cielo', v: '0.13.0', view: 'tonight', sel: '.skycard', anchor: 'bottom', hint: ['.skycard .clock', 'drag'], t: 'Ora della ripresa', d: 'Trascina la barra del tempo per vedere posizione dei target e condizioni durante la notte.' },
   { id: 'piano', v: '0.13.0', view: 'tonight', sel: '#tonight', t: 'Piano della notte', d: 'I blocchi indicano quando riprendere ciascun target. Apri un target per controllare filtri, ore e inquadratura.' },

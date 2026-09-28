@@ -912,7 +912,7 @@ window.I18N.en = {
   "8. Filtri": "8. Filters",
   "Nel profilo selezioni i filtri che possiedi e usi con questa camera.": "Select the filters you own and use with this camera in the profile.",
   "9. Sessione": "9. Session",
-  "Qui scegli il livello di qualità e, se serve, limiti l’orario della sessione. Il profilo si salva al termine.": "Choose the quality level here and limit the session time if needed. Save the profile when finished.",
+  "Qualità e orario si impostano nel profilo. Dopo la guida, torna a Setup, compila il profilo e premi Salva profilo.": "Set quality and session hours in the profile. After the guide, return to Setup, complete the profile and press Save profile.",
   "Scegli la notte": "Choose a night",
   "La striscia mostra buio, Luna e nuvole previste. Tocca una data per aggiornare target e piano.": "The strip shows darkness, Moon and forecast cloud cover. Tap a date to update the targets and plan.",
   "Ora della ripresa": "Imaging time",
