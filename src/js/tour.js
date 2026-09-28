@@ -158,7 +158,7 @@ function freeZone(els) {
   let top = 8;
   if (els && els.length && els[0].closest('#editor')) top = Math.max(top, F('editor').querySelector('.sheet-head').getBoundingClientRect().bottom + 6);
   else if (els && els.length && !els.some((e) => e.closest('.topbar'))) {
-    if (tb && tb.offsetParent) top = Math.max(top, tb.getBoundingClientRect().bottom + 6);
+    if (tb && tb.offsetParent && !els[0].closest('#drawer')) top = Math.max(top, tb.getBoundingClientRect().bottom);
     if (nb && nb.offsetParent && !els.includes(nb) && !els[0].closest('#drawer') && els[0].closest('#v-tonight')) top = Math.max(top, nb.getBoundingClientRect().bottom + 6);
   }
   if (PHONE.matches) return { top, bottom: H - (card ? card.offsetHeight : 220) - navH() - 24 };

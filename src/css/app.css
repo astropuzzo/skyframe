@@ -429,6 +429,8 @@ button.st-item:hover, .st-item.tap:hover { background: var(--card-2); }
 .backdrop { position: fixed; inset: 0; background: rgba(2, 3, 6, .55); backdrop-filter: blur(3px); z-index: 20; opacity: 0; transition: opacity .25s; }
 .backdrop.on { opacity: 1; }
 .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(880px, 100%); background: var(--card); border-left: 1px solid var(--line-2); z-index: 21; overflow-y: auto; overscroll-behavior: contain; padding: 0 24px calc(60px + var(--sab)); transform: translateX(40px); opacity: 0; transition: transform .35s var(--ease), opacity .25s; }
+/* Anche l'ultimo pannello del dettaglio deve poter salire sopra la scheda della guida. */
+#drawer[data-preview]::after { content: ''; display: block; height: min(70vh, 650px); }
 .drawer.on { transform: none; opacity: 1; }
 .drawer.drag, .drawer.morph, .bsheet.drag { transition: none !important; }
 .d-top { position: sticky; top: 0; z-index: 3; background: var(--card); margin: 0 -24px; padding: calc(14px + var(--sat)) 24px 0; }
