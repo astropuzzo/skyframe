@@ -9,7 +9,8 @@
    Parte da sola al primo avvio; chi aveva già Skyframe riceve la proposta; dopo un aggiornamento le «Novità» e i passi
    nuovi. Si riprende da Setup → Guida. v = versione in cui il passo è comparso. */
 const TOUR_STEPS = [
-  { id: 'benvenuto', v: '0.13.0', view: 'tonight', hero: true, t: 'Skyframe', d: 'Prima inserisci luogo e attrezzatura. Poi confronta i target con le condizioni della notte.' },
+  { id: 'benvenuto', v: '0.25.2', view: 'tonight', hero: true, t: 'Skyframe', d: 'Parti da Setup: crea un luogo e un profilo di ripresa. Poi scegli la notte, confronta i target e segui i tuoi progetti.' },
+  { id: 'setup-luoghi', v: '0.25.2', view: 'setup', sel: '#stLocations [data-newl]', t: 'Setup · Luoghi', d: 'Da Nuovo luogo inserisci il punto di osservazione. La guida mostrerà i campi; per aggiungere davvero il luogo, torna qui al termine.' },
   { id: 'luogo', v: '0.25.1', view: 'setup', preview: 'loc', sel: () => DESK_GEO() ? '#geoQ' : '#geoMap', t: '1. Cerca il luogo',
     d: () => DESK_GEO()
       ? 'Nel luogo puoi cercare città, indirizzi e località. Scegliendo un risultato, Skyframe compila le coordinate.'
@@ -21,6 +22,7 @@ const TOUR_STEPS = [
       ? 'Dopo aver scelto il punto, la mappa si scarica automaticamente. Qui puoi riprovare e controllare il valore SQM.'
       : 'Da lightpollutionmap puoi salvare l’immagine All-sky. Qui la importerai, controllerai i valori della barra dei colori e poi salverai il luogo.' },
   { id: 'orizzonte', v: '0.25.1', view: 'setup', preview: 'loc', sel: '#f_minalt', t: '5. Orizzonte', d: 'Qui imposti l’altezza minima. Più sotto puoi disegnare gli ostacoli o importare un file .hrz.' },
+  { id: 'setup-profili', v: '0.25.2', view: 'setup', sel: '#stEquipment [data-newp]', t: 'Setup · Profilo', d: 'Da Nuovo profilo imposti camera, telescopio, filtri e sessione. Puoi conservare più profili e scegliere quello attivo da questa scheda.' },
   { id: 'attrezzatura', v: '0.25.1', view: 'setup', preview: 'prof', sel: '#f_cam', t: '6. Camera', d: 'Nel profilo scegli la camera. Per un modello personalizzato inserisci dimensioni del sensore, pixel, QE e rumore di lettura.' },
   { id: 'ottica', v: '0.25.1', view: 'setup', preview: 'prof', sel: '#optics select[data-k="preset"]', t: '7. Telescopio', d: 'Qui scegli il telescopio o inserisci apertura e focale. Puoi aggiungere riduttori e Barlow al profilo.' },
   { id: 'filtri', v: '0.25.1', view: 'setup', preview: 'prof', sel: '#filterPick .fbox', t: '8. Filtri', d: 'Nel profilo selezioni i filtri che possiedi e usi con questa camera.' },
@@ -28,15 +30,25 @@ const TOUR_STEPS = [
   { id: 'notti', v: '0.13.0', view: 'tonight', sel: '#nightBar', hint: ['#nightBar > :nth-child(2)', 'tap'], t: 'Scegli la notte', d: 'La striscia mostra buio, Luna e nuvole previste. Tocca una data per aggiornare target e piano.' },
   { id: 'cielo', v: '0.13.0', view: 'tonight', sel: '.skycard', anchor: 'bottom', hint: ['.skycard .clock', 'drag'], t: 'Ora della ripresa', d: 'Trascina la barra del tempo per vedere posizione dei target e condizioni durante la notte.' },
   { id: 'piano', v: '0.13.0', view: 'tonight', sel: '#tonight', t: 'Piano della notte', d: 'I blocchi indicano quando riprendere ciascun target. Apri un target per controllare filtri, ore e inquadratura.' },
-  { id: 'catalogo', v: '0.19.0', view: 'targets', sel: '.searchbox', t: 'Cerca un target', d: 'Cerca per sigla o nome. Usa i filtri per limitare ore utili, tecnica e inquadratura.' },
+  { id: 'catalogo', v: '0.19.0', view: 'targets', sel: '.searchbox', t: 'Target · Ricerca', d: 'Cerca per sigla o nome. L’elenco usa la notte, il luogo e il profilo attivi.' },
+  { id: 'tipi', v: '0.25.2', view: 'targets', sel: '#typeChips', t: 'Target · Tipi', d: 'Qui limiti l’elenco a nebulose, galassie, ammassi e altri tipi di oggetto.' },
+  { id: 'filtra-target', v: '0.25.2', view: 'targets', sel: '#advBtn', t: 'Target · Filtri', d: 'Apri Filtri per scegliere ore utili, tecnica, luminosità superficiale e inquadratura. I risultati si aggiornano in questa scheda.' },
+  { id: 'preferito', v: '0.25.2', detail: 'piano', sel: '#drawer .d-title [data-fav]', t: 'Salva un target', d: 'La stella aggiunge questo target a Progetti. Da lì potrai seguirne le sessioni e la stagione.' },
   { id: 'quanto', v: '0.13.0', detail: 'piano', sel: '#scen', t: 'Tempi stimati', d: 'Qui trovi integrazione, notti previste e data di fine per il luogo e il profilo attivi.' },
+  { id: 'registra', v: '0.25.2', detail: 'piano', sel: () => $('#pAdd') ? '#pAdd' : '#proj .ph .acts', t: 'Registra la ripresa', d: 'Dopo una notte, usa Registra una sessione: inserisci data, ore, configurazione e luogo. Le ore già fatte riducono il lavoro rimanente.' },
   { id: 'fotovere', v: '0.16.0', detail: 'piano', sel: '.real-card', hint: ['.real-card .rbar .me', 'ping'], when: () => !!(window.REAL && REAL.o[(tourSample() || {}).id]), t: 'Foto di riferimento', d: 'Confronta la stima con le ore dichiarate per foto dello stesso target. Il punto verde indica il tuo setup.' },
-  { id: 'meteo', v: '0.13.0', view: 'sky', sel: '#skyView .sk-nights', t: 'Previsioni', d: 'Nuvole, seeing e aerosol cambiano ora per ora. Il calendario pesa le ore serene previste.' },
-  { id: 'progetti', v: '0.13.0', view: 'projects', sel: '#projView', t: 'Progetti', d: 'Aggiungi un target ai preferiti o registra una sessione. Il piano tiene conto del lavoro già svolto.' },
+  { id: 'quando', v: '0.25.2', detail: 'quando', sel: '#altBox', t: 'Quando riprenderlo', d: 'Il grafico mostra altezza e finestra utile nella notte scelta. Più sotto trovi la visibilità nei prossimi mesi.' },
+  { id: 'campo', v: '0.25.2', detail: 'campo', sel: '#fov', t: 'Campo inquadrato', d: 'Controlla come il target entra nel sensore. La rotazione e l’eventuale mosaico si provano qui.' },
+  { id: 'meteo', v: '0.13.0', view: 'sky', sel: () => wxOk() ? '#skyView .sk-nights' : '#skyView .sk-wait', t: 'Cielo · Notti', d: 'Le schede confrontano le prossime notti: nuvole, Luna, seeing e trasparenza. Scegline una per leggere i dati orari.' },
+  { id: 'meteo-ore', v: '0.25.2', view: 'sky', sel: () => wxOk() ? '#skyView .hg' : '#skyView .sk-wait', t: 'Cielo · Ora per ora', d: 'La tabella riporta nuvole, probabilità, seeing e trasparenza durante il buio. Aggiorna le previsioni dall’icona in alto.' },
+  { id: 'progetti', v: '0.13.0', view: 'projects', sel: () => $('#projView .pv-stats') ? '#projView .pv-stats' : '#projView .pv-empty', t: 'Progetti', d: 'Qui ritrovi i target salvati, le ore registrate e il piano di stagione. Se è vuoto, parti dalla stella nel dettaglio di un target.' },
   { id: 'autoguida', v: '0.19.0', view: 'setup', sel: '#stGuiding', t: 'Autoguida', d: 'Il limite RMS consigliato dipende dalla scala d’immagine e dal seeing previsto.' },
+  { id: 'avvisi', v: '0.25.2', view: 'setup', sel: '#stAlerts', t: 'Avvisi', d: 'Qui attivi gli avvisi per notti serene, variazioni del meteo e target in uscita di stagione.' },
+  { id: 'rivedi', v: '0.25.2', view: 'setup', sel: '#stGuide [data-tour]', t: 'Rivedi la guida', d: 'La guida si riapre da Setup quando vuoi. Salta la presentazione per tornare subito all’app.' },
 ];
 /* novità per versione (le più recenti in cima) */
 const NEWS = [
+  { v: '0.25.2', items: ['Guida completa alle schede Setup, Stanotte, Target, Cielo e Progetti', 'Campi dell’editor scorrevoli e visibili sopra la guida su Android'] },
   { v: '0.25.1', items: ['Guida visiva continua: mostra dove inserire i dati senza aprire moduli da compilare'] },
   { v: '0.25.0', items: ['Guida operativa per luogo, mappa all-sky, orizzonte e attrezzatura, anche su Android', 'Modello aggiornato per tempi di posa, Luna e previsioni; descrizioni dei target riviste'] },
   { v: '0.24.0', items: ['Sei livelli di qualità con stima delle ore per i tuoi target'] },
@@ -153,15 +165,22 @@ function freeZone(els) {
   return { top, bottom: H - 8 };
 }
 const navH = () => (PHONE.matches ? ($('#nav') || {}).offsetHeight || 60 : 0);
-/* porta gli elementi nella zona libera scorrendo il contenitore giusto, subito (sotto il velo) */
-function bringIntoZone(els, anchor) {
+/* Scorri direttamente, poi rimisura: WebView e contenuti renderizzati possono cambiare altezza nel fotogramma seguente. */
+async function bringIntoZone(els, anchor, seq) {
   if (!els.length) return;
-  const z = freeZone(els), r = unionRect(els), sc = scrollParent(els[0]); if (!sc) return;
-  const room = z.bottom - z.top;
-  let d = 0;
-  if (r.height > room) d = anchor === 'bottom' ? r.bottom - z.bottom : r.top - z.top; // più alto della zona: si vede la cima (o il fondo)
-  else if (r.top < z.top || r.bottom > z.bottom) d = r.top - (z.top + (room - r.height) / 2);
-  if (Math.abs(d) > 1) sc.scrollTo({ top: sc.scrollTop + d, behavior: 'instant' }); // mai lo scorrimento morbido: il faro insegue un bersaglio fermo
+  const sc = scrollParent(els[0]); if (!sc) return;
+  const oldBehavior = sc.style.scrollBehavior; sc.style.scrollBehavior = 'auto';
+  try {
+    for (let j = 0; j < 5; j++) {
+      const z = freeZone(els), r = unionRect(els), room = z.bottom - z.top;
+      let d = 0;
+      if (r.height > room) d = anchor === 'bottom' ? r.bottom - z.bottom : r.top - z.top;
+      else if (r.top < z.top || r.bottom > z.bottom) d = r.top - (z.top + (room - r.height) / 2);
+      if (Math.abs(d) <= 2) break;
+      const before = sc.scrollTop; sc.scrollTop = before + d;
+      await frame(); if (seq !== TOUR.seq || Math.abs(sc.scrollTop - before) < 1) break;
+    }
+  } finally { sc.style.scrollBehavior = oldBehavior; }
 }
 function scrollParent(el) {
   for (let p = el.parentElement; p; p = p.parentElement) { const s = getComputedStyle(p); if (/(auto|scroll)/.test(s.overflowY) && p.scrollHeight > p.clientHeight + 1) return p; }
@@ -200,7 +219,7 @@ async function tourGo(i) {
   await frame(); if (seq !== TOUR.seq) return;
   let els = tourEls(st);
   if (st.sel && !els.length) { const t0 = performance.now(); while (!els.length && performance.now() - t0 < 1500) { await frame(); if (seq !== TOUR.seq) return; els = tourEls(st); } }
-  if (els.length) { if (!(await settle(els, seq))) return; bringIntoZone(els, st.anchor); await frame(); if (seq !== TOUR.seq) return; }
+  if (els.length) { if (!(await settle(els, seq))) return; await bringIntoZone(els, st.anchor, seq); await frame(); if (seq !== TOUR.seq) return; }
   // 4. il faro parte (una volta), il velo si alza, entra il testo
   TOUR.target = els.length ? els : null; TOUR.ready = true; TOUR.t0 = performance.now();
   el.classList.remove('veil'); el.classList.toggle('dim', !els.length);
@@ -273,7 +292,7 @@ function tourBoot() {
   }
   if (verNum(seen) >= verNum(cur)) return;
   const news = NEWS.filter((n) => verNum(n.v) > verNum(seen) && verNum(n.v) <= verNum(cur)); LS.set('sf.tourV', cur);
-  if (news.length) openNews(news, TOUR_STEPS.filter((s) => verNum(s.v) > verNum(seen)));
+  if (news.length) openNews(news, verNum(seen) < verNum('0.25.2') && verNum(cur) >= verNum('0.25.2') ? TOUR_STEPS : TOUR_STEPS.filter((s) => verNum(s.v) > verNum(seen)));
 }
 function openNews(news, steps) {
   news = news || NEWS.slice(0, 4);

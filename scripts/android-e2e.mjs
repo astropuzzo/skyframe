@@ -76,16 +76,28 @@ try {
   await ev(`tourStart(TOUR_STEPS, 0); return 1`); await sleep(2200); shot('03-guida-it');
   const setupBefore = await ev(`return JSON.stringify([state.locs, state.profiles])`);
   const seen = [await ev(`return !!TOUR.el && TOUR.i === 0`)];
-  const visual = ['luogo', 'mappa', 'sqm', 'allsky', 'orizzonte', 'attrezzatura', 'ottica', 'filtri', 'sessione'];
-  for (const name of [...visual, 'notti', 'quanto', 'fotovere', 'meteo', 'progetti']) {
+  const visual = ['luogo', 'mappa', 'sqm', 'allsky', 'orizzonte', 'setup-profili', 'attrezzatura', 'ottica', 'filtri', 'sessione'];
+  out.tourGeometry = [];
+  const names = await ev(`return TOUR.steps.map((s) => s.id)`);
+  for (const name of names.slice(1)) {
     const k = await ev(`return TOUR.steps.findIndex((s) => s.id === '${name}')`); if (k < 0) continue;
     // ogni passo prepara la schermata sotto il faro, senza aprire un editor modificabile
     await ev(`tourGo(Math.min(${k}, TOUR.steps.length - 1)); return 1`);
     await until(`TOUR.el && TOUR.ready && (TOUR.el.querySelector('.tour-card.on .tour-n') || {}).textContent === (TOUR.i + 1) + ' / ' + TOUR.steps.length`, 20000);
-    await sleep(1200); shot(`04-guida-${String(k).padStart(2, '0')}-${name}`);
-    seen.push(await ev(`return !!TOUR.el && TOUR.i === Math.min(${k}, TOUR.steps.length - 1) && !!document.querySelector('.tour-card.on h3') && !!tourEls(TOUR.steps[TOUR.i]).length`));
+    await sleep(500); shot(`04-guida-${String(k).padStart(2, '0')}-${name}`);
+    const g = await ev(`const st = TOUR.steps[TOUR.i], els = tourEls(st), z = freeZone(els), r = els.length ? unionRect(els) : null;
+      const room = z.bottom - z.top, overlap = r ? Math.max(0, Math.min(r.bottom, z.bottom) - Math.max(r.top, z.top)) : 0;
+      return { id: st.id, view: UI.view, expectedView: st.view || 'targets', target: !!r,
+        top: r && Math.round(r.top), bottom: r && Math.round(r.bottom), zone: [Math.round(z.top), Math.round(z.bottom)],
+        overlap: Math.round(overlap), visible: !!r && (r.height > room ? overlap >= Math.min(40, room * 0.3) : r.top >= z.top - 5 && r.bottom <= z.bottom + 5),
+        tab: document.querySelector('#nav [data-view="' + UI.view + '"]')?.getAttribute('aria-current'),
+        drawer: !document.getElementById('drawer').hidden };`);
+    out.tourGeometry.push(g);
+    seen.push(g.target && g.visible && g.tab === 'page' && g.view === g.expectedView && (['preferito', 'quanto', 'registra', 'fotovere', 'quando', 'campo'].includes(name) === g.drawer));
   }
   out.checks.guida_passi = seen.every(Boolean);
+  out.checks.guida_sessione_visibile = out.tourGeometry.find((g) => g.id === 'sessione')?.visible === true;
+  out.checks.guida_tutte_schede = ['setup', 'tonight', 'targets', 'sky', 'projects'].every((v) => out.tourGeometry.some((g) => g.view === v && g.visible));
   // Avanti e Indietro attraversano i campi visibili mantenendo la guida; l'editor è inerte e non salva dati.
   const kl = await ev(`return TOUR.steps.findIndex((s) => s.id === 'luogo')`);
   await ev(`tourGo(${kl}); return 1`);
@@ -94,7 +106,7 @@ try {
   for (const name of visual) {
     const k = await ev(`return TOUR.steps.findIndex((s) => s.id === '${name}')`);
     await until(`TOUR.el && TOUR.ready && TOUR.i === ${k} && (TOUR.el.querySelector('.tour-n') || {}).textContent === '${k + 1} / ' + TOUR.steps.length`, 20000);
-    continuity.push(await ev(`return !!TOUR.el && document.getElementById('editor').inert && !edDirty && !document.querySelector('.tour [data-t=cta]') && document.getElementById('editor').dataset.preview === '${['attrezzatura', 'ottica', 'filtri', 'sessione'].includes(name) ? 'prof' : 'loc'}'`));
+    continuity.push(await ev(`return !!TOUR.el && !edDirty && !document.querySelector('.tour [data-t=cta]') && ${name === 'setup-profili' ? "document.getElementById('editor').hidden" : `document.getElementById('editor').inert && document.getElementById('editor').dataset.preview === '${['attrezzatura', 'ottica', 'filtri', 'sessione'].includes(name) ? 'prof' : 'loc'}'`}`));
     if (name === 'luogo') {
       // un evento touch nella WebView deve avanzare; i .click() JS non rilevano i problemi del tocco
       await sleep(600);

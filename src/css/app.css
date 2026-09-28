@@ -669,6 +669,8 @@ details.how p { max-width: 72ch; }
 .sheet-foot { border-top: 1px solid var(--line); position: sticky; bottom: -40px; background: var(--card); border-radius: 0 0 18px 18px; z-index: 1200; }
 .sheet-foot .sp { flex: 1; }
 .sheet-body { padding: 4px 20px 18px; }
+/* La guida deve poter portare anche gli ultimi campi sopra la propria scheda. */
+#editor[data-preview] .sheet-body::after { content: ''; display: block; height: min(70vh, 650px); }
 .fs { padding-block: 18px; border-bottom: 1px solid var(--line); }
 .fs:last-child { border-bottom: 0; }
 .fs h3 { font: 600 15px var(--font-b); color: var(--ink); margin: 0 0 12px; }
