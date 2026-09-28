@@ -50,7 +50,7 @@ function needHours(id, cfgKey, stratId, locId, date) {
 function mergeProjects(inc) {
   if (!inc || typeof inc !== 'object') return;
   for (const [id, q] of Object.entries(inc)) {
-    if (!q || typeof q !== 'object') continue;
+    if (['__proto__', 'constructor', 'prototype'].includes(id) || !q || typeof q !== 'object' || !Array.isArray(q.sessions || [])) continue;
     const p = projOf(id, true), have = new Set((p.sessions || []).map((s) => s.ts));
     p.fav = p.fav || !!q.fav; p.done = p.done || !!q.done;
     p.sessions = (p.sessions || []).concat((q.sessions || []).filter((s) => s && !have.has(s.ts))).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.ts - b.ts));

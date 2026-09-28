@@ -489,7 +489,7 @@ function realHTML(o, mine, anim, camType, sqm) {
     <div class="rleg"><span><i class="k-md"></i>${tx('mediana {h}', { h: fmtH(md) })}</span><span><i class="k-iqr"></i>${tx('metà centrale fra {a} e {b}', { a: fmtH(q1), b: fmtH(q3) })}</span>${me ? `<span><i class="k-me"></i>${tx('stima per te {h}', { h: fmtH(mine) })}</span>` : ''}</div>
     ${rows.length ? `<div class="recs"><div class="rec hd"><span>${tx('filtri')}</span><span></span><span>${tx('foto')}</span><span>${tx('ore')}</span><span>sub</span></div>${rows.map(([k, c, h, s], i) => `<div class="rec" style="--i:${i}"><span class="l">${esc(tx(REAL_REC[k] || k))}</span><span class="c"><i style="width:${Math.round((c / max) * 100)}%"></i></span><span class="v">${c}</span><span class="v">${fmtH(h)}</span><span class="v">${s ? s + ' s' : '—'}</span></div>`).join('')}</div>` : ''}</div>`;
 }
-const D_TABS = [['piano', 'Piano'], ['quando', 'Quando'], ['campo', 'Campo'], ['consigli', 'Consigli']];
+const D_TABS = [['piano', 'Piano'], ['quando', 'Quando'], ['campo', 'Campo'], ['consigli', 'Note']];
 /* le animazioni d'ingresso del dettaglio (strisce, calendario) solo all'apertura o al cambio di scheda, non a ogni aggiornamento */
 function freshAnim(d) { d.classList.remove('fresh'); void d.offsetWidth; d.classList.add('fresh'); clearTimeout(freshAnim.t); freshAnim.t = setTimeout(() => d.classList.remove('fresh'), 1600); }
 function setDTab(t) {
@@ -532,7 +532,8 @@ function renderDetail() {
   // rotazione e centro migliori per questa configurazione (ricalcolati quando cambi setup)
   const fr = framingFor(o, r.field, g), bestRot = fr.free ? 90 : fr.pa;
   if (state.rotFor !== e.cfg.key) { state.rot = bestRot; state.frameOff = [fr.dx, fr.dy]; state.rotFor = e.cfg.key; }
-  const tab = state.dTab || LS.get('sf.dTab', 'piano');
+  const tabs = tips.length ? D_TABS : D_TABS.filter(([k]) => k !== 'consigli');
+  const preferredTab = state.dTab || LS.get('sf.dTab', 'piano'), tab = tabs.some(([k]) => k === preferredTab) ? preferredTab : 'piano';
 
   // riassunto sempre visibile: ore senza Luna, notti e fine, strategia
   // riassunto: nel modo scelto quante ore, quante notti e fino a quando; poi il minimo senza Luna
@@ -558,7 +559,7 @@ function renderDetail() {
   const cfgs = r.evals.length > 1 ? `<div class="cfgs" role="radiogroup" aria-label="${tx('Setup')}">${r.evals.map((x) => `<button class="cfg" role="radio" data-cfg="${esc(x.cfg.key)}" aria-checked="${x.cfg.key === e.cfg.key}"><span class="t">${esc(x.cfg.tag)}</span><span class="d">${x.cfg.short} · ${x.best ? fmtH(hoursOf(x.best)) : '—'}</span><span class="sc" style="color:${scoreColor(x.score)}">${x.score}</span></button>`).join('')}</div>` : '';
 
   const planHTML = plan ? `<div class="plan-card"><div class="head"><span class="t">${esc(b.label)}</span><span class="h">≈ ${fmtH(planTot)}<small>${tx('senza Luna')}</small></span></div>
-      <div class="pc-sub">${tx('livello {q} · {cfg}, {f}', { q: tx(QLABEL[p.session.quality] || 'discreta'), cfg: esc(e.cfg.label), f: e.cfg.short })}</div>
+      <div class="pc-sub">${tx('livello {q} · {cfg}, {f}', { q: tx(QLABEL[p.session.quality] || 'standard'), cfg: esc(e.cfg.label), f: e.cfg.short })}</div>
       ${skyR && skyR[0] && skyR[1] ? `<div class="pc-sub">${tx('SQM ± {s}: {a}–{b}', { a: fmtH(skyR[0]), b: fmtH(skyR[1]), s: it(skyS.sigma, 1), src: tx(SKY_SRC[skyS.k]) })}</div>` : ''}
       ${b.deep ? `<div class="deep">${tx('Con l’Hα diffuso attorno ({r} R): <b>{h}</b>', { r: it(o.ha, 1), h: fmtH(planDeep) })}</div>` : ''}
       <div class="steps">${plan.map((s) => `<div class="step${s.optional ? ' opt' : ''}"><div class="f">${esc(s.filter)}<small>${s.optional ? `${esc(s.what)} · ${tx('facoltativo')}` : tx('raccoglie {w}', { w: esc(s.what) }) + (s.why ? ' · ' + esc(s.why) : '')}</small></div><div class="h">${fmtH(s.h)}${s.hDeep > s.h * 1.15 ? `<small title="${esc(s.whyDeep)}">${fmtH(s.hDeep)} ${tx('profondo')}</small>` : ''}</div><div class="sb" title="${tx('Posa singola (sub) consigliata')}">sub ≈ ${s.sub} s</div></div>`).join('')}</div>
@@ -577,7 +578,7 @@ function renderDetail() {
     <div class="d-sum">${summary}</div>
   </div>
   ${galHTML(r, e)}
-  <nav class="dtabs" role="tablist">${D_TABS.map(([k, l]) => `<button class="dtab" role="tab" data-tab="${k}" aria-selected="${k === tab}">${tx(l)}</button>`).join('')}</nav>
+  <nav class="dtabs" role="tablist">${tabs.map(([k, l]) => `<button class="dtab" role="tab" data-tab="${k}" aria-selected="${k === tab}">${tx(l)}</button>`).join('')}</nav>
 
   <section class="tabp" data-tab="piano" ${tab === 'piano' ? '' : 'hidden'}>
     ${o.extra ? `<div class="d-extra">${tx('Dal catalogo completo')} · ${tx(SBQ_TXT[o.sbq] || '')}</div>` : ''}
@@ -608,9 +609,9 @@ function renderDetail() {
     <div class="d-actions"><button class="btn sm" id="copyCoord">${ic('copy')}${tx('Copia coordinate J2000')}</button>${Math.hypot(fr.dx, fr.dy) > 2 ? `<button class="btn sm" id="copyFrame">${ic('copy')}${tx('Copia centro inquadratura')}</button>` : ''}<a class="btn sm ghost" href="${aladin}" target="_blank" rel="noopener">Aladin${ic('ext')}</a><a class="btn sm ghost" href="${stel}" target="_blank" rel="noopener">Stellarium Web${ic('ext')}</a></div>
   </section>
 
-  <section class="tabp" data-tab="consigli" ${tab === 'consigli' ? '' : 'hidden'}>
+  ${tips.length ? `<section class="tabp" data-tab="consigli" ${tab === 'consigli' ? '' : 'hidden'}>
     <div class="tips first">${tips.map((q) => `<div class="tip k-${esc(q.k.replace(/[^\w]/g, ''))}"><div class="k">${esc(tx(q.k))}</div><div>${esc(q.t)}</div></div>`).join('')}</div>
-  </section>`;
+  </section>` : ''}`;
   $('#dClose').onclick = closeDetail;
   wireProj(r, e); wireScen(r); wireTargetCal(); if (!renderDetail.same) countUp($('#scen')); $$('#drawer .d-title [data-fav]').forEach((x) => (x.onclick = () => toggleFav(o.id)));
   $$('#drawer .dtab').forEach((t) => (t.onclick = () => setDTab(t.dataset.tab)));

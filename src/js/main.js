@@ -2,7 +2,7 @@
 /* ============================ stato ============================ */
 const F_DEFAULT = { types: [], srcs: [], minUse: 0.25, maxNights: 11, maxSb: 26, fill: 'any', band: 'any', con: '', hideClassic: false, showAll: false, mine: false, hideDone: false };
 const state = {
-  profiles: [], activeId: null, locs: [], locId: null, projects: {}, cfgFilter: '', res: null, cfgs: [], byId: new Map(), filtered: [], page: 60,
+  profiles: [], activeId: null, locs: [], locId: null, projects: Object.create(null), cfgFilter: '', res: null, cfgs: [], byId: new Map(), filtered: [], page: 60,
   sel: null, selCfg: null, rot: 90, mosaic: true, realSky: LS.get('sf.realSky', true), live: true, playing: false,
   f: Object.assign({}, F_DEFAULT, LS.get('sf.filters', {})), q: '', sort: LS.get('sf.sort', 'score'), computeKey: '', windows: null, nextDarkTxt: '', calKey: '',
 };
@@ -35,9 +35,9 @@ function saveStore() {
   LS.set('sf.profiles', d.profiles); LS.set('sf.active', state.activeId); LS.set('sf.locs', d.locations); LS.set('sf.loc', state.locId);
   if (DESK) window.cielo.saveProfiles(d).catch(() => toast(tx('Salvataggio su file non riuscito')));
 }
-function persistProfile(p) { p = clone(p); delete p.unsaved; stripSite(p); p.updated = Date.now(); const i = state.profiles.findIndex((x) => x.id === p.id); if (i >= 0) state.profiles[i] = p; else state.profiles.push(p); state.profiles = state.profiles.filter((x) => !x.unsaved); saveStore(); return p; }
+function persistProfile(p) { p = clone(p); delete p.unsaved; stripSite(p); p.updated = Date.now(); const i = state.profiles.findIndex((x) => x.id === p.id); if (i >= 0) state.profiles[i] = p; else state.profiles.push(p); state.profiles = state.profiles.filter((x) => !x.unsaved); return p; }
 function removeProfile(id) { state.profiles = state.profiles.filter((p) => p.id !== id); if (!state.profiles.length) state.profiles = [stripSite(templateProfile())]; if (!state.profiles.some((p) => p.id === state.activeId)) state.activeId = state.profiles[0].id; saveStore(); }
-function persistLoc(l) { l = clone(l); delete l.unsaved; l.updated = Date.now(); const i = state.locs.findIndex((x) => x.id === l.id); if (i >= 0) state.locs[i] = l; else state.locs.push(l); state.locs = state.locs.filter((x) => !x.unsaved); saveStore(); return l; }
+function persistLoc(l) { l = clone(l); delete l.unsaved; l.updated = Date.now(); const i = state.locs.findIndex((x) => x.id === l.id); if (i >= 0) state.locs[i] = l; else state.locs.push(l); state.locs = state.locs.filter((x) => !x.unsaved); return l; }
 function removeLoc(id) { state.locs = state.locs.filter((l) => l.id !== id); if (!state.locs.length) state.locs = [templateLoc()]; if (!state.locs.some((l) => l.id === state.locId)) state.locId = state.locs[0].id; saveStore(); }
 /* profili e luoghi da un file: formato 3 con i luoghi a parte, oppure i formati precedenti con il luogo dentro ogni profilo */
 function readData(data) {
@@ -56,7 +56,7 @@ function applyStore(data) {
   if (!state.profiles.some((p) => p.id === state.activeId)) state.activeId = state.profiles[0].id;
   state.locId = (data && data.activeLoc) || byProfile.get(state.activeId) || state.locs[0].id;
   if (!state.locs.some((l) => l.id === state.locId)) state.locId = state.locs[0].id;
-  state.projects = data && data.projects && typeof data.projects === 'object' && !Array.isArray(data.projects) ? data.projects : {};
+  state.projects = Object.assign(Object.create(null), data && data.projects && typeof data.projects === 'object' && !Array.isArray(data.projects) ? data.projects : {});
   if (old && list.length) saveStore(); // si passa subito al formato con i luoghi
 }
 async function exportProfiles() {
@@ -110,6 +110,7 @@ function setMoonMode(m) {
   for (const C of [state.res.C, ...[...cmp.cache.values()].map((c) => c.C).filter(Boolean)]) { C.mode = m; }
   applyFilters(); renderList(); renderTonight(); renderTopList(); if (UI.view === 'projects') renderProjects(); if (UI.view === 'setup') renderSetup();
   if (state.sel && !$('#drawer').hidden) { const sc = $('#drawer').scrollTop; renderDetail(); $('#drawer').scrollTop = sc; }
+  planNotifications();
 }
 
 /* ============================ confronto fra luoghi ============================ */

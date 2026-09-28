@@ -280,10 +280,10 @@ function renderSetup() {
   const locs = state.locs.map((l) => `<div class="st-item"><button type="button" class="st-main" data-loc="${esc(l.id)}"><span class="radio${l.id === state.locId ? ' on' : ''}"></span><span class="tx"><b>${esc(exName(l.site.name, l.unsaved))}</b><small>${locLine(l)}</small></span></button><button type="button" class="icon-btn" data-editl="${esc(l.id)}" aria-label="${tx('Modifica')}" title="${tx('Modifica')}">${ic('edit')}</button></div>`).join('');
   const red = !$('#veil').hidden, on = notifyOn(), nc = ncfg(), v = window.SKYFRAME_VERSION || '';
   el.innerHTML = `<div class="view-h"><h2>${tx('Setup')}</h2></div>
-    <div class="st-sec"><h3>${tx('Attrezzatura')}</h3><div class="st-list">${prof}<button type="button" class="st-item" data-newp>${ic('plus')}<span class="tx"><b>${tx('Nuovo profilo')}</b><small>${tx('ottica, camera e filtri')}</small></span></button></div></div>
+    <div class="st-sec" id="stEquipment"><h3>${tx('Attrezzatura')}</h3><div class="st-list">${prof}<button type="button" class="st-item" data-newp>${ic('plus')}<span class="tx"><b>${tx('Nuovo profilo')}</b><small>${tx('camera, telescopio e filtri')}</small></span></button></div></div>
     ${qualityHTML()}
     ${guideHTML()}
-    <div class="st-sec"><h3>${tx('Luoghi')}</h3><div class="st-list">${locs}<button type="button" class="st-item" data-newl>${ic('plus')}<span class="tx"><b>${tx('Nuovo luogo')}</b><small>${tx('SQM e orizzonte dalla posizione')}</small></span></button></div></div>
+    <div class="st-sec" id="stLocations"><h3>${tx('Luoghi')}</h3><div class="st-list">${locs}<button type="button" class="st-item" data-newl>${ic('plus')}<span class="tx"><b>${tx('Nuovo luogo')}</b><small>${tx('coordinate, SQM e orizzonte')}</small></span></button></div></div>
     <div class="st-sec"><h3>${tx('Preferenze')}</h3><div class="st-list">
       <div class="st-item wrap">${ic('moon')}<span class="tx"><b>${tx('Con la Luna')}</b><small>${tx(MODE_TXT[moonMode()][1])}</small></span><div class="seg" id="moonSeg">${MOON_MODES.map((m) => `<button type="button" data-mode="${m}" aria-pressed="${m === moonMode()}">${tx(MODE_TXT[m][0])}</button>`).join('')}</div></div>
       <div class="st-item wrap">${ic('motion')}<span class="tx"><b>${tx('Animazioni')}</b></span><div class="seg" id="motionSeg">${[['auto', 'Come il sistema'], ['on', 'Sempre'], ['off', 'Ridotte']].map(([k, t]) => `<button type="button" data-v="${k}" aria-pressed="${motionPref() === k}">${tx(t)}</button>`).join('')}</div></div>
@@ -303,7 +303,7 @@ function renderSetup() {
       <button type="button" class="st-item" data-import>${ic('download')}<span class="tx"><b>${tx('Importa')}</b><small>${tx('da un file esportato da Skyframe')}</small></span></button>
     </div><p class="st-foot">${tx(DESK ? 'Tutto resta su questo computer.' : 'Tutto resta su questo dispositivo.')}</p></div>
     <div class="st-sec" id="stGuide"><h3>${tx('Guida')}</h3><div class="st-list">
-      <button type="button" class="st-item" data-tour>${ic('info')}<span class="tx"><b>${tx('Rivedi la guida')}</b><small>${tx('le funzioni, una per una')}</small></span>${ic('chev-r')}</button>
+      <button type="button" class="st-item" data-tour>${ic('info')}<span class="tx"><b>${tx('Rivedi la guida')}</b><small>${tx('configurazione e uso dell’app')}</small></span>${ic('chev-r')}</button>
       <button type="button" class="st-item" data-news>${ic('star')}<span class="tx"><b>${tx('Novità')}</b><small>${tx('le ultime versioni')}</small></span>${ic('chev-r')}</button>
     </div></div>
     <div class="st-sec"><h3>${tx('Informazioni')}</h3><p class="st-foot">Skyframe ${esc(v)} · <a href="https://github.com/astropuzzo/skyframe" target="_blank" rel="noopener">GitHub</a><br>${tx('Meteo')}: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · ${tx('Immagini')}: NSNS (S. Ziegenbalg), DSS2, Pan-STARRS (CDS), Wikimedia Commons · ${tx('Inquinamento luminoso')}: D. Lorenz, lightpollutionmap.info</p></div>`;

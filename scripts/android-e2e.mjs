@@ -75,7 +75,7 @@ try {
   await until('TOUR.el', 8000);
   await ev(`tourStart(TOUR_STEPS, 0); return 1`); await sleep(2200); shot('03-guida-it');
   const seen = [await ev(`return !!TOUR.el && TOUR.i === 0`)];
-  for (const name of ['luogo', 'notti', 'quanto', 'fotovere', 'meteo', 'progetti']) {
+  for (const name of ['luogo', 'allsky', 'orizzonte', 'attrezzatura', 'filtri', 'notti', 'quanto', 'fotovere', 'meteo', 'progetti']) {
     const k = await ev(`return TOUR.steps.findIndex((s) => s.id === '${name}')`); if (k < 0) continue;
     // sull'emulatore (senza GPU) i passi che aprono il dettaglio impiegano qualche secondo: si aspetta la scheda giusta
     await ev(`tourGo(Math.min(${k}, TOUR.steps.length - 1)); return 1`);
@@ -84,13 +84,23 @@ try {
     seen.push(await ev(`return !!TOUR.el && TOUR.i === Math.min(${k}, TOUR.steps.length - 1) && !!document.querySelector('.tour-card.on h3')`));
   }
   out.checks.guida_passi = seen.every(Boolean);
-  // il pulsante di un passo («Imposta il mio luogo») chiude la guida e apre l'editor; indietro lo chiude e la guida riprende
+  // I pulsanti dei passi aprono la sezione giusta dell'editor; Indietro riprende la guida.
   const kc = await ev(`const k = TOUR.steps.findIndex((s) => s.cta); if (k >= 0) await tourGo(k); return k`);
   if (kc >= 0) {
     await sleep(1500); await ev(`document.querySelector('.tour [data-t=cta]').click(); return 1`); await sleep(2000);
-    out.checks.guida_pulsante_apre_editor = await ev(`return !document.getElementById('editor').hidden && !TOUR.el`); shot('04-guida-editor');
+    out.checks.guida_pulsante_apre_editor = await ev(`return !document.getElementById('editor').hidden && !TOUR.el && !!document.querySelector('#edSite .ed-tour-note')`); shot('04-guida-editor');
     adb('shell input keyevent KEYCODE_BACK'); await sleep(2000);
     out.checks.guida_riprende_dopo_editor = await ev(`return document.getElementById('editor').hidden && !!TOUR.el && TOUR.i === ${kc + 1}`);
+  }
+  const ka = await ev(`return TOUR.steps.findIndex((s) => s.id === 'allsky')`);
+  if (ka >= 0) {
+    await ev(`tourGo(${ka}); return 1`); await until(`TOUR.el && TOUR.i === ${ka} && !!document.querySelector('.tour-card.on h3')`, 20000);
+    await ev(`document.querySelector('.tour [data-t=cta]').click(); return 1`);
+    await until(`!document.getElementById('editor').hidden`, 10000);
+    out.checks.android_allsky_manuale = await ev(`return !!document.querySelector('#skyDrop .ed-tour-note') && document.getElementById('lpmBtn').hidden && document.getElementById('geoQ').disabled && !!document.getElementById('skyFile') && !!document.getElementById('lpmOpen').href`);
+    shot('04-guida-allsky-android');
+    adb('shell input keyevent KEYCODE_BACK'); await sleep(2000);
+    out.checks.guida_riprende_dopo_allsky = await ev(`return document.getElementById('editor').hidden && !!TOUR.el && TOUR.i === ${ka + 1}`);
   }
   await ev(`tourEnd(); return 1`); await sleep(1200);
   // meteo, preferiti, sezioni

@@ -108,15 +108,20 @@ async function loadWeather(force) {
         see.push(L.length ? r2(SEE_K * L.reduce((q, x) => q + x.e, 0) / L.length) : null); jet.push(L.length ? r0(Math.max(...L.map((x) => x.jet))) : null);
       }
     }
-    WX.d = {
+    const next = {
       key, at: Date.now(), t0, n, clear, lo, mi, hi, spread, nm, models, prob: prob && prob.map(r2), see, jet,
       aod: (at(Q, 'aerosol_optical_depth') || []).map(r2), dust: (at(Q, 'dust') || []).map(r0),
       t: (at(B, 'temperature_2m') || []).map((x) => (x == null ? null : Math.round(x * 10) / 10)), td: (at(B, 'dew_point_2m') || []).map((x) => (x == null ? null : Math.round(x * 10) / 10)),
       rh: (at(B, 'relative_humidity_2m') || []).map(r0), wind: (at(B, 'wind_speed_10m') || []).map(r0), gust: (at(B, 'wind_gusts_10m') || []).map(r0), pp: (at(B, 'precipitation_probability') || []).map(r0),
       parts: { models: Object.keys(models).length, ens: E.status === 'fulfilled', see: C.status === 'fulfilled', aq: Q.status === 'fulfilled', ground: B.status === 'fulfilled' },
     };
-    WX.err = false; LS.set(WX_LS, WX.d); return true;
-  } catch (e) { WX.err = true; return false; } finally { WX.busy = false; }
+    if (wxKey(activeLoc().site) !== key) return false;
+    WX.d = next; WX.err = false; LS.set(WX_LS, WX.d); return true;
+  } catch (e) { if (wxKey(activeLoc().site) === key) WX.err = true; return false; }
+  finally {
+    WX.busy = false;
+    if (wxKey(activeLoc().site) !== key) queueMicrotask(() => refreshWeather(false));
+  }
 }
 /* ---------- lettura ---------- */
 const wxOk = () => WX.d && WX.d.key === wxKey(activeLoc().site);

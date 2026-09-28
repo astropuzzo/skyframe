@@ -59,7 +59,16 @@ async function planNotifications() {
   const on = notifyOn(), c = ncfg();
   if (!on) { notifySchedule([]); if (window.cielo && window.cielo.bgConfig) window.cielo.bgConfig({ on: false }); return; }
   if (!WX.d) return;
-  if ((c.season || c.top) && !SP.plan && !planNotifications.waiting) { planNotifications.waiting = true; seasonPlan(() => { planNotifications.waiting = false; planNotifications(); }); }
+  if (c.season || c.top) {
+    const key = seasonKey(seasonTargets());
+    if (!SP.plan || SP.key !== key) {
+      if (planNotifications.waiting !== key) {
+        planNotifications.waiting = key;
+        seasonPlan(() => { if (planNotifications.waiting === key) { planNotifications.waiting = ''; planNotifications(); } });
+      }
+      return;
+    }
+  }
   const out = [], today = defaultNightStr(), now = Date.now(), lead = c.lead * 60000, sent = sentGet(), sch = LS.get('sf.nsched', {});
   // avvisi da mandare una volta sola: se l'ora programmata è passata, è già arrivato
   const once = (key, item) => { if (sent[key]) return; if (sch[key] && sch[key] <= now) { sentMark(key); return; } out.push(item); sch[key] = item.at; };

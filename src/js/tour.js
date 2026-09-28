@@ -9,24 +9,36 @@
    Parte da sola al primo avvio; chi aveva già Skyframe riceve la proposta; dopo un aggiornamento le «Novità» e i passi
    nuovi. Si riprende da Setup → Guida. v = versione in cui il passo è comparso. */
 const TOUR_STEPS = [
-  { id: 'benvenuto', v: '0.13.0', view: 'tonight', hero: true, t: 'Skyframe', d: 'Cosa riprendere, quante ore servono e in quali notti.' },
-  { id: 'luogo', v: '0.13.0', view: 'tonight', sel: ['#locChip', '#nightChip', '#profChip'], t: 'Luogo, notte, attrezzatura', d: 'Luogo, notte e attrezzatura attivi.',
-    cta: () => (activeLoc().site.example ? ['Imposta il luogo', () => openLocEditor(state.locId)] : activeProfile().unsaved ? ['Imposta l’attrezzatura', () => openEditor(state.activeId)] : null) },
-  { id: 'notti', v: '0.13.0', view: 'tonight', sel: '#nightBar', hint: ['#nightBar > :nth-child(2)', 'tap'], t: 'Le prossime notti', d: 'Buio, Luna e nuvole di ogni notte. Tocca per sceglierla.' },
-  { id: 'cielo', v: '0.13.0', view: 'tonight', sel: '.skycard', anchor: 'bottom', hint: ['.skycard .clock', 'drag'], t: 'Il cielo del luogo', d: 'I target migliori in cielo. Trascina per cambiare ora.' },
-  { id: 'piano', v: '0.13.0', view: 'tonight', sel: '#tonight', t: 'Il piano della notte', d: 'I target della notte, in ordine di ripresa.' },
-  { id: 'catalogo', v: '0.19.0', view: 'targets', sel: '.searchbox', t: 'Catalogo completo', d: 'Messier, NGC, IC, Sharpless e Lynds.' },
-  { id: 'quanto', v: '0.13.0', detail: 'piano', sel: '#scen', t: 'Integrazione necessaria', d: 'Ore e notti necessarie, per modo e per luogo.' },
-  { id: 'fotovere', v: '0.16.0', detail: 'piano', sel: '.real-card', hint: ['.real-card .rbar .me', 'ping'], when: () => !!(window.REAL && REAL.o[(tourSample() || {}).id]), t: 'Foto di riferimento', d: 'Ore delle foto su AstroBin con camera e cielo come i tuoi. Punto verde: la tua stima.' },
-  { id: 'meteo', v: '0.13.0', view: 'sky', sel: '#skyView .sk-nights', t: 'Meteo', d: 'Nuvole, seeing e trasparenza ora per ora.' },
-  { id: 'progetti', v: '0.13.0', view: 'projects', sel: '#projView', t: 'Progetti', d: 'I tuoi preferiti e il piano di stagione.' },
-  { id: 'autoguida', v: '0.19.0', view: 'setup', sel: '#stGuiding', t: 'Autoguida', d: 'Scala, stelle ed errore di autoguida per ogni configurazione.' },
+  { id: 'benvenuto', v: '0.13.0', view: 'tonight', hero: true, t: 'Skyframe', d: 'Prima inserisci luogo e attrezzatura. Poi confronta i target con le condizioni della notte.' },
+  { id: 'luogo', v: '0.25.0', view: 'setup', sel: '#stLocations h3', t: '1. Luogo di osservazione', d: 'Apri il luogo in Setup. Posiziona il punto sulla mappa o cerca un indirizzo nell’app desktop. Controlla le coordinate, assegna un nome e salva.',
+    cta: () => ['Apri il luogo', () => tourOpenEditor('loc', 'edSite')] },
+  { id: 'allsky', v: '0.25.0', view: 'setup', sel: '#stLocations h3', t: '2. Cielo e mappa all-sky',
+    d: () => window.cielo && window.cielo.lpmAllSky
+      ? 'Fissa prima il punto sulla mappa. La mappa all-sky si carica da sola; puoi riprovare con «Prendi la mappa all-sky dal sito». Controlla lo SQM e salva il luogo.'
+      : 'Nel luogo apri lightpollutionmap, scegli «Sky brightness» e scarica l’immagine All-sky. Importala qui, verifica i valori della barra dei colori e salva il luogo.',
+    cta: () => ['Apri la mappa all-sky', () => tourOpenEditor('loc', 'skyDrop')] },
+  { id: 'orizzonte', v: '0.25.0', view: 'setup', sel: '#stLocations h3', t: '3. Orizzonte', d: 'Imposta l’altezza minima. Per gli ostacoli locali disegna il profilo o importa un file .hrz. Se hai una mappa all-sky, puoi usare il terreno incluso.',
+    cta: () => ['Apri l’orizzonte', () => tourOpenEditor('loc', 'edHorizon')] },
+  { id: 'attrezzatura', v: '0.25.0', view: 'setup', sel: '#stEquipment h3', t: '4. Camera e telescopio', d: 'Scegli la camera e verifica pixel, QE e rumore di lettura. Seleziona il telescopio oppure inserisci apertura e focale; aggiungi gli accessori che usi.',
+    cta: () => ['Apri il profilo', () => tourOpenEditor('prof', 'edCamera')] },
+  { id: 'filtri', v: '0.25.0', view: 'setup', sel: '#stEquipment h3', t: '5. Filtri e sessione', d: 'Spunta solo i filtri disponibili per quella camera. In Sessione imposta la fascia oraria, se vuoi limitarla, e il livello di qualità. Poi salva il profilo.',
+    cta: () => ['Apri i filtri', () => tourOpenEditor('prof', 'edFilters')] },
+  { id: 'notti', v: '0.13.0', view: 'tonight', sel: '#nightBar', hint: ['#nightBar > :nth-child(2)', 'tap'], t: 'Scegli la notte', d: 'La striscia mostra buio, Luna e nuvole previste. Tocca una data per aggiornare target e piano.' },
+  { id: 'cielo', v: '0.13.0', view: 'tonight', sel: '.skycard', anchor: 'bottom', hint: ['.skycard .clock', 'drag'], t: 'Ora della ripresa', d: 'Trascina la barra del tempo per vedere posizione dei target e condizioni durante la notte.' },
+  { id: 'piano', v: '0.13.0', view: 'tonight', sel: '#tonight', t: 'Piano della notte', d: 'I blocchi indicano quando riprendere ciascun target. Apri un target per controllare filtri, ore e inquadratura.' },
+  { id: 'catalogo', v: '0.19.0', view: 'targets', sel: '.searchbox', t: 'Cerca un target', d: 'Cerca per sigla o nome. Usa i filtri per limitare ore utili, tecnica e inquadratura.' },
+  { id: 'quanto', v: '0.13.0', detail: 'piano', sel: '#scen', t: 'Tempi stimati', d: 'Qui trovi integrazione, notti previste e data di fine per il luogo e il profilo attivi.' },
+  { id: 'fotovere', v: '0.16.0', detail: 'piano', sel: '.real-card', hint: ['.real-card .rbar .me', 'ping'], when: () => !!(window.REAL && REAL.o[(tourSample() || {}).id]), t: 'Foto di riferimento', d: 'Confronta la stima con le ore dichiarate per foto dello stesso target. Il punto verde indica il tuo setup.' },
+  { id: 'meteo', v: '0.13.0', view: 'sky', sel: '#skyView .sk-nights', t: 'Previsioni', d: 'Nuvole, seeing e aerosol cambiano ora per ora. Il calendario pesa le ore serene previste.' },
+  { id: 'progetti', v: '0.13.0', view: 'projects', sel: '#projView', t: 'Progetti', d: 'Aggiungi un target ai preferiti o registra una sessione. Il piano tiene conto del lavoro già svolto.' },
+  { id: 'autoguida', v: '0.19.0', view: 'setup', sel: '#stGuiding', t: 'Autoguida', d: 'Il limite RMS consigliato dipende dalla scala d’immagine e dal seeing previsto.' },
 ];
 /* novità per versione (le più recenti in cima) */
 const NEWS = [
-  { v: '0.24.0', items: ['Qualità a parole: da mediocre a estrema, con le ore dei tuoi target'] },
-  { v: '0.23.0', items: ['Qualità: slider continuo in Setup, con le ore dei tuoi target mentre lo sposti'] },
-  { v: '0.22.0', items: ['SHO consigliato sui soggetti adatti, se hai i filtri', 'Testi più brevi: solo i dati'] },
+  { v: '0.25.0', items: ['Guida operativa per luogo, mappa all-sky, orizzonte e attrezzatura, anche su Android', 'Modello aggiornato per tempi di posa, Luna e previsioni; descrizioni dei target riviste'] },
+  { v: '0.24.0', items: ['Sei livelli di qualità con stima delle ore per i tuoi target'] },
+  { v: '0.23.0', items: ['Regolazione della qualità in Setup con aggiornamento delle ore stimate'] },
+  { v: '0.22.0', items: ['SHO consigliato sui soggetti adatti, se hai i filtri', 'Descrizioni più concise'] },
   { v: '0.21.0', items: ['Tempi tarati su 6918 foto, anche mono e da cieli bui', 'Bortle → SQM dai valori reali degli astrofotografi', 'Foto di riferimento con camera e cielo come i tuoi', 'Più camere, telescopi e filtri mono'] },
   { v: '0.20.0', items: ['Sensibilità del sensore per colore; 16 filtri, 2 camere, 6 telescopi', 'Filtri consigliati anche con la Luna'] },
   { v: '0.19.0', items: ['Tempi tarati per ogni oggetto su foto reali', 'Obiettivo della ripresa nel profilo', 'Catalogo completo nella ricerca; autoguida in Setup'] },
@@ -48,6 +60,16 @@ const verNum = (v) => String(v || '0').split('.').reduce((a, x) => a * 1000 + (+
 /* target: gli elementi da illuminare (null = nessuno, scheda al centro); ready: la scena è pronta e il faro può muoversi;
    rec: registro dei fotogrammi per le prove (faro e scheda, uno per fotogramma) */
 const TOUR = { steps: [], i: 0, el: null, raf: 0, resume: null, target: null, ready: false, seq: 0, hole: null, card: null, rec: null, t0: 0 };
+function tourOpenEditor(kind, section) {
+  if (kind === 'loc') openLocEditor(state.locId); else openEditor(state.activeId);
+  const el = F(section), st = TOUR.steps[TOUR.i];
+  if (!el || !st) return;
+  const note = document.createElement('div'); note.className = 'ed-tour-note';
+  const title = document.createElement('b'), body = document.createElement('p');
+  title.textContent = tx(st.t); body.textContent = tx(typeof st.d === 'function' ? st.d() : st.d);
+  note.append(title, body); el.prepend(note);
+  requestAnimationFrame(() => note.scrollIntoView({ block: 'start', behavior: 'instant' }));
+}
 
 function tourStart(steps, i0 = 0) {
   steps = steps.filter((s) => !s.when || s.when()); if (!steps.length) return;
@@ -171,9 +193,9 @@ async function tourGo(i) {
   card.classList.toggle('hero', !!st.hero);
   card.querySelector('.tour-n').textContent = `${i + 1} / ${n}`;
   card.querySelector('[data-t=skip]').textContent = tx(last ? 'Chiudi' : 'Salta');
-  body.innerHTML = `${st.hero ? `<div class="tour-hero"><canvas class="in-cv" aria-hidden="true"></canvas><div class="intro"><svg class="in-final" viewBox="0 0 32 32" aria-hidden="true"><use href="#i-logo"/></svg></div></div>` : ''}<h3>${tx(st.t)}</h3><p>${tx(st.d)}</p>`;
+  body.innerHTML = `${st.hero ? `<div class="tour-hero"><canvas class="in-cv" aria-hidden="true"></canvas><div class="intro"><svg class="in-final" viewBox="0 0 32 32" aria-hidden="true"><use href="#i-logo"/></svg></div></div>` : ''}<h3>${tx(st.t)}</h3><p>${tx(typeof st.d === 'function' ? st.d() : st.d)}</p>`;
   card.querySelector('.tour-acts').innerHTML = `${i > 0 ? `<button type="button" class="btn ghost" data-t="prev" aria-label="${tx('Indietro')}">${ic('chev-l')}</button>` : '<span></span>'}
-    ${cta ? `<button type="button" class="btn" data-t="next">${tx('Dopo')}</button><button type="button" class="btn primary" data-t="cta">${tx(cta[0])}</button>` : `<button type="button" class="btn primary" data-t="next">${tx(last ? 'Fine' : i === 0 ? 'Inizia' : 'Avanti')}${last ? '' : ic('chev-r')}</button>`}`;
+    ${cta ? `<button type="button" class="btn" data-t="next">${tx('Avanti')}</button><button type="button" class="btn primary" data-t="cta">${tx(cta[0])}</button>` : `<button type="button" class="btn primary" data-t="next">${tx(last ? 'Fine' : i === 0 ? 'Inizia' : 'Avanti')}${last ? '' : ic('chev-r')}</button>`}`;
   card.querySelector('.tour-bar i').style.transform = `scaleX(${(i + 1) / n})`;
   // 3. si aspetta che la scena stia ferma, poi la si porta nella zona libera
   await frame(); if (seq !== TOUR.seq) return;

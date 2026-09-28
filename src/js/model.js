@@ -250,12 +250,11 @@ function skySource(site) {
   if (r && Math.abs(s - BORTLE_SQM[site.bortle]) < 0.01) return { k: 'bortle', sigma: Math.round(Math.max((r[1] - r[0]) / 1.35, 0.25) * 100) / 100 };
   return { k: 'inserito', sigma: 0.3 };
 }
-const QLABEL = { quick: 'mediocre', good: 'discreta', great: 'buona', deep: 'ottima', top: 'eccellente', max: 'estrema' };
+const QLABEL = { quick: 'base', good: 'standard', great: 'alta', deep: 'molto alta', top: 'eccellente', max: 'massima' };
 /* Livelli di qualità: k moltiplica il SNR² della foto mediana. Le chiavi restano quelle salvate nei profili; i primi quattro
-   sono il 25°, 50°, 75° e 90° percentile delle foto AstroBin, gli ultimi due vanno oltre (eccellente ≈ ×7: le foto più
-   lunghe dell'autore, estrema il doppio). */
+   sono il 25°, 50°, 75° e 90° percentile delle foto AstroBin, gli ultimi due moltiplicano le ore standard per 7 e 15. */
 const QLEVELS = ['quick', 'good', 'great', 'deep', 'top', 'max'];
-const QDESC = { quick: '3 foto su 4 fanno meglio', good: 'come la foto media su AstroBin', great: 'meglio di 3 foto su 4', deep: 'meglio di 9 foto su 10', top: 'oltre quasi tutte le foto pubblicate', max: 'il doppio di eccellente' };
+const QDESC = { quick: 'Riferimento: 25° percentile del campione AstroBin', good: 'Riferimento: mediana del campione AstroBin', great: 'Riferimento: 75° percentile del campione AstroBin', deep: 'Riferimento: 90° percentile del campione AstroBin', top: 'Obiettivo: circa 7× le ore del livello standard', max: 'Obiettivo: circa 15× le ore del livello standard' };
 const qualityK = (s) => (QUALITY[s && s.quality] || QUALITY.good).k;
 const qualityNear = (k) => Object.entries(QUALITY).reduce((a, x) => (Math.abs(Math.log(x[1].k / k)) < Math.abs(Math.log(a[1].k / k)) ? x : a))[0];
 const accId = () => 'a' + Math.random().toString(36).slice(2, 8);
@@ -511,6 +510,7 @@ const STEP = 5, N = 288, DT = STEP * 60000;
 function defaultNightStr() { const n = new Date(); const d = new Date(n); if (n.getHours() < 12) d.setDate(d.getDate() - 1); return dateStr(d); }
 const dateStr = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 function hmToOff(s) { if (!s) return null; const [h, m] = s.split(':').map(Number); return ((h * 60 + m - 720) + 1440) % 1440; }
+const msToOff = (ms) => { const d = new Date(ms); return (d.getHours() * 60 + d.getMinutes() - 720 + 1440) % 1440; };
 /* dentro l'orario della sessione ("dalle", "alle"); off = minuti da mezzogiorno */
 const inSession = (off, f, to) => (f != null && to != null ? (f <= to ? off >= f && off <= to : off >= f || off <= to) : f != null ? off >= f : to != null ? off <= to : true);
 function computeNight(p, ds, withMoon = true) {
@@ -528,7 +528,7 @@ function computeNight(p, ds, withMoon = true) {
       const el = Math.acos(clamp(Math.cos(mo.lat * D2R) * Math.cos((mo.lon - s.lon) * D2R), -1, 1)); mIll[i] = (1 - Math.cos(el)) / 2; if (i === N / 2) waxing = norm360(mo.lon - s.lon) < 180;
     }
     darkAll[i] = sun[i] < thr ? 1 : 0;
-    const inS = inSession(i * STEP, f, to);
+    const inS = inSession(msToOff(ms), f, to);
     dark[i] = darkAll[i] && inS ? 1 : 0;
   }
   const cross = (arr, v, down) => { for (let i = 1; i <= N; i++) { if (down ? (arr[i - 1] >= v && arr[i] < v) : (arr[i - 1] < v && arr[i] >= v)) { return i - 1 + (arr[i - 1] - v) / (arr[i - 1] - arr[i]); } } return null; };
@@ -780,8 +780,13 @@ function evalStrategies(o, S, K, U, Q, T, field) {
   const diffOn = o.ha >= DIFF_MIN_R && !NO_DIFF[o.type] && lines && R_TO_PH * o.ha >= DIFF_REL * haObj;
   const sbDiff = diffOn ? -2.5 * Math.log10(R_TO_PH * o.ha / (F0 * 880 * LINES.EN.Ha)) : 0;
   const smax = lines ? Math.max(...['Ha', 'OIII', 'SII'].map((g) => OBJ_LINES[o.lk].filter((x) => x[1] === g).reduce((a, x) => a + x[2], 0))) : 1;
-  const avg = { art: 0, nat: 0, mf: 0 }; for (let u = 0; u < U.n; u++) { avg.art += U.art[u]; avg.nat += U.nat[u]; avg.mf += U.mf[u]; }
-  if (U.n) { avg.art /= U.n; avg.nat /= U.n; avg.mf /= U.n; } else { avg.art = T.art; avg.nat = T.nat; }
+  const weightSum = U.w ? U.wSum : U.n;
+  const avg = { art: 0, nat: 0, mf: 0 };
+  for (let u = 0; u < U.n; u++) {
+    const w = U.w ? U.w[u] : 1;
+    avg.art += w * U.art[u]; avg.nat += w * U.nat[u]; avg.mf += w * U.mf[u];
+  }
+  if (weightSum > 0) { avg.art /= weightSum; avg.nat /= weightSum; avg.mf /= weightSum; } else { avg.art = T.art; avg.nat = T.nat; }
   return S.filter((s) => s.suits === 'all' || lines).map((s0) => {
     // banda stretta su un oggetto con polveri attorno: si aggiunge la banda larga per le polveri
     let s = s0;
@@ -812,16 +817,17 @@ function evalStrategies(o, S, K, U, Q, T, field) {
       chans.push({ c, st, R, sub, minSub, Nc, Blp, Bc, acc: new Float64Array(R.length), accD: new Float64Array(R.length) });
     }));
     for (let u = 0; u < U.n; u++) {
-      const X = U.X[u];
+      const X = U.X[u], w = U.w ? U.w[u] : 1;
+      if (w <= 0) continue;
       for (const ch of chans) {
         const B0 = ch.Blp * U.art[u] + ch.Bc * U.nat[u] + ch.Nc, B = B0 + ch.Bc * U.mf[u], ex = Math.pow(10, -0.4 * ch.c.ext * ef * (X - 1));
-        for (let q = 0; q < ch.R.length; q++) { const Sg = ch.R[q].S * ex; ch.acc[q] += Sg * Sg / (Sg + B); ch.accD[q] += Sg * Sg / (Sg + B0); }
+        for (let q = 0; q < ch.R.length; q++) { const Sg = ch.R[q].S * ex; ch.acc[q] += w * Sg * Sg / (Sg + B); ch.accD[q] += w * Sg * Sg / (Sg + B0); }
       }
     }
     // ore per requisito: [ideale (al transito, senza Luna), con la Luna della notte, senza Luna lungo il percorso della notte]
     const hours = (ch, k) => {
       const q = ch.R[k], exT = Math.pow(10, -0.4 * ch.c.ext * ef * (T.X - 1)), BT = ch.Blp * T.art + ch.Bc * T.nat + ch.Nc;
-      const Sg = q.S * exT, rI = Sg * Sg / (Sg + BT), need = q.snr * q.snr, rT = U.n ? ch.acc[k] / U.n : 0, rD = U.n ? ch.accD[k] / U.n : 0;
+      const Sg = q.S * exT, rI = Sg * Sg / (Sg + BT), need = q.snr * q.snr, rT = weightSum > 0 ? ch.acc[k] / weightSum : 0, rD = weightSum > 0 ? ch.accD[k] / weightSum : 0;
       return [need / rI / 3600 * ch.c.mult, rT > 0 ? need / rT / 3600 * ch.c.mult : Infinity, rD > 0 ? need / rD / 3600 * ch.c.mult : Infinity];
     };
     let ci = 0;
@@ -1051,7 +1057,7 @@ function aheadNight(C, k) {
   let moon = 0, nd = 0, up = 0;
   for (let i = 0; i < CAL_N; i++) {
     const off = (i + 0.5) * CAL_STEP, ms = t0 + off * 60000; lst[i] = lstDeg(ms, A.lon);
-    if (!inSession(off, A.f, A.to)) continue;
+    if (!inSession(msToOff(ms), A.f, A.to)) continue;
     const J = jd(ms), sn = sunPos(J); if (altaz(sn.ra, sn.dec, lst[i], A.sL, A.cL)[0] >= A.thr) continue;
     const mo = moonPos(J), aa = altaz(mo.ra, mo.dec, lst[i], A.sL, A.cL);
     dark[i] = 1; nd++; mAlt[i] = aa[0] - 0.95 * Math.cos(aa[0] * D2R); mV[i] = unit(mo.ra, mo.dec); if (mAlt[i] > 0) up++;
@@ -1074,25 +1080,44 @@ function nightRec(C, r, e, k, darkOnly) {
   const b = e.best, A = aheadCtx(C), key = 'n|' + calKey(r, e, false, darkOnly ? 'dark' : 'x') + '|' + k;
   const got = A.cache.get(key); if (got) return got;
   const nk = aheadNight(C, k), wx = C.wx || null, tr = C.trans || null;
+  const s0 = e.cfg.strategies.find((q) => q.id === b.id), bb = e.cfg.strategies.find((q) => q.suits === 'all');
+  const S = s0 ? (bb && bb !== s0 ? [s0, bb] : [s0]) : null, panels = b.panels || 1;
   let x;
   if (k === 0 && !darkOnly) { // stanotte: i valori esatti della lista (ore serene, se c'è la previsione)
-    let hs = 0, hw = 0, known = false;
-    for (let i = 0; i <= N; i++) if (r.use[i]) { const t = C.night.t[i], f = wx ? wx(t) : null; if (f != null) known = true; hs++; hw += (f == null ? 1 : f) * (tr ? tr(t, airmass(r.alt[i])) : 1); }
-    x = { k, t0: nk.t0, h: known ? hw * STEP / 60 : r.usableH, hGeo: r.usableH, clear: known ? (hs ? hw / hs : 1) : null, T: b.tonight, TD: b.tonightDeep, moon: C.night.moonIll };
+    const U = usableSteps(r, C.night, C.sky); U.w = new Float32Array(U.n); U.wSum = 0;
+    let hs = 0, clearSum = 0, known = false, u = 0;
+    for (let i = 0; i <= N; i++) if (r.use[i]) {
+      const t = C.night.t[i], f = wx ? wx(t) : null;
+      if (f != null) known = true;
+      const clear = f == null ? 1 : clamp(f, 0, 1);
+      hs++; clearSum += clear;
+      U.w[u] = clear * (tr ? tr(t, U.X[u]) : 1); U.wSum += U.w[u]; u++;
+    }
+    let T = b.tonight, TD = b.tonightDeep;
+    if (known || tr) {
+      T = TD = Infinity;
+      if (U.wSum > 0 && S) {
+        const ev = evalStrategies(r.o, S, e.K, U, C.Q, r.T, r.field).find((q) => q.id === b.id);
+        if (ev) { T = ev.tonight * panels; TD = ev.tonightDeep * panels; }
+      }
+    }
+    x = { k, t0: nk.t0, h: (known || tr) ? U.wSum * STEP / 60 : r.usableH, hGeo: r.usableH, clear: known ? (hs ? clearSum / hs : 1) : null, T, TD, moon: C.night.moonIll };
   } else {
-    const s0 = e.cfg.strategies.find((q) => q.id === b.id), bb = e.cfg.strategies.find((q) => q.suits === 'all');
-    const S = s0 ? (bb && bb !== s0 ? [s0, bb] : [s0]) : null, panels = b.panels || 1;
-    const U = A.U || (A.U = { X: new Float32Array(CAL_N), art: new Float32Array(CAL_N), nat: new Float32Array(CAL_N), mf: new Float32Array(CAL_N), n: 0, h: 0 });
-    U.n = 0; let hw = 0, known = false;
+    const U = A.U || (A.U = { X: new Float32Array(CAL_N), art: new Float32Array(CAL_N), nat: new Float32Array(CAL_N), mf: new Float32Array(CAL_N), w: new Float32Array(CAL_N), n: 0, h: 0, wSum: 0 });
+    U.n = 0; U.wSum = 0; let clearSum = 0, known = false;
     for (let i = 0; i < CAL_N; i++) {
       if (!nk.dark[i] || (darkOnly && nk.mAlt[i] > 0 && nk.mIll[i] > 0.1)) continue; const aa = altaz(r.pr.ra, r.pr.dec, nk.lst[i], A.sL, A.cL), a = aa[0], z = aa[1];
       if (a < Math.max(C.minAlt, C.lut[Math.round(z) % 360])) continue;
-      U.X[U.n] = airmass(a); U.art[U.n] = C.sky.art(a, z); U.nat[U.n] = C.sky.nat(a); U.mf[U.n] = moonFlux(nk, i, r.v)[0]; U.n++;
-      const t = nk.t0 + (i + 0.5) * CAL_STEP * 60000, f = wx ? wx(t) : null; if (f != null) known = true; hw += (f == null ? 1 : f) * (tr ? tr(t, U.X[U.n - 1]) : 1);
+      U.X[U.n] = airmass(a); U.art[U.n] = C.sky.art(a, z); U.nat[U.n] = C.sky.nat(a); U.mf[U.n] = moonFlux(nk, i, r.v)[0];
+      const t = nk.t0 + (i + 0.5) * CAL_STEP * 60000, f = wx ? wx(t) : null;
+      if (f != null) known = true;
+      const clear = f == null ? 1 : clamp(f, 0, 1);
+      clearSum += clear;
+      U.w[U.n] = clear * (tr ? tr(t, U.X[U.n]) : 1); U.wSum += U.w[U.n]; U.n++;
     }
     const hGeo = U.h = U.n * CAL_STEP / 60; let T = Infinity, TD = Infinity;
-    if (hGeo >= CAL_MIN_H && S) { const ev = evalStrategies(r.o, S, e.K, U, C.Q, r.T, r.field).find((q) => q.id === b.id); if (ev) { T = ev.tonight * panels; TD = ev.tonightDeep * panels; } }
-    x = { k, t0: nk.t0, h: known ? hw * CAL_STEP / 60 : hGeo, hGeo, clear: known ? (U.n ? hw / U.n : 1) : null, T, TD, moon: nk.moon };
+    if (hGeo >= CAL_MIN_H && U.wSum > 0 && S) { const ev = evalStrategies(r.o, S, e.K, U, C.Q, r.T, r.field).find((q) => q.id === b.id); if (ev) { T = ev.tonight * panels; TD = ev.tonightDeep * panels; } }
+    x = { k, t0: nk.t0, h: (known || tr) ? U.wSum * CAL_STEP / 60 : hGeo, hGeo, clear: known ? (U.n ? clearSum / U.n : 1) : null, T, TD, moon: nk.moon };
   }
   A.cache.set(key, x); return x;
 }
@@ -1270,54 +1295,28 @@ function planOf(s, cfg, mode = 'dark') {
 }
 function adviceFor(r, e, ctx) {
   const o = r.o, n = ctx.night, tips = [];
-  const b = e.best, g = e.cfg.geom;
+  const b = e.best;
   if (b && isFinite(b.tonight) && hoursOf(b) > 0) {
     const extra = b.tonight / hoursOf(b) - 1;
     if (extra > 0.4 && r.minSep < 180) {
-      let t = tx('Luna al {ill}% a {sep}° di distanza: tempo +{x}%.', { ill: Math.round(n.moonIll * 100), sep: Math.round(r.minSep), x: Math.round(extra * 100) });
+      let t = tx('Luna al {ill}% a {sep}° dal target: integrazione stimata +{x}%.', { ill: Math.round(n.moonIll * 100), sep: Math.round(r.minSep), x: Math.round(extra * 100) });
       if (e.moonBest) t += ' ' + tx('Con la Luna: {s} {h} (invece di {h0}).', { s: e.moonBest.label, h: fmtH(e.moonBest.tonight), h0: fmtH(b.tonight) });
-      if (b.hybrid) t += ' ' + tx('Polveri in banda larga senza Luna; banda stretta con la Luna.');
-      if (ctx.nextDark) t += ' ' + tx('Prossime notti senza Luna: {d}.', { d: ctx.nextDark });
       tips.push({ k: 'Luna', t });
     }
   }
   const dust = r.field.ctx.filter((c) => c.type === 'DN' || c.type === 'RN');
   const tot = hoursOf(b);
-  const core = ctx.coreH != null && ctx.coreH < tot * 0.7 ? ' ' + tx('Solo parte luminosa: {h}.', { h: fmtH(ctx.coreH) }) : '';
-  if (!dust.length && o.dust) tips.push({ k: 'Polveri', t: tx('Polvere attorno: E(B−V) {e}, {sb} mag/″².', { e: it(o.dust, 2), sb: it(DUST_SB, 1) }) + core });
-  if (dust.length) tips.push({ k: 'Polveri', t: tx('Attorno: {ids} ({sb} mag/″²). Campo {f}.', { ids: dust.map((c) => `${c.id}${c.nick ? ' (' + c.nick + ')' : ''}`).join(', '), sb: it(Math.max(dust[0].sb, DUST_SB), 1), f: fmtDeg(r.field.a), o: fmtDeg(o.a) }) + core });
-  if (b && b.ideal > 150 && ctx.sky && ctx.sky.sqm < 20.8) {
-    // con il fondo cielo dominante il tempo scala con la sua luminosità: stima per un sito con SQM 21,3
-    const dark = b.ideal * Math.pow(10, -0.4 * (21.3 - ctx.sky.sqm));
-    tips.push({ k: 'Cielo', t: tx('Qui {h}; con SQM 21,3: {d}.', { h: fmtH(b.ideal), d: fmtH(dark) }) });
-  }
-  if (r.skyMag != null && e.cfg && r.skyMag < ctx.sky.sqm - 0.25) tips.push({ k: 'Cielo', t: tx('Cielo in quella direzione: {m} mag/″² (zenit {z}).', { m: it(r.skyMag, 2), z: it(ctx.sky.sqm, 2), why: tx(r.maxA < 45 ? 'resta basso, nella direzione delle luci' : 'passa vicino al bagliore dell’illuminazione artificiale') }) });
-  if (r.first >= 0) {
-    let t = tx('Visibile dalle {a} alle {b}', { a: fmtT(n.t[r.first]), b: fmtT(n.t[r.last] + DT) });
-    if (r.maxI >= 0) t += tx(', culmina alle {t} a {a}° di altezza', { t: fmtT(n.t[r.maxI]), a: Math.round(r.maxA) });
-    if (r.riseBlocked >= 0 && r.riseBlocked < r.first) t += tx('. Prima è dietro l’ostacolo a {dir}', { dir: azName(r.az[r.riseBlocked]) });
-    tips.push({ k: 'Quando', t: t + '.' });
-    if (b && b.steps.some((s) => s.keys.includes('OIII')) && b.steps.length > 1) tips.push({ k: 'Quando', t: tx('OIII vicino al transito.') });
-  }
-  if (r.maxA < 32 && r.usableH > 0) tips.push({ k: 'Altezza', t: tx('Massimo {a}°: riprendi al transito.', { a: Math.round(r.maxA) }) });
+  const core = ctx.coreH != null && ctx.coreH < tot * 0.7 ? ' ' + tx('Integrazione per la sola parte luminosa: {h}.', { h: fmtH(ctx.coreH) }) : '';
+  if (!dust.length && o.dust) tips.push({ k: 'Polveri', t: tx('La mappa indica polvere nel campo (E(B−V) {e}); il modello assume {sb} mag/″².', { e: it(o.dust, 2), sb: it(DUST_SB, 1) }) + core });
+  if (dust.length) tips.push({ k: 'Polveri', t: tx('Nebulose oscure o a riflessione nel campo: {ids}. Luminosità stimata {sb} mag/″².', { ids: dust.map((c) => `${c.id}${c.nick ? ' (' + c.nick + ')' : ''}`).join(', '), sb: it(Math.max(dust[0].sb, DUST_SB), 1) }) + core });
+  if (r.skyMag != null && ctx.sky && r.skyMag < ctx.sky.sqm - 0.25) tips.push({ k: 'Cielo', t: tx('Luminosità del cielo verso il target: {m} mag/″²; allo zenit: {z}.', { m: it(r.skyMag, 2), z: it(ctx.sky.sqm, 2) }) });
+  if (r.first >= 0 && r.riseBlocked >= 0 && r.riseBlocked < r.first) tips.push({ k: 'Orizzonte', t: tx('Ostacolo verso {dir}: il target diventa riprendibile alle {a}.', { dir: azName(r.az[r.riseBlocked]), a: fmtT(n.t[r.first]) }) });
+  if (r.maxA < 32 && r.usableH > 0) tips.push({ k: 'Altezza', t: tx('Altezza massima {a}°: concentra le pose vicino al transito.', { a: Math.round(r.maxA) }) });
   const f = e.fill;
-  if (f.nx * f.ny > 1) tips.push({ k: 'Campo', t: tx('Mosaico {n} a {fl} mm: {p} per pannello, {t} in totale.', { n: `${f.nx}×${f.ny}`, fl: Math.round(g.fEff), p: fmtH(b ? b.ideal / (f.nx * f.ny) : NaN), t: fmtH(b ? b.ideal : NaN) }) });
+  if (f.nx * f.ny > 1) tips.push({ k: 'Campo', t: tx('Mosaico {n}: circa {p} per pannello, {t} in totale.', { n: `${f.nx}×${f.ny}`, p: fmtH(b ? b.ideal / (f.nx * f.ny) : NaN), t: fmtH(b ? b.ideal : NaN) }) });
   if (ctx.framing) tips.push({ k: 'Rotazione', t: framingTip(o, ctx.framing, r.field) });
-  if (f.objPx < 160) tips.push({ k: 'Campo', t: tx('A {fl} mm: {px} pixel.', { fl: Math.round(g.fEff), px: Math.round(f.objPx) }) });
-  if (r.evals.length > 1) {
-    const o2 = r.evals.filter((x) => x !== e).sort((a, c) => c.score - a.score)[0];
-    if (o2 && e.score - o2.score >= 6) tips.push({ k: 'Setup', t: tx('Più efficiente {a} ({fa}) di {b} ({fb}): {la} contro {lb}', { a: e.cfg.label, fa: e.cfg.short, b: o2.cfg.label, fb: o2.cfg.short, la: f.label.toLowerCase(), lb: o2.fill.label.toLowerCase() }) + (b && o2.best && isFinite(b.tonight) && isFinite(o2.best.tonight) ? tx(', {a} contro {b} stanotte', { a: fmtH(b.tonight), b: fmtH(o2.best.tonight) }) : '') + '.' });
-  }
-  if (b) {
-    const subs = b.steps.map((s) => `${fname(s.f)} ${Math.max(...s.subs.map((x) => x.s))} s`);
-    const mins = b.steps.map((s) => Math.max(...s.subs.map((x) => x.min)));
-    let t = tx('{subs} (minimo {mins}).', { subs: subs.join(', '), mins: mins.map((m) => Math.max(1, m) + ' s').join(' / ') });
-    if (b.steps.some((s) => s.f.kind === 'bb' || s.f.kind === 'lp')) { if (e.K.subMax) t += ' ' + tx('Banda larga: {s} s (massimo del telescopio).', { s: e.K.subMax }); }
-    tips.push({ k: 'Pose singole', t });
-  }
-  if (!b) tips.push({ k: 'Filtri', t: tx('Serve la banda larga.', { t: tx(TYPES_PL[o.type]).toLowerCase() }) });
-  if (o.type === 'DN' || o.type === 'RN') tips.push({ k: 'Filtri', t: tx('Spettro continuo: solo banda larga.') });
-  if (ctx.alt && b) tips.push({ k: 'Altri filtri', t: tx('Con {n}: {a} invece di {b}.', { n: ctx.alt.name, a: fmtH(ctx.alt.h), b: fmtH(hoursOf(b)) }) });
+  if (f.objPx < 160) tips.push({ k: 'Campo', t: tx('Diametro del target: circa {px} pixel. Il ritaglio limiterà il dettaglio.', { px: Math.round(f.objPx) }) });
+  if (ctx.alt && b) tips.push({ k: 'Altri filtri', t: tx('Con {n}: integrazione stimata {a} invece di {b}.', { n: ctx.alt.name, a: fmtH(ctx.alt.h), b: fmtH(hoursOf(b)) }) });
   ((window.TIPS && o.tip && window.TIPS[o.tip]) || []).forEach((t) => tips.push({ k: 'Nota', t: tx(t) }));
   return tips;
 }

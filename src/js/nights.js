@@ -14,7 +14,7 @@ function nightSamples(p, t0) {
   for (let i = 0; i <= 144; i++) {
     const ms = t0 + i * 600000, J = jd(ms), lst = lstDeg(ms, lon), s = sunPos(J);
     if (i === 72) { const mi = moonIllum(J); ill = mi.k; waxing = mi.waxing; }
-    if (!inSession(i * 10, f, to) || altaz(s.ra, s.dec, lst, sL, cL)[0] >= thr) continue;
+    if (!inSession(msToOff(ms), f, to) || altaz(s.ra, s.dec, lst, sL, cL)[0] >= thr) continue;
     const mo = moonPos(J), ma = altaz(mo.ra, mo.dec, lst, sL, cL)[0];
     out.push({ ms, mu: ma > 0 });
   }

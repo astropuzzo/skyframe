@@ -26,12 +26,12 @@ Per ogni oggetto, ogni configurazione del profilo (telescopio con o senza access
 | Luna | posizione, fase e distanza per ogni passo di 5 minuti | calcolo astronomico; la luminosità diffusa è un modello semplificato |
 | Estinzione atmosferica | per lunghezza d'onda del canale, ridotta con l'altitudine del luogo | modello medio |
 | Percorso dell'oggetto | altezza e azimut a passi di 5 minuti, orizzonte locale, altezza minima | calcolo astronomico |
-| Meteo | copertura nuvolosa (7 modelli), probabilità, seeing, trasparenza (aerosol) | previsione, solo per il calendario e il voto delle notti |
+| Meteo | copertura nuvolosa (7 modelli), probabilità, seeing, trasparenza (aerosol) | previsione; nuvole e trasparenza pesano il rendimento delle singole ore nel calendario, seeing per la guida, altri dati nel voto e negli avvisi |
 
 ## 3. Variabili non considerate
 
 - Qualità ottica reale (aberrazioni, collimazione), messa a fuoco, errore di inseguimento durante la posa: peggiorano il risultato, non sono nel modello.
-- Seeing e trasparenza reali della notte nel calcolo del SNR: il seeing entra solo nella precisione di guida (§ 7), la trasparenza nel voto delle notti.
+- Seeing reale nel calcolo del SNR delle strutture diffuse: entra solo nella precisione di guida (§ 8). La trasparenza prevista modifica il rendimento del calendario con una stima basata sull'aerosol, ma non sostituisce una misura fotometrica della notte.
 - Rumore termico delle camere raffreddate (trascurabile) e dei sensori non raffreddati (un valore fisso per le reflex).
 - Flat, dark, bias e dithering: si assume una calibrazione corretta.
 - Elaborazione (riduzione del rumore, stretching): cambia molto il risultato percepito; è uno dei motivi per cui il livello di qualità si tara sulle foto (§ 5).
@@ -43,6 +43,8 @@ Per ogni oggetto, ogni configurazione del profilo (telescopio con o senza access
 3. **Tempo.** t = SNR² × (S + B + N) / S², con S segnale, B fondo cielo, N rumore di lettura e termico per elemento. È rumore fotonico: vale per ogni camera, filtro e cielo.
 4. **Pose singole.** La posa minima è quella per cui il fondo cielo per pixel vale 10 volte il rumore di lettura al quadrato; il valore proposto è quello più usato nelle foto di riferimento (evidenza, § 5), mai sotto il minimo fisico.
 5. **Mosaici.** Ogni pannello richiede lo stesso tempo.
+
+**Meteo nel calendario.** Ogni intervallo utile contribuisce al SNR previsto con la sua altezza del target, il fondo cielo nella sua direzione e la Luna di quell'ora, moltiplicati per la frazione serena e per il fattore di trasparenza da aerosol. Il tempo richiesto per una notte è ricalcolato dagli intervalli che hanno cielo utile; due previsioni con lo stesso totale di ore serene possono quindi dare risultati diversi. La frazione serena è una previsione probabilistica, non una promessa di ore effettivamente osservabili.
 
 Filtri, cielo, telescopio e Luna cambiano i tempi **solo** attraverso queste relazioni.
 
@@ -57,7 +59,7 @@ Quattro osservazioni, su 6918 foto di 311 oggetti (camere a colori, reflex e mon
 - **Il SNR raggiunto dipende dall'oggetto:** sugli oggetti difficili si accetta un SNR più basso. Fra oggetti, log g = a + b · log D con b = −0,66, dove D è la difficoltà fisica (ore a SNR di riferimento con un setup fisso: rifrattore 100 mm f/5,5, IMX571 a colori, UV/IR e L-eXtreme, SQM 19,0, latitudine 45°).
 - **Le pose singole delle foto confermano quelle proposte:** mediana 300 s con i multibanda su camera a colori, 60–180 s in banda larga (60 s sotto f/3), 300 s in banda stretta 5–8 nm su mono, 300–600 s sotto i 4,5 nm.
 
-**Uso nel modello.** Il livello «buona» di un oggetto è il SNR della sua foto mediana **riportata a un riferimento fisso**: camera a colori, cielo SQM 19,0. Ogni foto si riporta togliendo gli effetti di camera e cielo misurati sopra; per gli oggetti con foto si prende la mediana, unita alla previsione con peso 6 foto; per gli altri la previsione da D. Il tempo mostrato è t_fis (con la tua attrezzatura, il tuo cielo, la tua Luna) × g × k, con k = 0,47 / 1 / 2 / 3,3 / 7 / 15 per mediocre / discreta / buona / ottima / eccellente / estrema (i primi quattro: 25°, 50°, 75° e 90° percentile delle foto; nelle versioni fino alla 0.23 si chiamavano rapida, buona, eccellente, profonda). Il livello non dipende dal tuo setup, così il confronto fra luoghi, filtri e camere resta fisico. Con camera mono, reflex o cielo diverso da SQM 19 il piano indica di quanto è più alto (o più basso) il SNR² tipico delle foto fatte così, e il livello dell'app più vicino: è un'informazione, non cambia il tempo. La scheda «Foto di riferimento» mostra le foto con camera e cielo simili ai tuoi (camera a colori o mono; cielo urbano, di periferia o buio).
+**Uso nel modello.** Il livello «standard» di un oggetto è il SNR della sua foto mediana **riportata a un riferimento fisso**: camera a colori, cielo SQM 19,0. Ogni foto si riporta togliendo gli effetti di camera e cielo misurati sopra; per gli oggetti con foto si prende la mediana, unita alla previsione con peso 6 foto; per gli altri la previsione da D. Il tempo mostrato è t_fis (con la tua attrezzatura, il tuo cielo, la tua Luna) × g × k, con k = 0,47 / 1 / 2 / 3,3 / 7 / 15 per base / standard / alta / molto alta / eccellente / massima (i primi quattro: 25°, 50°, 75° e 90° percentile delle foto; nelle versioni fino alla 0.23 si chiamavano rapida, buona, eccellente, profonda). Il livello non dipende dal tuo setup, così il confronto fra luoghi, filtri e camere resta fisico. Con camera mono, reflex o cielo diverso da SQM 19 il piano indica di quanto è più alto (o più basso) il SNR² tipico delle foto fatte così, e il livello dell'app più vicino: è un'informazione, non cambia il tempo. La scheda «Foto di riferimento» mostra le foto con camera e cielo simili ai tuoi (camera a colori o mono; cielo urbano, di periferia o buio).
 
 **Differenza dalle versioni precedenti.** Fino alla 0.20 il livello veniva dalle sole foto a colori da cieli Bortle 6–8 (2054 foto), con la classe convertita con la tabella DSA. Ora usa tutte le foto riportate al riferimento (3,4 volte di più, 311 oggetti invece di 259) e la conversione empirica della classe di Bortle. Molti livelli salgono (M 31 ×2,6, IC 1396 ×1,8): sulla verifica le foto a colori da città risultano ora centrate (rapporto mediano ×0,98, prima ×0,81).
 
@@ -140,7 +142,7 @@ Ipotesi e limiti: profili gaussiani, ottica limitata dalla diffrazione, errore u
 
 **Casi rappresentativi.** Camera a colori e mono, SQM 18,0 / 19,3 / 21,3, emissione e spettro continuo, un filtro o combinazioni, con e senza Luna, con il confronto con la 0.20: [VERIFICA-casi.md](VERIFICA-casi.md).
 
-**Riferimenti dell'autore.** Cocoon (IC 5146) e WR 134 dal terrazzo (SQM ~19,3, 800 mm f/5, camera a colori, L-eXtreme + L-Synergy): ~100 h e ~95 h per un SNR ritenuto discreto. Il livello «buona» (foto mediana) dà 3,4 h e 9,4 h, «profonda» (×3,3) 11 h e 31 h: lo standard dell'autore resta sopra quello delle foto apprezzate su AstroBin.
+**Riferimenti dell'autore.** Cocoon (IC 5146) e WR 134 dal terrazzo (SQM ~19,3, 800 mm f/5, camera a colori, L-eXtreme + L-Synergy): ~100 h e ~95 h per un SNR ritenuto discreto. Il livello «standard» (foto mediana) dà 3,4 h e 9,4 h, «molto alta» (×3,3) 11 h e 31 h: lo standard dell'autore resta sopra quello delle foto apprezzate su AstroBin.
 
 ## 10. Limiti e dati che servono
 

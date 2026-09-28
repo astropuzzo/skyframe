@@ -17,7 +17,7 @@ function nightCapacity(C, k) {
 function seasonTargets() {
   return Object.keys(state.projects).filter((id) => inMyList(id) && !isDone(id)).map((id) => state.byId.get(id)).filter((r) => r && r.e.best && isFinite(hoursOf(r.e.best)));
 }
-const seasonKey = (list) => [state.res.night.ds, moonMode(), WX.d ? WX.d.at : 0, siteKey(activeLoc().site), JSON.stringify(activeProfile()).length, ...list.map((r) => r.o.id + ':' + projProgress(r.o.id).toFixed(3))].join('|');
+const seasonKey = (list) => [state.computeKey, moonMode(), WX.d && WX.d.key === wxKey(activeLoc().site) ? WX.d.at : 0, ...list.map((r) => r.o.id + ':' + projProgress(r.o.id).toFixed(6))].join('|');
 /* il piano, a pezzi; done(plan) quando è pronto */
 function seasonPlan(done) {
   const list = seasonTargets(), key = seasonKey(list);
@@ -127,7 +127,7 @@ function yearHTML(list) {
 }
 function fillYear(list) {
   const box = $('#yearBox'); if (!box) return;
-  const p = active(), lut = state.res.lut, key = [siteKey(p.site), p.session.sunThr, p.session.minAlt, JSON.stringify(p.horizon).length, defaultNightStr(), ...list.map((r) => r.o.id)].join('|');
+  const p = active(), lut = state.res.lut, key = [JSON.stringify(p.site), p.session.sunThr, p.session.minAlt, JSON.stringify(p.horizon), defaultNightStr(), ...list.map((r) => r.o.id)].join('|');
   const draw = () => {
     const now = new Date(), w0 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12).getTime(), W = 52;
     let months = ''; for (let w = 0; w < W; w++) { const d = new Date(w0 + w * 7 * 864e5), prev = new Date(w0 + (w - 1) * 7 * 864e5), nx = new Date(w0 + (w + 2) * 7 * 864e5); months += `<span>${(w === 0 && nx.getMonth() === d.getMonth()) || (w > 0 && d.getMonth() !== prev.getMonth()) ? d.toLocaleDateString(LOCALE, { month: 'short' }).replace('.', '') : ''}</span>`; }

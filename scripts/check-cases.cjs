@@ -32,7 +32,7 @@ const MONO_SETS = [['LRGB', ['L', 'R', 'G', 'B']], ['LRGB + Hα/OIII/SII 3 nm', 
 const OBJ = [['NGC 7000', 'emissione'], ['IC 1396', 'emissione'], ['M 27', 'planetaria'], ['NGC 6992', 'resto di SN'], ['M 31', 'galassia'], ['M 51', 'galassia'], ['NGC 7023', 'riflessione'], ['M 13', 'globulare']];
 const SKIES = [18.0, 19.3, 21.3];
 const f = (h) => (h == null ? '—' : h < 1 ? `${Math.round(h * 60)} min` : `${h.toFixed(1)} h`);
-let out = `# Casi rappresentativi\n\nGenerato da \`scripts/check-cases.cjs\` il ${new Date().toISOString().slice(0, 10)}. Rifrattore 100 mm f/5,5, sensore IMX571 (3,76 µm, a colori: QE 80%, mono: QE 87%), latitudine 45°, notte in cui l'oggetto passa al meridiano verso mezzanotte, senza Luna, livello «buona», obiettivo «minor tempo per il SNR». Colonne: combinazione scelta e integrazione; fra parentesi il modello della versione precedente (${process.env.CASES_OLD_V || 'CASES_OLD'}).${OLD ? '' : ' (Versione precedente non caricata: CASES_OLD non impostato.)'}\n`;
+let out = `# Casi rappresentativi\n\nGenerato da \`scripts/check-cases.cjs\` il ${new Date().toISOString().slice(0, 10)}. Rifrattore 100 mm f/5,5, sensore IMX571 (3,76 µm, a colori: QE 80%, mono: QE 87%), latitudine 45°, notte in cui l'oggetto passa al meridiano verso mezzanotte, senza Luna, livello «standard», obiettivo «minor tempo per il SNR». Colonne: combinazione scelta e integrazione; fra parentesi il modello della versione precedente (${process.env.CASES_OLD_V || 'CASES_OLD'}).${OLD ? '' : ' (Versione precedente non caricata: CASES_OLD non impostato.)'}\n`;
 for (const [cam, sets] of [['osc', OSC_SETS], ['mono', MONO_SETS]]) {
   for (const sqm of SKIES) {
     out += `\n## Camera ${cam === 'osc' ? 'a colori' : 'monocromatica'}, SQM ${String(sqm).replace('.', ',')}\n\n| Oggetto | ${sets.map(([n]) => n).join(' | ')} |\n| --- | ${sets.map(() => '---').join(' | ')} |\n`;
@@ -69,7 +69,7 @@ if (process.env.CASES_CAL) {
   out += `
 ## Confronto con le foto di riferimento
 
-Per ogni foto il modello rifà il conto con il telescopio, la camera, i filtri e il cielo (classe Bortle dichiarata) di quella foto, e lo confronta con le ore dichiarate. Rapporto ore vere / modello al livello «buona»: 1 = il modello coincide con la foto mediana.
+Per ogni foto il modello rifà il conto con il telescopio, la camera, i filtri e il cielo (classe Bortle dichiarata) di quella foto, e lo confronta con le ore dichiarate. Rapporto ore vere / modello al livello «standard»: 1 = il modello coincide con la foto mediana.
 
 | Oggetto | foto | rapporto mediano | metà centrale |
 | --- | --- | --- | --- |
