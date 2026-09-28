@@ -96,10 +96,11 @@ try {
     await until(`TOUR.el && TOUR.ready && TOUR.i === ${k} && (TOUR.el.querySelector('.tour-n') || {}).textContent === '${k + 1} / ' + TOUR.steps.length`, 20000);
     continuity.push(await ev(`return !!TOUR.el && document.getElementById('editor').inert && !edDirty && !document.querySelector('.tour [data-t=cta]') && document.getElementById('editor').dataset.preview === '${['attrezzatura', 'ottica', 'filtri', 'sessione'].includes(name) ? 'prof' : 'loc'}'`));
     if (name === 'luogo') {
-      // un tocco vero sull'emulatore deve avanzare; i .click() JS non rilevano i problemi del touch
+      // un evento touch nella WebView deve avanzare; i .click() JS non rilevano i problemi del tocco
       await sleep(600);
-      const p = await ev(`const r = document.querySelector('.tour [data-t=next]').getBoundingClientRect(); return { x: Math.round((r.left + r.width / 2) * devicePixelRatio), y: Math.round((r.top + r.height / 2) * devicePixelRatio) }`);
-      adb(`shell input tap ${p.x} ${p.y}`);
+      const p = await ev(`const r = document.querySelector('.tour [data-t=next]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }`);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [p] });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
       out.checks.guida_touch = await until(`TOUR.el && TOUR.ready && TOUR.steps[TOUR.i].id === 'mappa'`, 12000);
     } else await ev(`document.querySelector('.tour [data-t=next]').click(); return 1`);
   }
@@ -125,8 +126,9 @@ try {
   await ev(`tourStart(TOUR_STEPS, ${kl}); return 1`);
   await until(`TOUR.el && TOUR.ready && TOUR.i === ${kl} && document.getElementById('editor').dataset.preview === 'loc'`, 20000);
   await sleep(600);
-  const skip = await ev(`const r = document.querySelector('.tour [data-t=skip]').getBoundingClientRect(); return { x: Math.round((r.left + r.width / 2) * devicePixelRatio), y: Math.round((r.top + r.height / 2) * devicePixelRatio) }`);
-  adb(`shell input tap ${skip.x} ${skip.y}`);
+  const skip = await ev(`const r = document.querySelector('.tour [data-t=skip]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }`);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [skip] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   out.checks.guida_esce_con_salta = await until(`!TOUR.el && document.getElementById('editor').hidden && document.getElementById('leaveConfirm').hidden`, 12000);
   out.checks.guida_senza_modifiche = setupBefore === await ev(`return JSON.stringify([state.locs, state.profiles])`);
   await sleep(1200);
