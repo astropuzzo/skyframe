@@ -10,7 +10,7 @@
    nuovi. Si riprende da Setup → Guida. v = versione in cui il passo è comparso. */
 const TOUR_STEPS = [
   { id: 'benvenuto', v: '0.13.0', view: 'tonight', hero: true, t: 'Skyframe', d: 'Prima inserisci luogo e attrezzatura. Poi confronta i target con le condizioni della notte.' },
-  { id: 'luogo', v: '0.25.0', view: 'setup', sel: '#stLocations h3', t: '1. Luogo di osservazione', d: 'Apri il luogo in Setup. Posiziona il punto sulla mappa o cerca un indirizzo nell’app desktop. Controlla le coordinate, assegna un nome e salva.',
+  { id: 'luogo', v: '0.25.0', view: 'setup', sel: '#stLocations h3', t: '1. Luogo di osservazione', d: 'Apri il luogo in Setup. Cerca un indirizzo o posiziona il punto sulla mappa; controlla le coordinate, assegna un nome e salva.',
     cta: () => ['Apri il luogo', () => tourOpenEditor('loc', 'edSite')] },
   { id: 'allsky', v: '0.25.0', view: 'setup', sel: '#stLocations h3', t: '2. Cielo e mappa all-sky',
     d: () => window.cielo && window.cielo.lpmAllSky

@@ -97,7 +97,13 @@ try {
     await ev(`tourGo(${ka}); return 1`); await until(`TOUR.el && TOUR.i === ${ka} && !!document.querySelector('.tour-card.on h3')`, 20000);
     await ev(`document.querySelector('.tour [data-t=cta]').click(); return 1`);
     await until(`!document.getElementById('editor').hidden`, 10000);
-    out.checks.android_allsky_manuale = await ev(`return !!document.querySelector('#skyDrop .ed-tour-note') && document.getElementById('lpmBtn').hidden && document.getElementById('geoQ').disabled && !!document.getElementById('skyFile') && !!document.getElementById('lpmOpen').href`);
+    out.allskyAndroid = await ev(`return {
+      guida: !!document.querySelector('#skyDrop .ed-tour-note'),
+      mappaManuale: document.getElementById('lpmBtn').hidden && !!document.getElementById('skyFile') && !!document.getElementById('lpmOpen').href,
+      ricercaLuoghi: !document.getElementById('geoQ').disabled,
+      atlante: !document.getElementById('lpBtn').hidden
+    }`);
+    out.checks.android_allsky_manuale = Object.values(out.allskyAndroid).every(Boolean);
     shot('04-guida-allsky-android');
     adb('shell input keyevent KEYCODE_BACK'); await sleep(2000);
     out.checks.guida_riprende_dopo_allsky = await ev(`return document.getElementById('editor').hidden && !!TOUR.el && TOUR.i === ${ka + 1}`);

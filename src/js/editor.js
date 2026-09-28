@@ -172,12 +172,12 @@ function readLocForm() {
   d.minAlt = clamp(n('f_minalt') || 0, 0, 80);
   return d;
 }
-/* SQM e direzioni delle luci dall'atlante di Lorenz (solo nell'app desktop: il download lo fa il processo principale) */
+/* SQM e direzioni delle luci dall'atlante di Lorenz (desktop e Android tramite LPAtlas) */
 function lpStatus(txt) {
   const s = draft && draft.site; if (!s) return;
   F('skyRemove').hidden = !s.skyMap;
   if (!txt && s.skyMap) { F('lpMsg').textContent = tx('Mappa all-sky ({f}, {d}): zenit {z}.', { f: s.skyMap.file || 'lightpollutionmap', d: s.skyMap.date || '', z: it(s.skyMap.zenith, 2) }); return; }
-  F('lpMsg').textContent = txt || (s.lpZen != null ? `${tx(s.lpSrcAtlas || 'Atlante')}: ${tx('zenit')} ${it(s.lpZen, 2)} (Bortle ${sqmToBortle(s.lpZen)})${Math.abs(s.sqm - s.lpZen) >= 0.01 ? ' · ' + tx('in uso il tuo {v}', { v: it(s.sqm, 2) }) : ''}` : tx(window.cielo && window.cielo.lpLookup ? 'Non ancora calcolato per queste coordinate.' : 'Atlante automatico disponibile nell’app desktop. Qui puoi inserire lo SQM o importare una mappa all-sky.'));
+  F('lpMsg').textContent = txt || (s.lpZen != null ? `${tx(s.lpSrcAtlas || 'Atlante')}: ${tx('zenit')} ${it(s.lpZen, 2)} (Bortle ${sqmToBortle(s.lpZen)})${Math.abs(s.sqm - s.lpZen) >= 0.01 ? ' · ' + tx('in uso il tuo {v}', { v: it(s.sqm, 2) }) : ''}` : tx(window.cielo && window.cielo.lpLookup ? 'Non ancora calcolato per queste coordinate.' : 'Inserisci lo SQM o importa una mappa all-sky.'));
 }
 let lpTimer = null;
 const geoStillCurrent = (d, lat, lon) => !!d && draft === d && Math.abs(+F('f_lat').value - lat) < 1e-6 && Math.abs(+F('f_lon').value - lon) < 1e-6;
