@@ -85,15 +85,17 @@ function wireOptics() {
 }
 /* Un solo pannello per due cose: il profilo (attrezzatura e sessione) e il luogo (cielo, mappa, orizzonte, altezza minima) */
 let edMode = 'prof';
-function showEditor(asNew) {
+function showEditor(asNew, preview = false) {
   F('editor').dataset.mode = edMode;
   F('edSave').textContent = tx(edMode === 'loc' ? 'Salva luogo' : 'Salva profilo');
   F('delConfirm').hidden = true; F('leaveConfirm').hidden = true;
-  if (F('editor').hidden) backPush(editorBack);
+  if (F('editor').hidden && !preview) backPush(editorBack);
   F('editor').hidden = false; edDirty = !!asNew;
+  F('editor').dataset.preview = preview ? edMode : '';
+  F('editor').inert = preview;
   F('editor').querySelector('.sheet-body').scrollTop = 0;
 }
-function openEditor(id, asNew) {
+function openEditor(id, asNew, preview = false) {
   edMode = 'prof';
   const src = id ? state.profiles.find((p) => p.id === id) : null;
   draft = stripSite(migrateProfile(clone(src || activeProfile())));
@@ -105,14 +107,14 @@ function openEditor(id, asNew) {
   F('f_thr').value = String(d.session.sunThr); F('f_from').value = d.session.from || ''; F('f_to').value = d.session.to || ''; F('f_quality').value = d.session.quality || 'good'; F('f_goal').value = GOALS.includes(d.session.goal) ? d.session.goal : 'lines';
   F('edDelete').hidden = !!asNew || !!(src && src.unsaved);
   renderOptics(); renderFilterPick();
-  showEditor(asNew); F('f_name').focus();
+  showEditor(asNew, preview); if (!preview) F('f_name').focus();
 }
 /* nuovo luogo: si parte dal punto attuale, da spostare con la ricerca o sulla mappa; cielo e orizzonte arrivano da soli */
 function newLocDraft() {
   const c = activeLoc();
   return { id: locId(), site: { name: tx('Nuovo luogo'), lat: c.site.lat, lon: c.site.lon, bortle: c.site.bortle, sqm: c.site.sqm }, horizon: [], hzSrc: 'none', minAlt: c.minAlt };
 }
-function openLocEditor(id, asNew) {
+function openLocEditor(id, asNew, preview = false) {
   edMode = 'loc';
   const src = id ? state.locs.find((l) => l.id === id) : null;
   draft = asNew ? newLocDraft() : migrateLoc(clone(src || activeLoc()));
@@ -124,13 +126,13 @@ function openLocEditor(id, asNew) {
   F('hzPaste').hidden = true; F('hzMsg').textContent = ''; F('skyImp').hidden = true; F('skyMsg').textContent = asNew ? tx('Cerca il luogo o tocca la mappa.') : '';
   F('lpBtn').hidden = !(window.cielo && window.cielo.lpLookup);
   lpStatus(); drawHz(); drawLpPreview(F('lpSky'), d.site, d.horizon);
-  showEditor(asNew);
+  showEditor(asNew, preview);
   initGeoMap();
   // centratura dopo il layout: legge i campi (nel frattempo il punto potrebbe essere già cambiato)
   if (geoMap) requestAnimationFrame(() => { const la = +F('f_lat').value, lo = +F('f_lon').value; geoMap.invalidateSize(); geoPin.setLatLng([la, lo]); geoMap.setView([la, lo], asNew ? 8 : d.site.example && la === d.site.lat ? 6 : Math.max(geoMap.getZoom(), 12)); });
-  (asNew && DESK_GEO() ? F('geoQ') : F('f_site')).focus();
+  if (!preview) (asNew && DESK_GEO() ? F('geoQ') : F('f_site')).focus();
 }
-function closeEditor(fromPop) { if (F('editor').hidden) return; F('editor').hidden = true; F('leaveConfirm').hidden = true; F('editor').querySelector('.ed-tour-note')?.remove(); draft = null; edDirty = false; if (fromPop !== true) backDone(editorBack); tourAfterEditor(); }
+function closeEditor(fromPop) { if (F('editor').hidden) return; const preview = !!F('editor').dataset.preview; F('editor').hidden = true; F('editor').inert = false; F('editor').dataset.preview = ''; F('leaveConfirm').hidden = true; draft = null; edDirty = false; if (!preview && fromPop !== true) backDone(editorBack); }
 /* tasto indietro: con modifiche non salvate si resta e si chiede cosa fare */
 function editorBack(fromPop) { if (fromPop !== true) return; if (edDirty) { backPush(editorBack); F('leaveConfirm').hidden = false; F('leaveNo').focus(); return; } closeEditor(true); }
 /* chiusura richiesta dall'utente (Chiudi, Esc): con modifiche non salvate si chiede prima cosa fare */

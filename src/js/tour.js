@@ -10,19 +10,21 @@
    nuovi. Si riprende da Setup → Guida. v = versione in cui il passo è comparso. */
 const TOUR_STEPS = [
   { id: 'benvenuto', v: '0.13.0', view: 'tonight', hero: true, t: 'Skyframe', d: 'Prima inserisci luogo e attrezzatura. Poi confronta i target con le condizioni della notte.' },
-  { id: 'luogo', v: '0.25.0', view: 'setup', sel: '#stLocations h3', t: '1. Luogo di osservazione', d: 'Apri il luogo in Setup. Cerca un indirizzo o posiziona il punto sulla mappa; controlla le coordinate, assegna un nome e salva.',
-    cta: () => ['Apri il luogo', () => tourOpenEditor('loc', 'edSite')] },
-  { id: 'allsky', v: '0.25.0', view: 'setup', sel: '#stLocations h3', t: '2. Cielo e mappa all-sky',
+  { id: 'luogo', v: '0.25.1', view: 'setup', preview: 'loc', sel: () => DESK_GEO() ? '#geoQ' : '#geoMap', t: '1. Cerca il luogo',
+    d: () => DESK_GEO()
+      ? 'Nel luogo puoi cercare città, indirizzi e località. Scegliendo un risultato, Skyframe compila le coordinate.'
+      : 'Nella versione web scegli il punto sulla mappa. Latitudine e longitudine si aggiornano sotto.' },
+  { id: 'mappa', v: '0.25.1', view: 'setup', preview: 'loc', sel: '#geoMap', hint: ['#geoMap', 'drag'], t: '2. Posizione sulla mappa', d: 'Lo spillo indica il punto di osservazione. Puoi spostarlo sulla mappa e controllare latitudine e longitudine sotto.' },
+  { id: 'sqm', v: '0.25.1', view: 'setup', preview: 'loc', sel: '#f_sqm', t: '3. Luminosità del cielo', d: 'Qui inserisci lo SQM misurato. Se non lo conosci, puoi usare la stima dall’atlante o la classe di Bortle.' },
+  { id: 'allsky', v: '0.25.1', view: 'setup', preview: 'loc', sel: () => window.cielo && window.cielo.lpmAllSky ? '#lpmBtn' : '#skyDrop ol li:nth-child(3)', t: '4. Mappa all-sky',
     d: () => window.cielo && window.cielo.lpmAllSky
-      ? 'Fissa prima il punto sulla mappa. La mappa all-sky si carica da sola; puoi riprovare con «Prendi la mappa all-sky dal sito». Controlla lo SQM e salva il luogo.'
-      : 'Nel luogo apri lightpollutionmap, scegli «Sky brightness» e scarica l’immagine All-sky. Importala qui, verifica i valori della barra dei colori e salva il luogo.',
-    cta: () => ['Apri la mappa all-sky', () => tourOpenEditor('loc', 'skyDrop')] },
-  { id: 'orizzonte', v: '0.25.0', view: 'setup', sel: '#stLocations h3', t: '3. Orizzonte', d: 'Imposta l’altezza minima. Per gli ostacoli locali disegna il profilo o importa un file .hrz. Se hai una mappa all-sky, puoi usare il terreno incluso.',
-    cta: () => ['Apri l’orizzonte', () => tourOpenEditor('loc', 'edHorizon')] },
-  { id: 'attrezzatura', v: '0.25.0', view: 'setup', sel: '#stEquipment h3', t: '4. Camera e telescopio', d: 'Scegli la camera e verifica pixel, QE e rumore di lettura. Seleziona il telescopio oppure inserisci apertura e focale; aggiungi gli accessori che usi.',
-    cta: () => ['Apri il profilo', () => tourOpenEditor('prof', 'edCamera')] },
-  { id: 'filtri', v: '0.25.0', view: 'setup', sel: '#stEquipment h3', t: '5. Filtri e sessione', d: 'Spunta solo i filtri disponibili per quella camera. In Sessione imposta la fascia oraria, se vuoi limitarla, e il livello di qualità. Poi salva il profilo.',
-    cta: () => ['Apri i filtri', () => tourOpenEditor('prof', 'edFilters')] },
+      ? 'Dopo aver scelto il punto, la mappa si scarica automaticamente. Qui puoi riprovare e controllare il valore SQM.'
+      : 'Da lightpollutionmap puoi salvare l’immagine All-sky. Qui la importerai, controllerai i valori della barra dei colori e poi salverai il luogo.' },
+  { id: 'orizzonte', v: '0.25.1', view: 'setup', preview: 'loc', sel: '#f_minalt', t: '5. Orizzonte', d: 'Qui imposti l’altezza minima. Più sotto puoi disegnare gli ostacoli o importare un file .hrz.' },
+  { id: 'attrezzatura', v: '0.25.1', view: 'setup', preview: 'prof', sel: '#f_cam', t: '6. Camera', d: 'Nel profilo scegli la camera. Per un modello personalizzato inserisci dimensioni del sensore, pixel, QE e rumore di lettura.' },
+  { id: 'ottica', v: '0.25.1', view: 'setup', preview: 'prof', sel: '#optics select[data-k="preset"]', t: '7. Telescopio', d: 'Qui scegli il telescopio o inserisci apertura e focale. Puoi aggiungere riduttori e Barlow al profilo.' },
+  { id: 'filtri', v: '0.25.1', view: 'setup', preview: 'prof', sel: '#filterPick .fbox', t: '8. Filtri', d: 'Nel profilo selezioni i filtri che possiedi e usi con questa camera.' },
+  { id: 'sessione', v: '0.25.1', view: 'setup', preview: 'prof', sel: '#f_quality', t: '9. Sessione', d: 'Qui scegli il livello di qualità e, se serve, limiti l’orario della sessione. Il profilo si salva al termine.' },
   { id: 'notti', v: '0.13.0', view: 'tonight', sel: '#nightBar', hint: ['#nightBar > :nth-child(2)', 'tap'], t: 'Scegli la notte', d: 'La striscia mostra buio, Luna e nuvole previste. Tocca una data per aggiornare target e piano.' },
   { id: 'cielo', v: '0.13.0', view: 'tonight', sel: '.skycard', anchor: 'bottom', hint: ['.skycard .clock', 'drag'], t: 'Ora della ripresa', d: 'Trascina la barra del tempo per vedere posizione dei target e condizioni durante la notte.' },
   { id: 'piano', v: '0.13.0', view: 'tonight', sel: '#tonight', t: 'Piano della notte', d: 'I blocchi indicano quando riprendere ciascun target. Apri un target per controllare filtri, ore e inquadratura.' },
@@ -35,6 +37,7 @@ const TOUR_STEPS = [
 ];
 /* novità per versione (le più recenti in cima) */
 const NEWS = [
+  { v: '0.25.1', items: ['Guida visiva continua: mostra dove inserire i dati senza aprire moduli da compilare'] },
   { v: '0.25.0', items: ['Guida operativa per luogo, mappa all-sky, orizzonte e attrezzatura, anche su Android', 'Modello aggiornato per tempi di posa, Luna e previsioni; descrizioni dei target riviste'] },
   { v: '0.24.0', items: ['Sei livelli di qualità con stima delle ore per i tuoi target'] },
   { v: '0.23.0', items: ['Regolazione della qualità in Setup con aggiornamento delle ore stimate'] },
@@ -59,16 +62,13 @@ const NEWS = [
 const verNum = (v) => String(v || '0').split('.').reduce((a, x) => a * 1000 + (+x || 0), 0);
 /* target: gli elementi da illuminare (null = nessuno, scheda al centro); ready: la scena è pronta e il faro può muoversi;
    rec: registro dei fotogrammi per le prove (faro e scheda, uno per fotogramma) */
-const TOUR = { steps: [], i: 0, el: null, raf: 0, resume: null, target: null, ready: false, seq: 0, hole: null, card: null, rec: null, t0: 0 };
-function tourOpenEditor(kind, section) {
-  if (kind === 'loc') openLocEditor(state.locId); else openEditor(state.activeId);
-  const el = F(section), st = TOUR.steps[TOUR.i];
-  if (!el || !st) return;
-  const note = document.createElement('div'); note.className = 'ed-tour-note';
-  const title = document.createElement('b'), body = document.createElement('p');
-  title.textContent = tx(st.t); body.textContent = tx(typeof st.d === 'function' ? st.d() : st.d);
-  note.append(title, body); el.prepend(note);
-  requestAnimationFrame(() => note.scrollIntoView({ block: 'start', behavior: 'instant' }));
+const TOUR = { steps: [], i: 0, el: null, raf: 0, target: null, ready: false, seq: 0, hole: null, card: null, rec: null, t0: 0 };
+function tourPreview(kind) {
+  const editor = F('editor');
+  if ((editor.dataset.preview || '') === (kind || '')) return;
+  if (editor.dataset.preview) closeEditor();
+  if (kind === 'loc') openLocEditor(state.locId, false, true);
+  else if (kind === 'prof') openEditor(state.activeId, false, true);
 }
 
 function tourStart(steps, i0 = 0) {
@@ -84,7 +84,6 @@ function tourStart(steps, i0 = 0) {
     const b = e.target.closest('[data-t]'); if (!b) return;
     const a = b.dataset.t;
     if (a === 'next') tourGo(TOUR.i + 1); else if (a === 'prev') tourGo(TOUR.i - 1); else if (a === 'skip') tourEnd();
-    else if (a === 'cta') { const c = tourCta(TOUR.steps[TOUR.i]); TOUR.resume = { steps: TOUR.steps, i: TOUR.i + 1 }; tourClose(); if (c) c[1](); }
   });
   tourSwipe(el.querySelector('.tour-card'));
   document.addEventListener('keydown', tourKey, true);
@@ -93,7 +92,6 @@ function tourStart(steps, i0 = 0) {
   tourGo(i0);
   const loop = (t) => { if (!TOUR.el) return; tourFrame(t); TOUR.raf = requestAnimationFrame(loop); }; TOUR.raf = requestAnimationFrame(loop);
 }
-const tourCta = (st) => (st && st.cta ? (typeof st.cta === 'function' ? st.cta() : st.cta) : null);
 function tourKey(e) {
   if (!TOUR.el) return;
   if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); tourEnd(); } else if (e.key === 'ArrowRight') tourGo(TOUR.i + 1); else if (e.key === 'ArrowLeft') tourGo(TOUR.i - 1);
@@ -105,25 +103,24 @@ function tourSwipe(card) {
   card.addEventListener('pointerup', (e) => { if (x0 == null) return; const dx = e.clientX - x0, dy = e.clientY - y0; x0 = null; if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) tourGo(TOUR.i + (dx < 0 ? 1 : -1)); });
 }
 function tourBack(fromPop) { if (fromPop === true) tourEnd(true); }
-/* chiude senza segnare la guida come vista (per riprenderla dopo l'editor) */
-function tourClose(silent) {
+/* chiude la guida e la vista dimostrativa senza cambiare i dati */
+function tourClose() {
   if (!TOUR.el) return; cancelAnimationFrame(TOUR.raf); TOUR.el.remove(); TOUR.el = null; TOUR.target = null; TOUR.seq++; UI.noVT = false;
-  document.removeEventListener('keydown', tourKey, true); if (!silent) backDone(tourBack);
+  tourPreview(null);
+  document.removeEventListener('keydown', tourKey, true); backDone(tourBack);
 }
 function tourEnd(fromPop) {
-  LS.set('sf.tourV', window.SKYFRAME_VERSION || '0'); TOUR.resume = null;
-  if (fromPop === true) { if (TOUR.el) { cancelAnimationFrame(TOUR.raf); TOUR.el.remove(); TOUR.el = null; TOUR.seq++; UI.noVT = false; document.removeEventListener('keydown', tourKey, true); } } else tourClose();
-  if (!$('#drawer').hidden) closeDetail();
+  LS.set('sf.tourV', window.SKYFRAME_VERSION || '0');
+  if (fromPop === true) { if (TOUR.el) { cancelAnimationFrame(TOUR.raf); TOUR.el.remove(); TOUR.el = null; TOUR.seq++; UI.noVT = false; document.removeEventListener('keydown', tourKey, true); } tourPreview(null); } else tourClose();
+  if (!$('#drawer').hidden) closeDetail(false, $('#drawer').dataset.preview ? 'drag' : undefined);
   if (UI.view !== 'tonight') setView('tonight');
 }
-/* dopo l'editor aperto da un passo, la guida riparte dal successivo */
-function tourAfterEditor() { const r = TOUR.resume; if (!r) return; TOUR.resume = null; setTimeout(() => tourStart(r.steps, r.i), 400); }
 /* il target d'esempio del dettaglio: fra quelli visibili stanotte, prima uno dei tuoi, poi uno con le foto vere */
 const tourSample = () => {
   const L = state.filtered.filter((r) => r.e.best && r.usableH >= 1), real = (r) => !!(window.REAL && REAL.o[r.o.id]);
   return (L.find((r) => inMyList(r.o.id) && real(r)) || L.find(real) || L.find((r) => inMyList(r.o.id)) || L[0] || state.res.results.find((r) => r.e.best) || {}).o;
 };
-const tourEls = (st) => (st.sel ? [].concat(st.sel).map((s) => $(s)).filter((t) => t && t.offsetParent) : []);
+const tourEls = (st) => (st.sel ? [].concat(typeof st.sel === 'function' ? st.sel() : st.sel).map((s) => $(s)).filter((t) => t && t.offsetParent) : []);
 const frame = () => new Promise((r) => requestAnimationFrame(() => r()));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 /* rettangolo che contiene tutti gli elementi del passo */
@@ -147,7 +144,8 @@ async function settle(els, seq) {
 function freeZone(els) {
   const H = innerHeight, card = TOUR.el && TOUR.el.querySelector('.tour-card'), tb = $('.topbar'), nb = $('#nightBar');
   let top = 8;
-  if (els && els.length && !els.some((e) => e.closest('.topbar'))) {
+  if (els && els.length && els[0].closest('#editor')) top = Math.max(top, F('editor').querySelector('.sheet-head').getBoundingClientRect().bottom + 6);
+  else if (els && els.length && !els.some((e) => e.closest('.topbar'))) {
     if (tb && tb.offsetParent) top = Math.max(top, tb.getBoundingClientRect().bottom + 6);
     if (nb && nb.offsetParent && !els.includes(nb) && !els[0].closest('#drawer') && els[0].closest('#v-tonight')) top = Math.max(top, nb.getBoundingClientRect().bottom + 6);
   }
@@ -175,7 +173,7 @@ async function tourGo(i) {
   const st = TOUR.steps[i], el = TOUR.el, card = el.querySelector('.tour-card'), body = card.querySelector('.tour-body');
   el.querySelector('.tour-finger').hidden = true;
   // 1. esce il testo; se la scena cambia (sezione o dettaglio) scende il velo
-  const moveScene = !!(st.detail ? $('#drawer').hidden || state.dTab !== st.detail : st.view && (UI.view !== st.view || !$('#drawer').hidden));
+  const moveScene = !!((F('editor').dataset.preview || '') !== (st.preview || '') || (st.detail ? $('#drawer').hidden || state.dTab !== st.detail : st.view && (UI.view !== st.view || !$('#drawer').hidden)));
   if (moveScene) el.classList.add('veil');
   if (TOUR.out) TOUR.out.cancel();
   TOUR.out = body.firstChild && Motion.on() ? Motion.animate(body, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: `translateX(${back ? 18 : -18}px)` }], 'snap', { duration: 110, fill: 'forwards' }) : null;
@@ -184,18 +182,19 @@ async function tourGo(i) {
   // 2. la scena: sezione, dettaglio del target d'esempio con la sua scheda
   if (st.detail) {
     const o = tourSample();
-    if (o && (state.sel !== o.id || $('#drawer').hidden)) openDetail(o.id);
+    if (o && (state.sel !== o.id || $('#drawer').hidden || !$('#drawer').dataset.preview)) openDetail(o.id, null, true);
     setDTab(st.detail);
-  } else if (!$('#drawer').hidden) closeDetail();
-  if (st.view) setView(st.view);
+  } else if (!$('#drawer').hidden) closeDetail(false, $('#drawer').dataset.preview ? 'drag' : undefined);
+  if (st.view) setView(st.view, true);
+  tourPreview(st.preview);
   // il testo nuovo (serve la sua altezza per la zona libera)
-  const n = TOUR.steps.length, last = i === n - 1, cta = tourCta(st);
+  const n = TOUR.steps.length, last = i === n - 1;
   card.classList.toggle('hero', !!st.hero);
   card.querySelector('.tour-n').textContent = `${i + 1} / ${n}`;
   card.querySelector('[data-t=skip]').textContent = tx(last ? 'Chiudi' : 'Salta');
   body.innerHTML = `${st.hero ? `<div class="tour-hero"><canvas class="in-cv" aria-hidden="true"></canvas><div class="intro"><svg class="in-final" viewBox="0 0 32 32" aria-hidden="true"><use href="#i-logo"/></svg></div></div>` : ''}<h3>${tx(st.t)}</h3><p>${tx(typeof st.d === 'function' ? st.d() : st.d)}</p>`;
   card.querySelector('.tour-acts').innerHTML = `${i > 0 ? `<button type="button" class="btn ghost" data-t="prev" aria-label="${tx('Indietro')}">${ic('chev-l')}</button>` : '<span></span>'}
-    ${cta ? `<button type="button" class="btn" data-t="next">${tx('Avanti')}</button><button type="button" class="btn primary" data-t="cta">${tx(cta[0])}</button>` : `<button type="button" class="btn primary" data-t="next">${tx(last ? 'Fine' : i === 0 ? 'Inizia' : 'Avanti')}${last ? '' : ic('chev-r')}</button>`}`;
+    <button type="button" class="btn primary" data-t="next">${tx(last ? 'Fine' : i === 0 ? 'Inizia' : 'Avanti')}${last ? '' : ic('chev-r')}</button>`;
   card.querySelector('.tour-bar i').style.transform = `scaleX(${(i + 1) / n})`;
   // 3. si aspetta che la scena stia ferma, poi la si porta nella zona libera
   await frame(); if (seq !== TOUR.seq) return;

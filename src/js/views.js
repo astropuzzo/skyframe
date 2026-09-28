@@ -265,13 +265,15 @@ function refreshNowCells() { $$('#list .row[data-id]').forEach((el) => { const r
    dal suo rettangolo (clip-path), sul computer il pannello parte dalle sue misure e si allarga; il contenuto entra quando
    il contenitore è quasi al suo posto. Sul telefono chiudendolo torna nella riga, se è ancora sullo schermo. */
 const DETAIL = { src: null };
-function openDetail(id, srcEl) {
+function openDetail(id, srcEl, preview = false) {
   const r = state.byId.get(id); if (!r) return;
   state.sel = id; state.selCfg = r.e.cfg.key; state.rotFor = null; renderDetail.last = null;
   renderDetail(); const d = $('#drawer'), bd = $('#backdrop'); freshAnim(d);
   // anche se si stava ancora chiudendo (riaperto subito dopo): il passo per il tasto indietro ci dev'essere
-  if (!Back.stack.includes(closeDetail)) backPush(closeDetail);
+  if (!preview && !Back.stack.includes(closeDetail)) backPush(closeDetail);
   DETAIL.src = srcEl || null;
+  d.dataset.preview = preview ? 'true' : '';
+  d.inert = preview;
   const from = srcEl && srcEl.isConnected && Motion.on() ? srcEl.getBoundingClientRect() : null;
   const on = () => { d.classList.add('on'); bd.classList.add('on'); };
   if (DETAIL.anim) { DETAIL.anim.forEach((a) => a.cancel()); DETAIL.anim = null; }
@@ -280,7 +282,7 @@ function openDetail(id, srcEl) {
     if (from && from.width > 20 && from.height > 10) { d.classList.add('morph'); on(); d.scrollTop = 0; morphOpen(d, from); requestAnimationFrame(() => d.classList.remove('morph')); }
     else requestAnimationFrame(on);
   } else on();
-  d.scrollTop = 0; d.focus({ preventScroll: true });
+  d.scrollTop = 0; if (!preview) d.focus({ preventScroll: true });
   $$('#list .row.sel').forEach((el) => el.classList.remove('sel')); const row = $(`#list .row[data-id="${CSS.escape(id)}"]`); if (row) row.classList.add('sel');
   pushDome(); drawStrip();
 }
@@ -304,7 +306,9 @@ function detailHome() {
 /* how: 'drag' = già portato fuori col dito (niente altra animazione) */
 function closeDetail(fromPop, how) {
   const d = $('#drawer'), bd = $('#backdrop'); if (d.hidden) return;
-  if (fromPop !== true) backDone(closeDetail);
+  const preview = !!d.dataset.preview;
+  d.dataset.preview = ''; d.inert = false;
+  if (!preview && fromPop !== true) backDone(closeDetail);
   if (DETAIL.anim) { DETAIL.anim.forEach((a) => a.cancel()); DETAIL.anim = null; }
   const home = how !== 'drag' && PHONE.matches && Motion.on() ? detailHome() : null;
   bd.classList.remove('on');

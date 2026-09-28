@@ -669,9 +669,6 @@ details.how p { max-width: 72ch; }
 .sheet-foot { border-top: 1px solid var(--line); position: sticky; bottom: -40px; background: var(--card); border-radius: 0 0 18px 18px; z-index: 1200; }
 .sheet-foot .sp { flex: 1; }
 .sheet-body { padding: 4px 20px 18px; }
-.ed-tour-note { margin: 0 0 12px; padding: 10px 12px; scroll-margin-top: 80px; border-left: 2px solid var(--accent); border-radius: 0 8px 8px 0; background: var(--accent-dim); }
-.ed-tour-note b { display: block; font-weight: 600; }
-.ed-tour-note p { margin: 3px 0 0; color: var(--ink-2); }
 .fs { padding-block: 18px; border-bottom: 1px solid var(--line); }
 .fs:last-child { border-bottom: 0; }
 .fs h3 { font: 600 15px var(--font-b); color: var(--ink); margin: 0 0 12px; }
