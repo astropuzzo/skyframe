@@ -19,6 +19,9 @@ window.FILTER_DB = [
   { id: 'ouhc', brand: 'Optolong', name: 'UHC', for: 'osc', kind: 'lp', bands: [[484, 506, 0.95], [649, 676, 0.95]], approx: true, src: 'https://www.optolong.com/cms/document/detail/id/73.html', note: 'Hβ, OIII, NII, Hα, SII al 95%; ampiezze stimate' },
   // Baader: circa 100 nm di banda in tutto fra 400 e 700 nm, Hα oltre il 99%; la divisione fra le due bande è stimata
   { id: 'buhcs', brand: 'Baader', name: 'UHC-S', for: 'osc', kind: 'lp', bands: [[470, 530, 0.97], [640, 680, 0.97]], approx: true, src: 'http://www.company7.com/baader/options/uhc-s.html', note: '~100 nm in tutto; bande stimate' },
+  { id: 'clsccd', brand: 'Astronomik', name: 'CLS-CCD', for: 'both', kind: 'lp', bands: [[450, 520, 0.95], [640, 690, 0.97]], src: 'https://www.firstlightoptics.com/light-pollution-reduction-imaging/astronomik-cls-ccd-filter.html', note: 'passa 450–520 e 640–690 nm; Hβ e OIII 95%, Hα 97%; con blocco IR' },
+  // Il CLS senza «CCD» non blocca l'infrarosso: la banda rossa resta aperta oltre 690 nm (qui fermata a 700, dove finisce il modello)
+  { id: 'cls', brand: 'Astronomik', name: 'CLS', for: 'osc', kind: 'lp', bands: [[450, 520, 0.95], [640, 700, 0.97]], approx: true, src: 'https://www.firstlightoptics.com/light-pollution-reduction-imaging/astronomik-cls-ccd-filter.html', note: 'stesse bande del CLS-CCD ma senza blocco IR' },
   // ---------------- multibanda stretti per OSC ----------------
   { id: 'lextreme', brand: 'Optolong', name: 'L-eXtreme', for: 'osc', kind: 'multi', bands: [[497.2, 504.2, 0.9], [652.8, 659.8, 0.9]], src: 'https://agenaastro.com/optolong-l-extreme-dual-bandpass-light-pollution-reduction-imaging-filter-2.html', note: 'Hα 7 nm + OIII 7 nm' },
   { id: 'lenhance', brand: 'Optolong', name: 'L-eNhance', for: 'osc', kind: 'multi', bands: [[484, 508, 0.9], [651.3, 661.3, 0.9]], src: 'https://ontariotelescope.com/blogs/news/navigating-optolong-filters-lenhance-lextreme-and-lultimate-for-astrophotography', note: 'Hβ+OIII 24 nm + Hα 10 nm' },
@@ -62,11 +65,16 @@ window.FILTER_DB = [
   { id: 'ant35-OIII', brand: 'Antlia', name: 'OIII 3,5 nm', series: 'Antlia 3,5 nm', for: 'both', kind: 'nb', ch: 'OIII', bands: [[498.95, 502.45, 0.9]], approx: true, src: '', note: 'ampiezza dal nome del prodotto; trasmissione stimata' },
   { id: 'ant35-SII', brand: 'Antlia', name: 'SII 3,5 nm', series: 'Antlia 3,5 nm', for: 'both', kind: 'nb', ch: 'SII', bands: [[670.65, 674.15, 0.9]], approx: true, src: '', note: 'ampiezza dal nome del prodotto; trasmissione stimata' },
   { id: 'sv227-SII', brand: 'SVBony', name: 'SII SV227 5 nm', series: 'SVBony SV227', for: 'both', kind: 'nb', ch: 'SII', bands: [[669.9, 674.9, 0.9]], approx: true, src: '', note: 'ampiezza dal nome del prodotto; trasmissione stimata' },
+  { id: 'edge-Ha', brand: 'Antlia', name: 'Hα EDGE 4,5 nm', series: 'Antlia EDGE', for: 'both', kind: 'nb', ch: 'Ha', bands: [[654.05, 658.55, 0.9]], src: 'https://www.highpointscientific.com/antlia-h-alpha-4-5nm-edge-filter-2inch', note: 'CWL 656,3 nm, FWHM 4,5 nm, picco >90%' },
+  { id: 'edge-OIII', brand: 'Antlia', name: 'OIII EDGE 4,5 nm', series: 'Antlia EDGE', for: 'both', kind: 'nb', ch: 'OIII', bands: [[498.45, 502.95, 0.85]], src: 'https://www.highpointscientific.com/antlia-oiii-4-5nm-edge-filter-2inch', note: 'CWL 500,7 nm, FWHM 4,5 nm, picco >85%' },
+  { id: 'sv227-Ha', brand: 'SVBony', name: 'Hα SV227 5 nm', series: 'SVBony SV227', for: 'both', kind: 'nb', ch: 'Ha', bands: [[653.8, 658.8, 0.9]], approx: true, src: '', note: 'ampiezza dal nome del prodotto; trasmissione stimata' },
   // ---------------- banda larga per mono ----------------
   { id: 'L', brand: 'Generico', name: 'L', for: 'mono', kind: 'bb', ch: 'L', bands: [[400, 700, 0.97]], src: '' },
   { id: 'R', brand: 'Generico', name: 'R', for: 'mono', kind: 'bb', ch: 'R', bands: [[595, 700, 0.95]], src: '' },
   { id: 'G', brand: 'Generico', name: 'G', for: 'mono', kind: 'bb', ch: 'G', bands: [[500, 575, 0.95]], src: '' },
   { id: 'B', brand: 'Generico', name: 'B', for: 'mono', kind: 'bb', ch: 'B', bands: [[400, 500, 0.95]], src: '' },
+  // Baader dichiara le bande del set LRGB «CMOS-optimized» (FLRGB): L 420–685 nm al 98%, R 595–690, G 490–580, B 400–510
+  ...bbSet('bdcmos', 'Baader', 'LRGB CMOS', { L: [420, 685, 0.98], R: [595, 690, 0.95], G: [490, 580, 0.95], B: [400, 510, 0.95] }, 'https://optcorp.com/products/baader-cmos-optimized-l-rgb-filter-set-2-round-mounted', 'trasmissione di R, G, B non pubblicata in numeri: stimata 95%'),
   // ---------------- banda stretta per mono ----------------
   ...nbSet('bd65', 'Baader', 'CMOS 6,5 nm', { Ha: 6.5, OIII: 6.5, SII: 6.5 }, 0.9, 'https://www.highpointscientific.com/baader-6-5nm-narrowband-2-inch-cmos-optimized-filter-set-ha-oiii-sii-fcsetn-2'),
   ...nbSet('bdunb', 'Baader', 'Ultra-Narrowband 3,5/4 nm', { Ha: 3.5, OIII: 4, SII: 4 }, 0.9, 'https://www.baader-planetarium.com/en/baader-3.5--4nm-ultra-narrowband-filter-set-%E2%80%93-cmos-optimized-(h-alpha--o-iii--s-ii).html'),
@@ -78,11 +86,22 @@ window.FILTER_DB = [
   ...nbSet('opt7', 'Optolong', '7 nm', { Ha: 7, OIII: 6.5, SII: 6.5 }, 0.9, 'https://www.optolong.com/'),
   ...nbSet('opt3', 'Optolong', '3 nm', { Ha: 3, OIII: 3, SII: 3 }, 0.9, 'https://www.optolong.com/'),
   ...nbSet('zwo7', 'ZWO', '7 nm', { Ha: 7, OIII: 7, SII: 7 }, 0.9, 'https://www.zwoastro.com/'),
+  // Astrodon (ora CXB) dichiara CWL e FWHM ma non la trasmissione in numeri («extremely good in-band transmission»)
+  ...nbSet('ado5', 'Astrodon', '5 nm', { Ha: 5, OIII: 5, SII: 5 }, 0.9, 'https://farpointastro.com/products/astrodon-5-nm-narrowband-filters-h-5nm', { approx: true, note: 'CWL e FWHM dal produttore; trasmissione stimata' }),
+  ...nbSet('ado3', 'Astrodon', '3 nm', { Ha: 3, OIII: 3, SII: 3 }, 0.9, 'https://farpointastro.com/products/astrodon-3-nm-hydrogen-alpha-filter', { approx: true, note: 'CWL e FWHM dal produttore; trasmissione stimata' }),
+  ...nbSet('chr8', 'Chroma', '8 nm', { Ha: 8, OIII: 8, SII: 8 }, 0.9, 'https://www.chroma.com/products/parts/27008-oiii-8nm-bandpass', { approx: true, note: 'FWHM 8 nm (Chroma 27111); trasmissione stimata' }),
+  // Il vecchio set Baader «CCD»: Hα 7 nm, OIII 8,5 nm, SII 8 nm
+  ...nbSet('bdccd', 'Baader', 'CCD 7/8,5/8 nm', { Ha: 7, OIII: 8.5, SII: 8 }, 0.9, 'https://agenaastro.com/baader-2-narrowband-o-iii-8-5nm-ccd-filter.html', { approx: true, note: 'ampiezze dal nome del prodotto; trasmissione stimata' }),
+  ...nbSet('tt65', 'ToupTek', '6,5 nm', { Ha: 6.5, OIII: 6.5, SII: 6.5 }, 0.9, 'https://www.touptekastro.com/products/sho-filters', { approx: true, note: 'ampiezza dal nome del prodotto; trasmissione stimata' }),
 ];
-function nbSet(prefix, brand, series, fwhm, T, src) {
+function nbSet(prefix, brand, series, fwhm, T, src, extra = {}) {
   const C = { Ha: 656.3, OIII: 500.7, SII: 672.4 }, lab = { Ha: 'Hα', OIII: 'OIII', SII: 'SII' };
   return Object.keys(C).map((k) => {
     const t = typeof T === 'number' ? T : T[k];
-    return { id: `${prefix}-${k}`, brand, name: `${lab[k]} ${series}`, series: `${brand} ${series}`, for: 'mono', kind: 'nb', ch: k, bands: [[C[k] - fwhm[k] / 2, C[k] + fwhm[k] / 2, t]], src };
+    return { id: `${prefix}-${k}`, brand, name: `${lab[k]} ${series}`, series: `${brand} ${series}`, for: 'mono', kind: 'nb', ch: k, bands: [[C[k] - fwhm[k] / 2, C[k] + fwhm[k] / 2, t]], src, ...extra };
   });
+}
+/* Set LRGB di marca per mono: bande [da, a, picco] per canale */
+function bbSet(prefix, brand, series, bands, src, note) {
+  return Object.entries(bands).map(([k, b]) => ({ id: `${prefix}-${k}`, brand, name: `${k} ${series}`, series: `${brand} ${series}`, for: 'mono', kind: 'bb', ch: k, bands: [b], src, ...(note && k !== 'L' ? { approx: true, note } : {}) }));
 }
