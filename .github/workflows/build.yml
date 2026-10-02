@@ -11,7 +11,25 @@ permissions:
   contents: write
 
 jobs:
+  # prove del modello, dell'ora del luogo e dell'archivio dei profili: se non passano non si costruisce niente
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+
+      - run: npm test
+
   build:
+    needs: test
     strategy:
       fail-fast: false
       matrix:
@@ -53,6 +71,7 @@ jobs:
           if-no-files-found: error
 
   android:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

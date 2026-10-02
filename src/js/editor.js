@@ -160,6 +160,7 @@ function readLocForm() {
   const sqm = n('f_sqm'), lat = n('f_lat'), lon = n('f_lon'), prev = d.site;
   d.site = { name: F('f_site').value.trim() || tx('Il mio luogo di osservazione'), lat: isFinite(lat) ? clamp(lat, -89.9, 89.9) : 45, lon: isFinite(lon) ? clamp(lon, -180, 180) : 9, bortle: +F('f_bortle').value, sqm: isFinite(sqm) ? clamp(sqm, 16, 22.2) : BORTLE_SQM[F('f_bortle').value], sqmMeas: F('f_sqmMeas').checked };
   if (prev.example && prev.lat === d.site.lat && prev.lon === d.site.lon && prev.name === d.site.name) d.site.example = true;
+  if (prev.tz && Math.abs(prev.lat - d.site.lat) < 0.3 && Math.abs(prev.lon - d.site.lon) < 0.3) d.site.tz = prev.tz; // il fuso lo riporta il meteo
   const elev = n('f_elev'); if (isFinite(elev)) d.site.elev = Math.round(elev);
   // dati della luce: validi solo per le coordinate con cui sono stati ottenuti (entro ~1 km)
   const near = (at) => at && Math.abs(at[0] - d.site.lat) < 0.01 && Math.abs(at[1] - d.site.lon) < 0.01;
@@ -226,7 +227,7 @@ async function skyFileChosen(file) {
 function skyApply() {
   if (!skyImport || !draft) return;
   const top = parseFloat(F('skyTop').value.replace(',', '.')), bot = parseFloat(F('skyBot').value.replace(',', '.'));
-  if (!isFinite(top) || !isFinite(bot) || top <= bot) { F('skyMsg').textContent = tx('Servono entrambi i valori della barra: in alto il più grande (per esempio 19,3 e 17,9).'); return; }
+  if (!isFinite(top) || !isFinite(bot) || top <= bot) { F('skyMsg').textContent = tx('Due valori della barra: in alto il più grande (es. 19,3 e 17,9).'); return; }
   readForm(); applySkyMap(skyImport.det, top, bot, skyImport.name);
   F('skyMsg').textContent = tx('Mappa da {f} ({t}): barra {a} → {b} mag/″², zenit {z}. Salva il luogo per usarla.', { f: skyImport.name, t: fmtT(Date.now()), a: it(top, 2), b: it(bot, 2), z: it(draft.site.skyMap.zenith, 2) });
   F('skyImp').hidden = true; skyImport = null;
@@ -280,10 +281,10 @@ async function lpmFetch() {
       if (!geoStillCurrent(currentDraft, lat, lon)) return;
       skyImport = { det, name: `lightpollutionmap ${r.year}` };
       cv.getContext('2d').drawImage(img, x, yt, w, yb - yt, 0, 0, cv.width, 150);
-      F('skyImp').hidden = false; F('skyMsg').textContent = tx('Scala non riconosciuta: inserisci i due valori agli estremi della barra.');
+      F('skyImp').hidden = false; F('skyMsg').textContent = tx('Scala non letta: inserisci i due valori della barra.');
     }
   } catch (e) {
-    if (geoStillCurrent(currentDraft, lat, lon)) F('skyMsg').textContent = tx('Mappa all-sky non ottenuta ({e}): importala a mano con i passi qui sopra.', { e: e.message });
+    if (geoStillCurrent(currentDraft, lat, lon)) F('skyMsg').textContent = tx('Mappa all-sky non ottenuta ({e}): importala a mano.', { e: e.message });
   } finally {
     lpmBusy = false; btn.disabled = false; btn.textContent = label;
     if (lpmPending) { lpmPending = false; setTimeout(lpmFetch, 0); }

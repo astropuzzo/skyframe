@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs/promises');
 const { lookup: lpLookup } = require('./src/js/lpatlas');
 const updater = require('./updater');
+const { createStore } = require('./profile-store');
 
 app.setName('Skyframe');
 // prove: SKYFRAME_USERDATA usa una cartella dati separata (profili di prova senza toccare quelli veri)
@@ -31,7 +32,6 @@ function createWindow() {
     height: 900,
     minWidth: 420,
     minHeight: 560,
-    backgroundColor: '#080B11',
     title: 'Skyframe',
     icon: path.join(__dirname, 'build', 'icon.png'),
     autoHideMenuBar: true,
@@ -269,33 +269,9 @@ ipcMain.handle('clipboard:write', (_e, text) => {
   return true;
 });
 
-ipcMain.handle('profiles:load', async () => {
-  try {
-    return JSON.parse(await fs.readFile(dataFile(), 'utf8'));
-  } catch {
-    return null;
-  }
-});
-
-// I salvataggi arrivano anche a pochi millisecondi di distanza (per esempio dopo aver scelto un luogo).
-// Serializzarli preserva l'ordine e impedisce a due chiamate di condividere lo stesso .tmp.
-let profileSaveQueue = Promise.resolve();
-ipcMain.handle('profiles:save', (_e, data) => {
-  const save = async () => {
-    const file = dataFile();
-    await fs.mkdir(path.dirname(file), { recursive: true });
-    try { // prima di passare a un formato nuovo si tiene una copia del file com'era
-      const old = JSON.parse(await fs.readFile(file, 'utf8'));
-      if ((old.version || 1) < (data.version || 1)) await fs.copyFile(file, file.replace(/\.json$/, `-v${old.version || 1}-backup.json`));
-    } catch { /* nessun file precedente */ }
-    const tmp = file + '.tmp';
-    await fs.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
-    await fs.rename(tmp, file);
-    return true;
-  };
-  profileSaveQueue = profileSaveQueue.catch(() => {}).then(save);
-  return profileSaveQueue;
-});
+const profileStore = createStore(dataFile);
+ipcMain.handle('profiles:load', () => profileStore.load());
+ipcMain.handle('profiles:save', (_e, data) => profileStore.save(data));
 
 ipcMain.handle('profiles:export', async (e, data) => {
   const win = BrowserWindow.fromWebContents(e.sender);

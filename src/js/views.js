@@ -21,7 +21,7 @@ function renderFacts() {
     const mo = big ? tx('Luna al {p}%: conviene la banda stretta', { p: Math.round(n.moonIll * 100) }) : moonUp ? tx('Luna al {p}% per parte della notte', { p: Math.round(n.moonIll * 100) }) : tx('senza Luna: condizioni adatte ai target deboli');
     sub = (wx ? wx + ', ' + mo.charAt(0).toLowerCase() + mo.slice(1) : mo.charAt(0).toUpperCase() + mo.slice(1)) + '.';
   }
-  const d = new Date(n.t0), title = n.ds === defaultNightStr() ? tx('Stanotte') : d.toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
+  const title = n.ds === defaultNightStr() ? tx('Stanotte') : fmtNight(n.t0, { weekday: 'long', day: 'numeric', month: 'long' });
   const wxV = w ? (w.clear >= 0.85 ? tx('Sereno') : w.clear < 0.15 ? tx('Coperto') : w.win && w.winH >= 1 ? `${fmtT(w.win[0])}–${fmtT(w.win[1])}` : tx('Variabile')) : WX.busy ? '…' : '—';
   const sl = w && seeLvl(w.see), tl = w && traLvl(w.aod);
   const wxS = w ? [tx('{p}% del buio sereno', { p: Math.round(w.clear * 100) }), w.prob != null ? tx('probabilità {p}%', { p: Math.round(w.prob * 100) }) : '', sl ? tx('seeing {s}', { s: tx(sl.t).toLowerCase() }) : '', tl ? tx('trasparenza {s}', { s: tx(tl.t).toLowerCase() }) : ''].filter(Boolean).join(' · ') : WX.busy ? tx('previsioni in caricamento') : WX.err ? tx('senza connessione: si assume cielo sereno') : tx('oltre l’orizzonte delle previsioni (si assume cielo sereno)');
@@ -87,8 +87,8 @@ function drawStrip() {
   const sel = state.sel && state.byId.get(state.sel);
   if (sel) { c.lineWidth = 1.5; c.beginPath(); for (let i = i0; i <= i1; i++) { const y = bh - 4 - clamp(sel.alt[i], 0, 90) / 90 * (bh - 8); i === i0 ? c.moveTo(X(i), y) : c.lineTo(X(i), y); } c.strokeStyle = 'rgba(69,200,180,.85)'; c.stroke(); }
   c.font = '500 10px "IBM Plex Mono", monospace'; c.fillStyle = '#697588'; c.textAlign = 'center';
-  const h0 = new Date(n.t[i0]); h0.setMinutes(0, 0, 0);
-  for (let ms = h0.getTime() + 3600000; ms < n.t[i1]; ms += 3600000) { const x = (ms - n.t[i0]) / (n.t[i1] - n.t[i0]) * w; c.fillText(String(new Date(ms).getHours()).padStart(2, '0'), x, h - 3); c.fillStyle = 'rgba(105,117,136,.35)'; c.fillRect(x, 0, 1, 4); c.fillStyle = '#697588'; }
+  const h0 = hourFloor(n.t[i0]);
+  for (let ms = h0 + 3600000; ms < n.t[i1]; ms += 3600000) { const x = (ms - n.t[i0]) / (n.t[i1] - n.t[i0]) * w; c.fillText(pad2(hourOf(ms)), x, h - 3); c.fillStyle = 'rgba(105,117,136,.35)'; c.fillRect(x, 0, 1, 4); c.fillStyle = '#697588'; }
   const t = Dome.time; if (t >= n.t[i0] && t <= n.t[i1]) { const x = (t - n.t[i0]) / (n.t[i1] - n.t[i0]) * w; c.fillStyle = '#fff'; c.fillRect(x - 1, 0, 2, bh); c.beginPath(); c.moveTo(x - 5, 0); c.lineTo(x + 5, 0); c.lineTo(x, 6); c.fill(); }
 }
 function renderClock() {
@@ -97,7 +97,7 @@ function renderClock() {
   const p = active(), lat = p.site.lat * D2R, J = jd(tm), lst = lstDeg(tm, +p.site.lon), s = sunPos(J);
   const sAlt = altaz(s.ra, s.dec, lst, Math.sin(lat), Math.cos(lat))[0];
   const phase = tx(sAlt > -0.833 ? 'giorno' : sAlt > -6 ? 'crepuscolo civile' : sAlt > -12 ? 'crepuscolo nautico' : sAlt > -18 ? 'crepuscolo astronomico' : 'buio');
-  $('#clockWhen').innerHTML = `${new Date(tm).toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' })}<br>${tx('Sole')} ${Math.round(sAlt)}° · ${phase}`;
+  $('#clockWhen').innerHTML = `${fmtNight(tm, { weekday: 'short', day: 'numeric', month: 'short' })}${TZ.id ? ' · ' + tzLabel() : ''}<br>${tx('Sole')} ${Math.round(sAlt)}° · ${phase}`;
 }
 
 /* ============================ mappa della luminosità del cielo ============================ */
@@ -251,7 +251,7 @@ function locHint(r) {
 function renderList() {
   const L = state.filtered, shown = L.slice(0, state.page);
   const visN = state.res.results.filter((r) => r.usableH >= 0.25).length;
-  $('#count').innerHTML = tx('{n} di {v} target la notte del {d}', { n: `<span class="num">${L.length}</span>`, v: visN, d: new Date(state.res.night.t0).toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' }) });
+  $('#count').innerHTML = tx('{n} di {v} target la notte del {d}', { n: `<span class="num">${L.length}</span>`, v: visN, d: fmtNight(state.res.night.t0, { weekday: 'long', day: 'numeric', month: 'long' }) });
   $('#list').innerHTML = (shown.length ? shown.map(rowHTML).join('') + (L.length > shown.length ? `<button class="btn more" id="moreBtn">${tx('Mostra altri {n}', { n: Math.min(60, L.length - shown.length) })}</button>` : '') : `<div class="empty">${tx('Nessun target corrisponde ai criteri scelti.')}</div>`) + indexHitsHTML(state.idxHits || []);
   $$('#list .idx-row').forEach((b) => (b.onclick = () => openIndexEntry(b.dataset.idx)));
   requestAnimationFrame(() => $$('#list .score').forEach((el) => el.style.setProperty('--v', el.dataset.v)));
@@ -648,7 +648,7 @@ function renderLocCmp() {
   }).join('');
 }
 const periodCache = new Map();
-const fmtDayLong = (t) => new Date(t).toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'long' });
+const fmtDayLong = (t) => fmtNight(t, { weekday: 'short', day: 'numeric', month: 'long' });
 function renderPeriod(r) {
   const el = $('#period'); if (!el || state.sel !== r.o.id) return;
   const p = active(), ds = state.res.night.ds, key = [r.o.id, siteKey(p.site), ds, p.session.minAlt, p.session.sunThr, JSON.stringify(p.horizon)].join('|');
@@ -672,12 +672,12 @@ function renderPeriod(r) {
   el.innerHTML = `<span class="lbl">${tx('Periodo giusto')}</span><span class="pt">${msg}</span>${go ? `<button class="btn sm" id="periodGo">${tx('Apri quella notte')}</button>` : ''}`;
   const b = $('#periodGo'); if (b) b.onclick = () => goNight(go);
 }
-/* porta l'app su un'altra notte lasciando aperto il target */
+/* porta l'app su un'altra notte lasciando aperto il target (t0: istante della notte o data AAAA-MM-GG) */
 function goNight(t0, quiet) {
-  const d = new Date(t0), ds = dateStr(d);
+  const ds = typeof t0 === 'string' ? t0 : dsOf(t0), d = new Date(ds + 'T12:00:00Z');
   $('#nightDate').value = ds; state.live = ds === defaultNightStr(); state.playing = false;
   $('#liveBtn').setAttribute('aria-pressed', String(state.live)); setPlayIcon();
-  refresh(); if (!quiet) toast(tx('Notte del {d}', { d: d.toLocaleDateString(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' }) }));
+  refresh(); if (!quiet) toast(tx('Notte del {d}', { d: d.toLocaleDateString(LOCALE, { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' }) }));
 }
 /* ---------- grafici della notte: lettura al passaggio, clic/trascina per l'ora ---------- */
 function setTimeFromChart(i) {
@@ -745,16 +745,16 @@ function renderSeason(r) {
   sv.onpointermove = (e) => {
     const k = e.target.dataset && e.target.dataset.k; $$('#season rect.b').forEach((b, i) => b.classList.toggle('hl', String(i) === k));
     if (k == null) { chartTip(el, null); return; }
-    const x = s[+k], b = el.getBoundingClientRect(), mon = new Date(x.t0).toLocaleDateString(LOCALE, { month: 'long', year: 'numeric' });
+    const x = s[+k], b = el.getBoundingClientRect(), mon = fmtNight(x.t0, { month: 'long', year: 'numeric' });
     chartTip(el, `<b>${mon}</b> · ${x.h > 0.05 ? tx('{d} utili con il buio', { d: fmtDur(x.h) }) : tx('nessuna ora utile')}<small>${tx('apri la notte più buia del mese')}</small>`, e.clientX - b.left, 6);
   };
   sv.onpointerleave = () => { chartTip(el, null); $$('#season rect.b').forEach((b) => b.classList.remove('hl')); };
   sv.onclick = (e) => {
     const k = e.target.dataset && e.target.dataset.k; if (k == null) return;
-    const x = s[+k], days = new Date(x.y, x.m + 1, 0).getDate(), today = new Date();
-    const start = x.y === today.getFullYear() && x.m === today.getMonth() ? today.getDate() : 1;
+    const x = s[+k], days = new Date(Date.UTC(x.y, x.m + 1, 0)).getUTCDate(), today = wall(Date.now());
+    const start = x.y === today.getUTCFullYear() && x.m === today.getUTCMonth() ? today.getUTCDate() : 1;
     const cal = moonCalendar(active(), `${x.y}-${String(x.m + 1).padStart(2, '0')}-${String(start).padStart(2, '0')}`, days - start + 1);
-    const mid = (c) => Math.abs(new Date(c.t0).getDate() - 15);
+    const mid = (c) => Math.abs(wall(c.t0).getUTCDate() - 15);
     const best = cal.reduce((a, c) => (c.moon < a.moon - 0.02 || (Math.abs(c.moon - a.moon) <= 0.02 && mid(c) < mid(a)) ? c : a), cal[0]);
     goNight(best.t0);
   };
@@ -768,8 +768,8 @@ function altChart(r) {
   let blk = `M${X(i0)},${Y(0)}`; for (let i = i0; i <= i1; i++) blk += `L${X(i)},${Y(r.blk[i])}`; blk += `L${X(i1)},${Y(0)}Z`;
   s += `<path d="${blk}" fill="rgba(228,87,75,.14)" stroke="rgba(228,87,75,.5)"/>`;
   [0, 30, 60, 90].forEach((a) => { s += `<line x1="${l}" x2="${W - rr}" y1="${Y(a)}" y2="${Y(a)}" stroke="var(--line-2)" stroke-width=".6"/><text x="${l - 6}" y="${+Y(a) + 4}" fill="var(--ink-3)" font-size="11" text-anchor="end" font-family="IBM Plex Mono">${a}°</text>`; });
-  const h0 = new Date(n.t[i0]); h0.setMinutes(0, 0, 0);
-  for (let ms = h0.getTime() + 3600000; ms < n.t[i1]; ms += 3600000) { const i = i0 + (ms - n.t[i0]) / DT; s += `<text x="${X(i)}" y="${H - 8}" fill="var(--ink-3)" font-size="11" text-anchor="middle" font-family="IBM Plex Mono">${String(new Date(ms).getHours()).padStart(2, '0')}</text>`; }
+  const h0 = hourFloor(n.t[i0]);
+  for (let ms = h0 + 3600000; ms < n.t[i1]; ms += 3600000) { const i = i0 + (ms - n.t[i0]) / DT; s += `<text x="${X(i)}" y="${H - 8}" fill="var(--ink-3)" font-size="11" text-anchor="middle" font-family="IBM Plex Mono">${pad2(hourOf(ms))}</text>`; }
   let mp = '', on = false; for (let i = i0; i <= i1; i++) { if (n.mAlt[i] > 0) { mp += (on ? 'L' : 'M') + X(i) + ',' + Y(n.mAlt[i]); on = true; } else on = false; }
   if (mp) s += `<path d="${mp}" fill="none" stroke="#CFC8B4" stroke-width="1.2" stroke-dasharray="4 4" opacity=".7"/><text x="${W - rr}" y="${t + 12}" fill="#CFC8B4" font-size="11" text-anchor="end" opacity=".8" font-family="IBM Plex Sans">- - ${tx('Luna')} ${Math.round(n.moonIll * 100)}%</text>`;
   let op = ''; for (let i = i0; i <= i1; i++) op += (i === i0 ? 'M' : 'L') + X(i) + ',' + Y(r.alt[i]);

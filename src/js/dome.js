@@ -8,14 +8,24 @@ const Dome = (() => {
   let cv, ctx, tipEl, mw, mwx, S = 600, dpr = 1, R = 280, cx = 300, cy = 300;
   let data = null, time = Date.now(), hover = null, pick = () => {}, dirty = true, t0 = performance.now(), lastDraw = 0, anim = false, markers = [], lpOn = false, lpCache = null; let glowCache = null, mwCache = null;
   const HMAX = 96; // raggio del disco = 96° dallo zenit (6° sotto l'orizzonte)
+  /* batteria: si disegna solo quando serve; le stelle scintillano per mezzo minuto dopo l'ultimo tocco, poi il cielo resta fermo */
+  const SPARKLE_MS = 30000;
+  let raf = 0, lastAct = performance.now();
+  const kick = () => { if (!raf) raf = requestAnimationFrame(loop); };
+  const mark = () => { dirty = true; kick(); };
+  const act = () => { lastAct = performance.now(); kick(); };
+  const boxHit = (a, b) => a[0] < b[0] + b[2] && a[0] + a[2] > b[0] && a[1] < b[1] + b[3] && a[1] + a[3] > b[1];
+  const ringHit = (m, b) => Math.hypot(clamp(m.x, b[0], b[0] + b[2]) - m.x, clamp(m.y, b[1], b[1] + b[3]) - m.y) < m.rad + 1;
+  const NW = new Map(); const textW = (t) => { const k = ctx.font + '|' + t; let w = NW.get(k); if (w == null) NW.set(k, (w = ctx.measureText(t).width)); return w; };
 
   function init(canvas, tip) {
     cv = canvas; ctx = cv.getContext('2d'); tipEl = tip;
     mw = document.createElement('canvas'); mwx = mw.getContext('2d');
     new ResizeObserver(resize).observe(cv.parentElement); resize();
-    cv.addEventListener('mousemove', onMove); cv.addEventListener('mouseleave', () => { hover = null; tipEl.hidden = true; dirty = true; });
+    cv.addEventListener('mousemove', (e) => { act(); onMove(e); }); cv.addEventListener('mouseleave', () => { hover = null; tipEl.hidden = true; mark(); });
+    cv.addEventListener('pointerdown', act); document.addEventListener('visibilitychange', () => { if (!document.hidden) mark(); });
     cv.addEventListener('click', (e) => { const m = hit(e); if (m) pick(m.r.o.id); });
-    requestAnimationFrame(loop);
+    kick();
   }
   function resize() {
     const w = cv.parentElement.clientWidth; if (!w) return;
@@ -23,7 +33,7 @@ const Dome = (() => {
     cv.width = Math.round(w * dpr); cv.height = Math.round(w * dpr);
     R = w / 2 - 22; cx = w / 2; cy = w / 2;
     mw.width = Math.round(w / 3); mw.height = Math.round(w / 3);
-    dirty = true;
+    mark();
   }
   const proj = (alt, az) => { const r = R * (90 - alt) / HMAX, a = az * D2R; return [cx - r * Math.sin(a), cy - r * Math.cos(a)]; };
   function lstNow() { return lstDeg(time, +data.site.lon); }
@@ -94,8 +104,14 @@ const Dome = (() => {
       ctx.beginPath(); ctx.arc(x, y, rad, 0, 7); ctx.fill();
     }
     // nomi delle costellazioni
-    ctx.font = `500 ${Math.round(10 * sc + 2)}px "Saira Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.fillStyle = `rgba(150,170,210,${0.33 * intro * (1 - day)})`;
-    NAMES.forEach((n) => { const [a, z] = altaz(n.p[0], n.p[1], lst, sL, cL); if (a < 8) return; const [x, y] = proj(a, z); ctx.fillText(n.n.toUpperCase(), x, y); });
+    ctx.textAlign = 'center'; ctx.fillStyle = `rgba(150,170,210,${0.33 * intro * (1 - day)})`;
+    const T = layoutTargets(lst, sL, cL, sc), nh = 10 * sc + 2;
+    ctx.font = `500 ${Math.round(10 * sc + 2)}px "Saira Condensed", sans-serif`;
+    NAMES.forEach((n) => {
+      const [a, z] = altaz(n.p[0], n.p[1], lst, sL, cL); if (a < 8) return;
+      const [x, y] = proj(a, z), t = n.n.toUpperCase(), w = textW(t), b = [x - w / 2, y - nh * 0.8, w, nh];
+      if (!T.some((m) => (m.lab && boxHit(b, m.lab)) || ringHit(m, b))) ctx.fillText(t, x, y);
+    });
     // Luna e Sole
     if (mAlt > -1) {
       const [x, y] = proj(mAlt, mAz), mr = 7 * sc + 2;
@@ -127,27 +143,22 @@ const Dome = (() => {
     // target
     markers = [];
     const pulse = reduced() ? 0 : (Math.sin(now / 380) + 1) / 2;
-    ctx.font = `600 ${Math.round(10 * sc + 3)}px "Saira Condensed", sans-serif`; ctx.textAlign = 'left';
-    const labels = []; // rettangoli delle etichette già scritte: niente sovrapposizioni
-    const freeFor = (x, y, w, h) => !labels.some((b) => x < b[0] + b[2] && x + w > b[0] && y < b[1] + b[3] && y + h > b[1]);
-    data.targets.forEach((r, rank) => {
-      const [a, z] = altaz(r.pr.ra, r.pr.dec, lst, sL, cL); if (a < -1) return;
-      const [x, y] = proj(a, z), o = r.o;
-      const blocked = a < Math.max(data.minAlt, data.lut[Math.round(z) % 360]);
-      const pxDeg = R / HMAX, rad = Math.max(3 * sc + 1.5, (o.a / 60) * pxDeg / 2);
-      const col = TYPE_COLOR[o.type], isSel = data.sel === o.id, isHov = hover && hover.r === r;
-      ctx.globalAlpha = (blocked ? 0.35 : 1) * intro;
-      ctx.strokeStyle = col; ctx.lineWidth = isSel || isHov ? 2 : 1.2;
-      ctx.beginPath(); ctx.arc(x, y, rad, 0, 7); ctx.stroke();
+    for (const m of T) {
+      const col = TYPE_COLOR[m.r.o.type];
+      ctx.globalAlpha = (m.blocked ? 0.35 : 1) * intro;
+      ctx.strokeStyle = col; ctx.lineWidth = m.isSel || m.isHov ? 2 : 1.2;
+      ctx.beginPath(); ctx.arc(m.x, m.y, m.rad, 0, 7); ctx.stroke();
       ctx.fillStyle = col + '33'; ctx.fill();
-      if (isSel) { ctx.strokeStyle = `rgba(69,200,180,${0.35 + 0.5 * pulse})`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, rad + 5 + 3 * pulse, 0, 7); ctx.stroke(); }
-      if (rank < 14 || isSel || isHov) {
-        const tw = ctx.measureText(o.id).width, lx = x + rad + 4, ly = y - 7, lh = 13 * sc + 2;
-        if (isSel || isHov || freeFor(lx, ly, tw, lh)) { labels.push([lx, ly, tw, lh]); ctx.fillStyle = isSel || isHov ? '#fff' : 'rgba(225,230,238,.82)'; ctx.fillText(o.id, lx, y + 4); }
-      }
-      ctx.globalAlpha = 1;
-      markers.push({ r, x, y, rad, a, z, blocked });
-    });
+      if (m.isSel) { ctx.strokeStyle = `rgba(69,200,180,${0.35 + 0.5 * pulse})`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(m.x, m.y, m.rad + 5 + 3 * pulse, 0, 7); ctx.stroke(); }
+      markers.push({ r: m.r, x: m.x, y: m.y, rad: m.rad, a: m.a, z: m.z, blocked: m.blocked });
+    }
+    ctx.font = `600 ${Math.round(10 * sc + 3)}px "Saira Condensed", sans-serif`; ctx.textAlign = 'left';
+    for (const m of T) {
+      if (!m.lab) continue;
+      ctx.globalAlpha = (m.blocked ? 0.35 : 1) * intro; ctx.fillStyle = m.isSel || m.isHov ? '#fff' : 'rgba(225,230,238,.82)';
+      ctx.fillText(m.r.o.id, m.lab[0], m.lab[1] + m.lab[3] * 0.75);
+    }
+    ctx.globalAlpha = 1;
     // anelli e punti cardinali
     ctx.strokeStyle = 'rgba(160,175,200,.25)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
     ctx.font = `600 ${Math.round(11 * sc + 3)}px "Saira Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(200,210,225,.8)';
@@ -157,6 +168,27 @@ const Dome = (() => {
       for (let i = 0; i < w; i++) { const c = lpColor(st.hi - (st.hi - st.lo) * i / w, st); ctx.fillStyle = `rgb(${c})`; ctx.fillRect(lx + i, ly, 1, 7); }
       ctx.font = '500 10px "IBM Plex Mono", monospace'; ctx.fillStyle = 'rgba(200,210,225,.85)'; ctx.textAlign = 'left'; ctx.fillText(it(st.hi, 2), lx, ly + 18); ctx.textAlign = 'right'; ctx.fillText(it(st.lo, 2) + ' mag/″²', lx + w, ly + 18);
     }
+  }
+  /* target sopra l'orizzonte e posto delle etichette: a destra, a sinistra, sopra o sotto il cerchio, dove non coprono
+     altre etichette né altri cerchi. Prima il selezionato e quello sotto il mouse, poi i primi 14 per punteggio. */
+  function layoutTargets(lst, sL, cL, sc) {
+    const out = [], pxDeg = R / HMAX;
+    data.targets.forEach((r, rank) => {
+      const [a, z] = altaz(r.pr.ra, r.pr.dec, lst, sL, cL); if (a < -1) return;
+      const [x, y] = proj(a, z);
+      out.push({ r, rank, x, y, a, z, rad: Math.max(3 * sc + 1.5, (r.o.a / 60) * pxDeg / 2), blocked: a < Math.max(data.minAlt, data.lut[Math.round(z) % 360]), isSel: data.sel === r.o.id, isHov: !!(hover && hover.r === r), lab: null });
+    });
+    ctx.font = `600 ${Math.round(10 * sc + 3)}px "Saira Condensed", sans-serif`;
+    const lh = 13 * sc + 2, boxes = [];
+    const busy = (b, self) => boxes.some((q) => boxHit(b, q)) || out.some((m) => m !== self && ringHit(m, b));
+    const order = out.filter((m) => m.isSel || m.isHov || m.rank < 14).sort((p, q) => (q.isSel || q.isHov) - (p.isSel || p.isHov) || p.rank - q.rank);
+    for (const m of order) {
+      const w = textW(m.r.o.id), g = m.rad + 4;
+      const opts = [[m.x + g, m.y - lh / 2], [m.x - g - w, m.y - lh / 2], [m.x - w / 2, m.y - m.rad - lh], [m.x - w / 2, m.y + m.rad + 1]].map(([x, y]) => [x, y, w, lh]);
+      const b = opts.find((q) => !busy(q, m)) || (m.isSel || m.isHov ? opts[0] : null);
+      if (b) { boxes.push(b); m.lab = b; }
+    }
+    return out;
   }
   function moonDisc(c, x, y, r, k, waxing) {
     c.fillStyle = '#2A2F3A'; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
@@ -178,7 +210,7 @@ const Dome = (() => {
     return { x, y, alt, az: (Math.atan2(dx, dy) * R2D + 360) % 360 };
   }
   function onMove(e) {
-    const m = hit(e); if ((m && m.r) !== (hover && hover.r)) dirty = true; hover = m;
+    const m = hit(e); if ((m && m.r) !== (hover && hover.r)) mark(); hover = m;
     if (!m) {
       cv.style.cursor = 'crosshair';
       const q = skyAt(e); if (!q) { tipEl.hidden = true; return; }
@@ -200,22 +232,23 @@ const Dome = (() => {
     if (p >= 1) tw = null;
   }
   function loop(now) {
-    requestAnimationFrame(loop);
+    raf = 0;
     tweenStep(now);
-    if (document.hidden || !cv.offsetParent) return; // sezione nascosta: niente disegni
-    const introOn = now - t0 < 1800, twinkle = !reduced() && now - lastDraw > 66;
+    if (document.hidden || !cv.offsetParent) return; // sezione nascosta: niente disegni (si riparte quando torna visibile)
+    const introOn = now - t0 < 1800, sparkle = !reduced() && now - lastAct < SPARKLE_MS, twinkle = sparkle && now - lastDraw > 66;
     if (dirty || anim || introOn || twinkle) { draw(now); lastDraw = now; dirty = false; }
+    if (tw || anim || introOn || sparkle) kick();
   }
   return {
     init, onPick(fn) { pick = fn; },
-    setData(d) { data = d; dirty = true; },
-    setTime(ms) { tw = null; time = ms; dirty = true; },
+    setData(d) { data = d; mark(); },
+    setTime(ms) { tw = null; time = ms; mark(); },
     // stessa notte e animazioni accese: ci si arriva girando; altrimenti subito. cb a ogni passo (orologio, lista)
-    tweenTo(ms, cb) { if (reduced() || Math.abs(ms - time) > 18 * 3600000 || Math.abs(ms - time) < 60000) { tw = null; time = ms; dirty = true; if (cb) cb(); return; } tw = { a: time, b: ms, t0: performance.now(), cb }; },
+    tweenTo(ms, cb) { if (reduced() || Math.abs(ms - time) > 18 * 3600000 || Math.abs(ms - time) < 60000) { tw = null; time = ms; mark(); if (cb) cb(); return; } tw = { a: time, b: ms, t0: performance.now(), cb }; kick(); },
     get time() { return time; },
-    setAnimating(v) { anim = v; },
-    setLP(v) { lpOn = !!v; dirty = true; },
-    refresh() { dirty = true; },
-    replayIntro() { t0 = performance.now(); },
+    setAnimating(v) { anim = v; kick(); },
+    setLP(v) { lpOn = !!v; mark(); },
+    refresh() { mark(); },
+    replayIntro() { t0 = performance.now(); act(); },
   };
 })();

@@ -9,34 +9,37 @@ const nb = { key: '', list: null };
 /* campioni del buio ogni 10 minuti: istante e Luna alta (sopra l'orizzonte e non sottile) */
 function nightSamples(p, t0) {
   const lat = p.site.lat * D2R, sL = Math.sin(lat), cL = Math.cos(lat), lon = +p.site.lon, thr = +p.session.sunThr;
-  const f = hmToOff(p.session.from), to = hmToOff(p.session.to), out = [];
+  const f = hmToOff(p.session.from), to = hmToOff(p.session.to), tz = siteTz(p.site), out = [];
   let ill = 0, waxing = true;
   for (let i = 0; i <= 144; i++) {
     const ms = t0 + i * 600000, J = jd(ms), lst = lstDeg(ms, lon), s = sunPos(J);
     if (i === 72) { const mi = moonIllum(J); ill = mi.k; waxing = mi.waxing; }
-    if (!inSession(msToOff(ms), f, to) || altaz(s.ra, s.dec, lst, sL, cL)[0] >= thr) continue;
+    if (!inSession(msToOff(ms, tz), f, to) || altaz(s.ra, s.dec, lst, sL, cL)[0] >= thr) continue;
     const mo = moonPos(J), ma = altaz(mo.ra, mo.dec, lst, sL, cL)[0];
     out.push({ ms, mu: ma > 0 });
   }
   return { t0, samples: out, ill, waxing };
 }
-function nightsAhead() {
-  const p = active(), from = defaultNightStr(), key = [siteKey(p.site), p.session.sunThr, p.session.from, p.session.to, from].join('|');
-  if (nb.key !== key) {
-    nb.key = key; const [y, m, d] = from.split('-').map(Number);
-    nb.list = [...Array(NB_N)].map((_, k) => { const t0 = new Date(y, m - 1, d + k, 12, 0, 0).getTime(); return { ...nightSamples(p, t0), ds: dateStr(new Date(t0)) }; });
+/* le prossime n notti (la striscia ne mostra 14, gli avvisi in background ne usano 30) */
+function nightsAhead(n = NB_N) {
+  const p = active(), from = defaultNightStr(), tz = siteTz(p.site), key = [siteKey(p.site), tz, p.session.sunThr, p.session.from, p.session.to, from].join('|');
+  if (nb.key !== key) { nb.key = key; nb.list = []; }
+  if (nb.list.length < n) {
+    const [y, m, d] = from.split('-').map(Number);
+    for (let k = nb.list.length; k < n; k++) { const t0 = wallMs(y, m - 1, d + k, 12, 0, tz); nb.list.push({ ...nightSamples(p, t0), ds: dsOf(t0, tz) }); }
   }
-  return nb.list;
+  return nb.list.length > n ? nb.list.slice(0, n) : nb.list;
 }
 /* la trasparenza pesa sulle ore buone: con molti aerosol il cielo rende meno anche se è sereno */
 function transK(ms) { const x = WX.d && wxHour(ms), a = x && x.aod; return a == null ? 1 : a <= 0.08 ? 1 : a <= 0.15 ? 0.95 : a <= 0.25 ? 0.88 : a <= 0.4 ? 0.75 : 0.6; }
 /* voto di una notte da campioni {ms, mu} (passo in ore): ore di buio, senza Luna, serene, buone */
-function rateNight(samples, step, ill, ref) {
+/* noWx: solo buio e Luna, senza meteo */
+function rateNight(samples, step, ill, ref, noWx) {
   let dark = 0, free = 0, good = 0, known = 0, clear = 0;
   for (const s of samples) {
-    const f = wxAt(s.ms), w = f == null ? 1 : f, moon = s.mu && ill > 0.1;
+    const f = noWx ? null : wxAt(s.ms), w = f == null ? 1 : f, moon = s.mu && ill > 0.1;
     dark += step; if (!moon) free += step; if (f != null) { known++; clear += f; }
-    good += step * w * transK(s.ms) * (moon ? 0.33 : 1);
+    good += step * w * (noWx ? 1 : transK(s.ms)) * (moon ? 0.33 : 1);
   }
   const k = samples.length && known >= samples.length * 0.5, cf = known ? clear / known : null;
   const rel = good / Math.max(ref || dark, 1);
@@ -55,13 +58,13 @@ function renderNightBar() {
   const L = nightsAhead(), sel = $('#nightDate').value || defaultNightStr(), ref = Math.max(...L.map((x) => x.samples.length / 6));
   const keep = el.querySelector('.nb-ind'); // la cornice sopravvive al ridisegno, con la sua corsa in atto
   el.innerHTML = L.map((x, k) => {
-    const q = rateNight(x.samples, 1 / 6, x.ill, ref), d = new Date(x.t0);
-    const wd = k === 0 ? tx('Stanotte') : d.toLocaleDateString(LOCALE, { weekday: 'short' }).replace('.', '');
+    const q = rateNight(x.samples, 1 / 6, x.ill, ref), d = wall(x.t0);
+    const wd = k === 0 ? tx('Stanotte') : d.toLocaleDateString(LOCALE, { timeZone: 'UTC', weekday: 'short' }).replace('.', '');
     const w = q.clear != null ? wxSpan(x.samples.map((s) => s.ms), 10) : null, sl = w && seeLvl(w.see), tl = w && traLvl(w.aod);
-    const tip = [d.toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' }), tx(q.label), tx('buio {h}', { h: fmtDur(q.dark) }), tx('senza Luna {h}', { h: fmtDur(q.free) }), q.clear != null ? tx('{p}% sereno', { p: Math.round(q.clear * 100) }) : tx('previsione non ancora disponibile'), sl ? tx('seeing {s}', { s: tx(sl.t).toLowerCase() }) : '', tl ? tx('trasparenza {s}', { s: tx(tl.t).toLowerCase() }) : ''].filter(Boolean).join(' · ');
+    const tip = [d.toLocaleDateString(LOCALE, { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' }), tx(q.label), tx('buio {h}', { h: fmtDur(q.dark) }), tx('senza Luna {h}', { h: fmtDur(q.free) }), q.clear != null ? tx('{p}% sereno', { p: Math.round(q.clear * 100) }) : tx('previsione non ancora disponibile'), sl ? tx('seeing {s}', { s: tx(sl.t).toLowerCase() }) : '', tl ? tx('trasparenza {s}', { s: tx(tl.t).toLowerCase() }) : ''].filter(Boolean).join(' · ');
     return `<button type="button" class="nb${q.clear == null ? ' far' : ''}${x.ds === sel && nb.lastSel && nb.lastSel !== sel ? ' pop' : ''}" data-t0="${x.t0}" aria-pressed="${x.ds === sel}" title="${esc(tip)}" aria-label="${esc(tip)}">
-      <span class="wd">${esc(wd)}</span><span class="dd">${d.getDate()}</span><span class="mo">${moonSvg(x.ill, x.waxing, 6)}</span>
-      <span class="q"><b style="width:${Math.max(8, Math.round(Math.min(1, q.rel) * 100))}%;background:${RATE_COL[q.r]}"></b></span>${q.clear != null && q.clear < 0.5 ? ic('cloud', 'wx') : ''}</button>`;
+      <span class="wd">${esc(wd)}</span><span class="dd">${d.getUTCDate()}</span><span class="mo">${moonSvg(x.ill, x.waxing, 6)}${q.clear != null && q.clear < 0.5 ? ic('cloud', 'wx') : ''}</span>
+      <span class="q"><b style="width:${Math.max(8, Math.round(Math.min(1, q.rel) * 100))}%;background:${RATE_COL[q.r]}"></b></span></button>`;
   }).join('') + `<button type="button" class="nb nbm" data-more title="${tx('Scegli un’altra notte')}">${ic('cal')}<span>${tx('Altre')}</span></button>`;
   nb.lastSel = sel;
   if (keep) el.appendChild(keep);
@@ -71,7 +74,7 @@ function renderNightBar() {
     const b = e.target.closest('[data-t0]'); if (!b) return;
     // la cornice parte subito; il calcolo della notte (pesante) aspetta che il fotogramma con la corsa sia partito
     nbInd(el, b, true);
-    const t0 = +b.dataset.t0, go = () => { if (dateStr(new Date(t0)) === defaultNightStr()) setLive(); else goNight(t0, true); };
+    const t0 = +b.dataset.t0, go = () => { if (dsOf(t0) === defaultNightStr()) setLive(); else goNight(t0, true); };
     if (Motion.on()) requestAnimationFrame(() => setTimeout(go, 0)); else go();
   };
   const on = el.querySelector('[aria-pressed="true"]'); if (on) { const l = on.offsetLeft - el.clientWidth / 2 + on.offsetWidth / 2; if (Math.abs(el.scrollLeft - l) > on.offsetWidth * 2) el.scrollLeft = Math.max(0, l); }

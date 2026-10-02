@@ -12,8 +12,55 @@ const LS = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage non disponibile */ } },
 };
 const it = (x, d = 1) => (LANG === 'it' ? Number(x).toFixed(d).replace('.', ',') : Number(x).toFixed(d)); // numero con i decimali della lingua
-const fmtT = (ms) => new Date(ms).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
-const fmtDay = (ms) => new Date(ms).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' });
+
+/* ============================ ora del luogo ============================
+   Notti, orari e date si contano nell'ora civile del luogo. Il fuso viene dal luogo (site.tz, nome IANA dato da
+   Open-Meteo); se manca si usa quello del dispositivo quando la longitudine è compatibile (entro 3 ore), altrimenti il
+   fuso teorico della longitudine (15° per ora). null = fuso del dispositivo. */
+const DEV_TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || null; } catch (e) { return null; } })();
+const TZ_OFF = new Map();
+/* minuti a est di UTC nell'istante ms */
+function tzOff(ms, tz) {
+  if (!tz) return -new Date(ms).getTimezoneOffset();
+  let c = TZ_OFF.get(tz); if (!c) TZ_OFF.set(tz, (c = { f: null, h: new Map() }));
+  const h = Math.floor(ms / 3600e3); let v = c.h.get(h);
+  if (v === undefined) {
+    try {
+      if (!c.f) c.f = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' });
+      const p = {}; for (const x of c.f.formatToParts(new Date(h * 3600e3))) p[x.type] = +x.value;
+      v = Math.round((Date.UTC(p.year, p.month - 1, p.day, p.hour % 24, p.minute) - h * 3600e3) / 60000);
+    } catch (e) { v = -new Date(ms).getTimezoneOffset(); }
+    c.h.set(h, v);
+  }
+  return v;
+}
+function siteTz(site) {
+  if (!site) return null;
+  if (site.tz) return site.tz === DEV_TZ ? null : site.tz;
+  const lon = +site.lon; if (!isFinite(lon)) return null;
+  const h = clamp(Math.round(lon / 15), -12, 14);
+  return Math.abs(h - tzOff(Date.now(), null) / 60) <= 3 ? null : h === 0 ? 'Etc/GMT' : `Etc/GMT${h > 0 ? '-' : '+'}${Math.abs(h)}`;
+}
+/* fuso in cui si mostrano orari e date: quello del luogo attivo */
+const TZ = { id: null };
+const setDisplayTz = (site) => { TZ.id = siteTz(site); };
+/* data con i campi UTC uguali all'ora del luogo; istante dell'ora locale y-m-d h:mi (mese da 0, giorni oltre il mese ammessi) */
+const wall = (ms, tz = TZ.id) => new Date(ms + tzOff(ms, tz) * 60000);
+function wallMs(y, mo, d, h = 12, mi = 0, tz = TZ.id) { const g = Date.UTC(y, mo, d, h, mi); return g - tzOff(g - tzOff(g, tz) * 60000, tz) * 60000; }
+const pad2 = (n) => String(n).padStart(2, '0');
+const dsOf = (ms, tz = TZ.id) => { const w = wall(ms, tz); return w.getUTCFullYear() + '-' + pad2(w.getUTCMonth() + 1) + '-' + pad2(w.getUTCDate()); };
+const hourOf = (ms) => wall(ms).getUTCHours();
+const hourFloor = (ms) => { const w = wall(ms); return ms - (w.getUTCMinutes() * 60 + w.getUTCSeconds()) * 1000 - w.getUTCMilliseconds(); };
+const tzOpt = () => (TZ.id ? { timeZone: TZ.id } : {});
+const fmtT = (ms) => new Date(ms).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit', ...tzOpt() });
+const fmtDay = (ms) => new Date(ms).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short', ...tzOpt() });
+const fmtNight = (ms, o) => new Date(ms).toLocaleDateString(LOCALE, { ...o, ...tzOpt() });
+/* sigla del fuso del luogo, solo se è diverso da quello del dispositivo */
+const tzLabel = () => {
+  if (!TZ.id) return ''; if (TZ.lab && TZ.lab[0] === TZ.id) return TZ.lab[1];
+  let v = ''; try { const p = new Intl.DateTimeFormat(LOCALE, { timeZone: TZ.id, timeZoneName: 'short' }).formatToParts(new Date()); v = (p.find((x) => x.type === 'timeZoneName') || {}).value || ''; } catch (e) { /* niente */ }
+  TZ.lab = [TZ.id, v]; return v;
+};
 function fmtDur(h) { if (!isFinite(h)) return '—'; const m = Math.round(h * 60); if (m < 60) return m + ' min'; const hh = Math.floor(m / 60), mm = m % 60; return hh + ' h' + (mm ? ' ' + String(mm).padStart(2, '0') : ''); }
 function fmtH(h) { if (h == null || !isFinite(h)) return '—'; if (h < 1) return Math.max(5, Math.round(h * 12) * 5) + ' min'; if (h < 10) return it(h) + ' h'; return Math.round(h) + ' h'; }
 const fmtDeg = (am) => (am >= 60 ? it(am / 60, 2) + '°' : Math.round(am) + '′');

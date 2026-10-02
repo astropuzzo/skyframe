@@ -190,18 +190,18 @@
           <label class="field"><span>QE di picco (%)</span><input id="f_qe" type="number" min="10" max="100" step="1"></label>
           <label class="field"><span>Rumore di lettura (e⁻)</span><input id="f_rn" type="number" min="0.3" step="0.1"></label>
         </div>
-        <p class="hint">Se la camera non è in elenco, scegli Personalizzata e inserisci dimensioni del sensore, pixel, QE e rumore di lettura dalla scheda tecnica.</p>
+        <p class="hint">Non in elenco: Personalizzata, con i dati della scheda tecnica.</p>
       </section>
       <section class="fs ed-prof" id="edOptics">
         <h3>Telescopi e accessori</h3>
         <div id="optics" class="optics"></div>
         <button class="btn sm" id="opticAdd" type="button"><svg class="ic"><use href="#i-plus"/></svg><span>Aggiungi telescopio</span></button>
-        <p class="hint">Scegli un modello o inserisci apertura e focale. Aggiungi riduttori e Barlow con il fattore indicato dal produttore.</p>
+        <p class="hint">Riduttori e Barlow con il fattore del produttore.</p>
       </section>
       <section class="fs ed-prof" id="edFilters">
         <h3>Filtri che possiedi</h3>
         <div id="filterPick"></div>
-        <p class="hint">Seleziona solo i filtri che usi con questa camera. «stima» indica una banda passante non pubblicata dal produttore.</p>
+        <p class="hint">«stima»: bande non pubblicate dal produttore.</p>
       </section>
       <section class="fs ed-loc" id="edSite">
         <h3>Luogo e inquinamento luminoso</h3>
@@ -211,7 +211,7 @@
             <div id="geoList" class="geolist" hidden></div>
           </div>
           <div id="geoMap" class="geomap" aria-label="Mappa: clicca o trascina lo spillo"></div>
-          <p class="hint" id="geoHint">Cerca un indirizzo o posiziona il punto sulla mappa. Controlla le coordinate prima di impostare la luminosità del cielo.</p>
+          <p class="hint" id="geoHint">Cerca un indirizzo o tocca la mappa.</p>
         </div>
         <div class="grid">
           <label class="field w2"><span>Nome del luogo</span><input id="f_site" maxlength="60"></label>
@@ -222,7 +222,7 @@
           <label class="field"><span>SQM allo zenit (mag/″²)</span><input id="f_sqm" type="number" min="16" max="22.2" step="0.01"></label>
           <label class="chk w2"><input type="checkbox" id="f_sqmMeas"> Misurato con un fotometro</label>
         </div>
-        <p class="hint">N/E positivi, S/O negativi. Se hai una misura SQM, inseriscila dopo aver fissato il punto e indica che è misurata; altrimenti usa la stima automatica o la classe di Bortle.</p>
+        <p class="hint">N/E positivi, S/O negativi. SQM misurato, stima automatica o Bortle.</p>
         <div class="lpbox">
           <canvas id="lpSky" width="340" height="340" aria-label="Luminosità del cielo per direzione"></canvas>
           <div>
@@ -251,7 +251,7 @@
               <p class="hint" id="skyMsg"></p>
               <button class="btn sm ghost" id="skyRemove" type="button" hidden>Rimuovi la mappa importata</button>
             </div>
-            <p class="hint" data-t>Senza una mappa all-sky, Skyframe usa lo SQM allo zenit. Per stimare anche la luminosità per direzione, premi Calcola dall’atlante 2025.</p>
+            <p class="hint" data-t>Senza mappa all-sky si usa lo SQM allo zenit.</p>
           </div>
         </div>
       </section>
@@ -264,7 +264,7 @@
           <label class="field"><span>Qualità</span><select id="f_quality"><option value="quick">Base</option><option value="good">Standard</option><option value="great">Alta</option><option value="deep">Molto alta</option><option value="top">Eccellente</option><option value="max">Massima</option></select></label>
           <label class="field"><span>Obiettivo della ripresa</span><select id="f_goal"><option value="lines">SHO sui soggetti adatti</option><option value="snr">Minor tempo</option><option value="natural">Colori naturali (banda larga)</option></select></label>
         </div>
-        <p class="hint">Lascia vuoti Dalle e Alle per usare tutto il buio. Il livello di qualità determina il rapporto segnale/rumore richiesto.</p>
+        <p class="hint">Dalle e Alle vuoti: tutto il buio.</p>
       </section>
       <section class="fs ed-loc" id="edHorizon">
         <h3>Orizzonte</h3>

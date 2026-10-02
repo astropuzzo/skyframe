@@ -507,14 +507,15 @@ function parseHorizon(txt) {
 
 /* ============================ notte ============================ */
 const STEP = 5, N = 288, DT = STEP * 60000;
-function defaultNightStr() { const n = new Date(); const d = new Date(n); if (n.getHours() < 12) d.setDate(d.getDate() - 1); return dateStr(d); }
+/* la notte in corso nel luogo attivo: prima di mezzogiorno è ancora quella iniziata ieri */
+function defaultNightStr() { const now = Date.now(), w = wall(now); return w.getUTCHours() < 12 ? dsOf(now - 864e5) : dsOf(now); }
 const dateStr = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 function hmToOff(s) { if (!s) return null; const [h, m] = s.split(':').map(Number); return ((h * 60 + m - 720) + 1440) % 1440; }
-const msToOff = (ms) => { const d = new Date(ms); return (d.getHours() * 60 + d.getMinutes() - 720 + 1440) % 1440; };
+const msToOff = (ms, tz) => { const w = wall(ms, tz); return (w.getUTCHours() * 60 + w.getUTCMinutes() - 720 + 1440) % 1440; };
 /* dentro l'orario della sessione ("dalle", "alle"); off = minuti da mezzogiorno */
 const inSession = (off, f, to) => (f != null && to != null ? (f <= to ? off >= f && off <= to : off >= f || off <= to) : f != null ? off >= f : to != null ? off <= to : true);
 function computeNight(p, ds, withMoon = true) {
-  const [y, m, d] = ds.split('-').map(Number); const t0 = new Date(y, m - 1, d, 12, 0, 0).getTime();
+  const tz = siteTz(p.site), [y, m, d] = ds.split('-').map(Number), t0 = wallMs(y, m - 1, d, 12, 0, tz);
   const lat = p.site.lat * D2R, sL = Math.sin(lat), cL = Math.cos(lat), lon = +p.site.lon, thr = +p.session.sunThr;
   const t = new Float64Array(N + 1), lst = new Float64Array(N + 1), sun = new Float32Array(N + 1), mAlt = new Float32Array(N + 1), mAz = new Float32Array(N + 1), mIll = new Float32Array(N + 1), mV = [], dark = new Uint8Array(N + 1), darkAll = new Uint8Array(N + 1);
   const f = hmToOff(p.session.from), to = hmToOff(p.session.to);
@@ -528,7 +529,7 @@ function computeNight(p, ds, withMoon = true) {
       const el = Math.acos(clamp(Math.cos(mo.lat * D2R) * Math.cos((mo.lon - s.lon) * D2R), -1, 1)); mIll[i] = (1 - Math.cos(el)) / 2; if (i === N / 2) waxing = norm360(mo.lon - s.lon) < 180;
     }
     darkAll[i] = sun[i] < thr ? 1 : 0;
-    const inS = inSession(msToOff(ms), f, to);
+    const inS = inSession(msToOff(ms, tz), f, to);
     dark[i] = darkAll[i] && inS ? 1 : 0;
   }
   const cross = (arr, v, down) => { for (let i = 1; i <= N; i++) { if (down ? (arr[i - 1] >= v && arr[i] < v) : (arr[i - 1] < v && arr[i] >= v)) { return i - 1 + (arr[i - 1] - v) / (arr[i - 1] - arr[i]); } } return null; };
@@ -541,7 +542,7 @@ function computeNight(p, ds, withMoon = true) {
   return {
     t0, t, lst, sun, mAlt, mAz, mIll, mV, dark, darkAll, sL, cL, thr, w0, w1, sunset: idxT(sunset), sunrise: idxT(sunrise),
     darkH: dc * STEP / 60, moonUpFrac: dc ? mUp / dc : 0, moonIll: mIll[mid], waxing, mRise: idxT(cross(mAlt, 0, false)), mSet: idxT(cross(mAlt, 0, true)),
-    first, last, ds, J: jd(t0 + N / 2 * DT),
+    first, last, ds, tz, J: jd(t0 + N / 2 * DT),
   };
 }
 
@@ -1048,16 +1049,16 @@ function usableSteps(r, night, sky) {
    Si calcolano solo quando servono e restano nel contesto di calcolo del luogo. */
 const CAL_STEP = 20, CAL_N = 72, CAL_MAX = 366, CAL_MIN_H = 0.25, CAL_SKIP = 2.5, CAL_BLOCK = 30;
 function aheadCtx(C) {
-  return C.ahead || (C.ahead = { list: [], cache: new Map(), sL: C.night.sL, cL: C.night.cL, lon: +C.active.site.lon, thr: +C.active.session.sunThr, f: hmToOff(C.active.session.from), to: hmToOff(C.active.session.to), ymd: C.night.ds.split('-').map(Number) });
+  return C.ahead || (C.ahead = { list: [], cache: new Map(), sL: C.night.sL, cL: C.night.cL, lon: +C.active.site.lon, thr: +C.active.session.sunThr, f: hmToOff(C.active.session.from), to: hmToOff(C.active.session.to), ymd: C.night.ds.split('-').map(Number), tz: siteTz(C.active.site) });
 }
 function aheadNight(C, k) {
   const A = aheadCtx(C); if (A.list[k]) return A.list[k];
-  const [y, m, d] = A.ymd, t0 = new Date(y, m - 1, d + k, 12, 0, 0).getTime();
+  const [y, m, d] = A.ymd, t0 = wallMs(y, m - 1, d + k, 12, 0, A.tz);
   const lst = new Float64Array(CAL_N), dark = new Uint8Array(CAL_N), mAlt = new Float32Array(CAL_N), mIll = new Float32Array(CAL_N), mV = new Array(CAL_N);
   let moon = 0, nd = 0, up = 0;
   for (let i = 0; i < CAL_N; i++) {
     const off = (i + 0.5) * CAL_STEP, ms = t0 + off * 60000; lst[i] = lstDeg(ms, A.lon);
-    if (!inSession(msToOff(ms), A.f, A.to)) continue;
+    if (!inSession(msToOff(ms, A.tz), A.f, A.to)) continue;
     const J = jd(ms), sn = sunPos(J); if (altaz(sn.ra, sn.dec, lst[i], A.sL, A.cL)[0] >= A.thr) continue;
     const mo = moonPos(J), aa = altaz(mo.ra, mo.dec, lst[i], A.sL, A.cL);
     dark[i] = 1; nd++; mAlt[i] = aa[0] - 0.95 * Math.cos(aa[0] * D2R); mV[i] = unit(mo.ra, mo.dec); if (mAlt[i] > 0) up++;
@@ -1163,17 +1164,17 @@ function shootCalendar(C, r, e, deep, mode) {
 /* ============================ finestre senza Luna e stagionalità ============================ */
 /* Per le prossime notti: frazione del buio con la Luna sopra l'orizzonte, pesata per la fase. */
 function moonCalendar(p, fromDs, nights) {
-  const out = []; const [y, m, d] = fromDs.split('-').map(Number);
+  const out = [], tz = siteTz(p.site); const [y, m, d] = fromDs.split('-').map(Number);
   const lat = p.site.lat * D2R, sL = Math.sin(lat), cL = Math.cos(lat), lon = +p.site.lon, thr = +p.session.sunThr;
   for (let k = 0; k < nights; k++) {
-    const t0 = new Date(y, m - 1, d + k, 12, 0, 0).getTime(); let dark = 0, moonW = 0, ill = 0;
+    const t0 = wallMs(y, m - 1, d + k, 12, 0, tz); let dark = 0, moonW = 0, ill = 0;
     for (let i = 0; i <= 144; i++) {
       const ms = t0 + i * 600000, J = jd(ms), lst = lstDeg(ms, lon), s = sunPos(J);
       if (altaz(s.ra, s.dec, lst, sL, cL)[0] >= thr) continue;
       dark++; const mo = moonPos(J); const ma = altaz(mo.ra, mo.dec, lst, sL, cL)[0];
       if (ma > 0) { const el = Math.acos(clamp(Math.cos(mo.lat * D2R) * Math.cos((mo.lon - s.lon) * D2R), -1, 1)); ill = (1 - Math.cos(el)) / 2; moonW += ill; }
     }
-    out.push({ t0, ds: dateStr(new Date(t0)), darkH: dark / 6, moon: dark ? moonW / dark : 0 });
+    out.push({ t0, ds: dsOf(t0, tz), darkH: dark / 6, moon: dark ? moonW / dark : 0 });
   }
   return out;
 }
@@ -1196,18 +1197,18 @@ function nightHoursFor(o, p, lut, t0) {
 }
 /* per il 15 di ogni mese dei prossimi 12 */
 function seasonality(o, p, lut) {
-  const now = new Date(), res = [];
+  const tz = siteTz(p.site), now = wall(Date.now(), tz), res = [];
   for (let k = 0; k < 12; k++) {
-    const d = new Date(now.getFullYear(), now.getMonth() + k, 15, 12, 0, 0), t0 = d.getTime();
-    res.push({ t0, y: d.getFullYear(), m: d.getMonth(), h: nightHoursFor(o, p, lut, t0), label: d.toLocaleDateString(LOCALE, { month: 'short' }) });
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + k, 15, 12)), t0 = wallMs(d.getUTCFullYear(), d.getUTCMonth(), 15, 12, 0, tz);
+    res.push({ t0, y: d.getUTCFullYear(), m: d.getUTCMonth(), h: nightHoursFor(o, p, lut, t0), label: d.toLocaleDateString(LOCALE, { month: 'short', timeZone: 'UTC' }) });
   }
   return res;
 }
 /* Periodo giusto di un target: le notti (campionate ogni 3 giorni per un anno) con almeno il 75% delle ore massime.
    Restituisce il primo periodo da oggi in avanti (o quello in corso) e la prima notte senza Luna al suo interno. */
 function bestPeriod(o, p, lut, fromDs) {
-  const [y, m, d] = fromDs.split('-').map(Number), pts = [];
-  for (let k = 0; k <= 366; k += 3) { const t0 = new Date(y, m - 1, d + k, 12, 0, 0).getTime(); pts.push({ t0, k, h: nightHoursFor(o, p, lut, t0) }); }
+  const [y, m, d] = fromDs.split('-').map(Number), pts = [], tz = siteTz(p.site);
+  for (let k = 0; k <= 366; k += 3) { const t0 = wallMs(y, m - 1, d + k, 12, 0, tz); pts.push({ t0, k, h: nightHoursFor(o, p, lut, t0) }); }
   const max = Math.max(...pts.map((x) => x.h)), now = pts[0].h;
   if (max < 0.5) return { max, now, none: true };
   const thr = Math.max(0.5, 0.75 * max);
@@ -1215,9 +1216,9 @@ function bestPeriod(o, p, lut, fromDs) {
   let j = i; while (j + 1 < pts.length && pts[j + 1].h >= thr) j++;
   // dentro il periodo in corso si guarda anche fino a quando dura; se inizia fra poco si affina al giorno
   let fromT = pts[i].t0;
-  if (!inNow) for (let k = pts[i].k - 2; k < pts[i].k; k++) { const t0 = new Date(y, m - 1, d + k, 12, 0, 0).getTime(); if (nightHoursFor(o, p, lut, t0) >= thr) { fromT = t0; break; } }
+  if (!inNow) for (let k = pts[i].k - 2; k < pts[i].k; k++) { const t0 = wallMs(y, m - 1, d + k, 12, 0, tz); if (nightHoursFor(o, p, lut, t0) >= thr) { fromT = t0; break; } }
   const toT = pts[j].t0, peak = pts.slice(i, j + 1).reduce((a, x) => (x.h > a.h ? x : a), pts[i]);
-  const cal = moonCalendar(p, dateStr(new Date(fromT)), Math.min(45, Math.round((toT - fromT) / 864e5) + 1));
+  const cal = moonCalendar(p, dsOf(fromT, tz), Math.min(45, Math.round((toT - fromT) / 864e5) + 1));
   const dark = cal.find((n) => n.moon < 0.03 && n.darkH > 0.5); // Luna assente o quasi (sotto l'orizzonte o sottile)
   return { max, now, inNow, thr, from: fromT, to: toT, peak: peak.t0, peakH: peak.h, dark: dark ? dark.t0 : null, darkH: dark ? nightHoursFor(o, p, lut, dark.t0) : 0 };
 }
@@ -1307,15 +1308,15 @@ function adviceFor(r, e, ctx) {
   const dust = r.field.ctx.filter((c) => c.type === 'DN' || c.type === 'RN');
   const tot = hoursOf(b);
   const core = ctx.coreH != null && ctx.coreH < tot * 0.7 ? ' ' + tx('Integrazione per la sola parte luminosa: {h}.', { h: fmtH(ctx.coreH) }) : '';
-  if (!dust.length && o.dust) tips.push({ k: 'Polveri', t: tx('La mappa indica polvere nel campo (E(B−V) {e}); il modello assume {sb} mag/″².', { e: it(o.dust, 2), sb: it(DUST_SB, 1) }) + core });
-  if (dust.length) tips.push({ k: 'Polveri', t: tx('Nebulose oscure o a riflessione nel campo: {ids}. Luminosità stimata {sb} mag/″².', { ids: dust.map((c) => `${c.id}${c.nick ? ' (' + c.nick + ')' : ''}`).join(', '), sb: it(Math.max(dust[0].sb, DUST_SB), 1) }) + core });
+  if (!dust.length && o.dust) tips.push({ k: 'Polveri', t: tx('Polvere nel campo: E(B−V) {e} · {sb} mag/″²', { e: it(o.dust, 2), sb: it(DUST_SB, 1) }) + core });
+  if (dust.length) tips.push({ k: 'Polveri', t: tx('Nebulose oscure o a riflessione: {ids} · {sb} mag/″²', { ids: dust.map((c) => `${c.id}${c.nick ? ' (' + c.nick + ')' : ''}`).join(', '), sb: it(Math.max(dust[0].sb, DUST_SB), 1) }) + core });
   if (r.skyMag != null && ctx.sky && r.skyMag < ctx.sky.sqm - 0.25) tips.push({ k: 'Cielo', t: tx('Luminosità del cielo verso il target: {m} mag/″²; allo zenit: {z}.', { m: it(r.skyMag, 2), z: it(ctx.sky.sqm, 2) }) });
   if (r.first >= 0 && r.riseBlocked >= 0 && r.riseBlocked < r.first) tips.push({ k: 'Orizzonte', t: tx('Ostacolo verso {dir}: il target diventa riprendibile alle {a}.', { dir: azName(r.az[r.riseBlocked]), a: fmtT(n.t[r.first]) }) });
   if (r.maxA < 32 && r.usableH > 0) tips.push({ k: 'Altezza', t: tx('Altezza massima {a}°: concentra le pose vicino al transito.', { a: Math.round(r.maxA) }) });
   const f = e.fill;
   if (f.nx * f.ny > 1) tips.push({ k: 'Campo', t: tx('Mosaico {n}: circa {p} per pannello, {t} in totale.', { n: `${f.nx}×${f.ny}`, p: fmtH(b ? b.ideal / (f.nx * f.ny) : NaN), t: fmtH(b ? b.ideal : NaN) }) });
   if (ctx.framing) tips.push({ k: 'Rotazione', t: framingTip(o, ctx.framing, r.field) });
-  if (f.objPx < 160) tips.push({ k: 'Campo', t: tx('Diametro del target: circa {px} pixel. Il ritaglio limiterà il dettaglio.', { px: Math.round(f.objPx) }) });
+  if (f.objPx < 160) tips.push({ k: 'Campo', t: tx('Diametro del target: circa {px} pixel.', { px: Math.round(f.objPx) }) });
   if (ctx.alt && b) tips.push({ k: 'Altri filtri', t: tx('Con {n}: integrazione stimata {a} invece di {b}.', { n: ctx.alt.name, a: fmtH(ctx.alt.h), b: fmtH(hoursOf(b)) }) });
   ((window.TIPS && o.tip && window.TIPS[o.tip]) || []).forEach((t) => tips.push({ k: 'Nota', t: tx(t) }));
   return tips;

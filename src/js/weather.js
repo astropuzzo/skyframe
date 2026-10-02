@@ -15,8 +15,14 @@
    Fuori dalle previsioni i valori sono null e i calcoli assumono sereno. */
 const WX = { d: null, busy: false, err: false, other: new Map() };
 const wxKey = (s) => `${(+s.lat).toFixed(2)},${(+s.lon).toFixed(2)}`;
-const WX_TTL = 90 * 60e3, WX_LS = 'sf.wx3';
-try { localStorage.removeItem('sf.wx2'); } catch { /* niente */ } // formato della 0.6
+const WX_TTL = 90 * 60e3, WX_LS = 'sf.wx4';
+try { localStorage.removeItem('sf.wx2'); localStorage.removeItem('sf.wx3'); } catch { /* niente */ } // formati della 0.6 e della 0.25 (un luogo solo)
+/* meteo completo degli ultimi quattro luoghi usati: cambiando luogo non si riscarica tutto */
+const wxCache = () => { const c = LS.get(WX_LS, {}); return c && typeof c === 'object' && !Array.isArray(c) ? c : {}; };
+function wxCachePut(d) {
+  const c = wxCache(); c[d.key] = d; const keep = Object.values(c).filter((x) => x && x.key).sort((a, b) => b.at - a.at).slice(0, 4);
+  try { localStorage.setItem(WX_LS, JSON.stringify(Object.fromEntries(keep.map((x) => [x.key, x])))); } catch { LS.set(WX_LS, { [d.key]: d }); }
+}
 const clearFrac = (lo, mi, hi) => clamp((75 - Math.max(lo || 0, mi || 0, 0.6 * (hi || 0))) / 60, 0, 1);
 const clearTot = (cc) => clamp((75 - cc) / 60, 0, 1);
 /* modelli per le nuvole: id Open-Meteo, nome, peso nella media */
@@ -29,7 +35,7 @@ const WX_PL = [1000, 975, 950, 925, 900, 850, 800, 750, 700, 650, 600, 550, 500,
 const SEE_K = 1.12; // media del modello portata a quella di meteoblue (1,29″ contro 1,15″ sulle stesse ore)
 
 async function wxGet(url) { const r = await fetch(url); if (!r.ok) throw new Error('HTTP ' + r.status); const j = await r.json(); if (j.error) throw new Error(j.reason || 'errore'); return j; }
-const wxQ = (s, days) => `latitude=${(+s.lat).toFixed(3)}&longitude=${(+s.lon).toFixed(3)}&past_days=1&forecast_days=${days}&timeformat=unixtime&timezone=GMT`;
+const wxQ = (s, days, tz = 'GMT') => `latitude=${(+s.lat).toFixed(3)}&longitude=${(+s.lon).toFixed(3)}&past_days=1&forecast_days=${days}&timeformat=unixtime&timezone=${tz}`;
 /* seeing di un'ora dai livelli di pressione di un modello (suffisso _m), sopra la quota del luogo */
 function seeingOf(h, i, sfx, elev) {
   const L = [];
@@ -57,16 +63,16 @@ const r0 = (x) => (x == null || !isFinite(x) ? null : Math.round(x));
 async function loadWeather(force) {
   const s = activeLoc().site, key = wxKey(s);
   if (!force && WX.d && WX.d.key === key && Date.now() - WX.d.at < WX_TTL) return false;
-  const c = LS.get(WX_LS, null);
-  if (!force && c && c.key === key && Date.now() - c.at < WX_TTL) { WX.d = c; return true; }
+  const c = wxCache()[key];
+  if (!force && c && Date.now() - c.at < WX_TTL) { WX.d = c; return true; }
   if (WX.busy) return false; WX.busy = true;
   try {
     const cc = 'cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high';
     const plv = WX_PL.flatMap((p) => [`temperature_${p}hPa`, `wind_speed_${p}hPa`, `wind_direction_${p}hPa`, `geopotential_height_${p}hPa`]).join(',');
     const [A, B, C, E, Q] = await Promise.allSettled([
       wxGet(`https://api.open-meteo.com/v1/forecast?${wxQ(s, 8)}&hourly=${cc}&models=${WX_MODELS.map((m) => m[0]).join(',')}`),
-      wxGet(`https://api.open-meteo.com/v1/forecast?${wxQ(s, 8)}&hourly=temperature_2m,dew_point_2m,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,precipitation_probability`),
-      wxGet(`https://api.open-meteo.com/v1/forecast?${wxQ(s, 8)}&hourly=${plv}&models=gfs_seamless,ecmwf_ifs025&wind_speed_unit=ms`),
+      wxGet(`https://api.open-meteo.com/v1/forecast?${wxQ(s, 8, 'auto')}&hourly=temperature_2m,dew_point_2m,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,precipitation_probability`),
+      wxGet(`https://api.open-meteo.com/v1/forecast?${wxQ(s, 3)}&hourly=${plv}&models=gfs_seamless,ecmwf_ifs025&wind_speed_unit=ms`),
       wxGet(`https://ensemble-api.open-meteo.com/v1/ensemble?${wxQ(s, 8)}&hourly=cloud_cover&models=ecmwf_ifs025`),
       wxGet(`https://air-quality-api.open-meteo.com/v1/air-quality?${wxQ(s, 5)}&hourly=aerosol_optical_depth,dust`),
     ]);
@@ -109,14 +115,14 @@ async function loadWeather(force) {
       }
     }
     const next = {
-      key, at: Date.now(), t0, n, clear, lo, mi, hi, spread, nm, models, prob: prob && prob.map(r2), see, jet,
+      key, at: Date.now(), tz: B.status === 'fulfilled' && typeof B.value.timezone === 'string' ? B.value.timezone : null, t0, n, clear, lo, mi, hi, spread, nm, models, prob: prob && prob.map(r2), see, jet,
       aod: (at(Q, 'aerosol_optical_depth') || []).map(r2), dust: (at(Q, 'dust') || []).map(r0),
       t: (at(B, 'temperature_2m') || []).map((x) => (x == null ? null : Math.round(x * 10) / 10)), td: (at(B, 'dew_point_2m') || []).map((x) => (x == null ? null : Math.round(x * 10) / 10)),
       rh: (at(B, 'relative_humidity_2m') || []).map(r0), wind: (at(B, 'wind_speed_10m') || []).map(r0), gust: (at(B, 'wind_gusts_10m') || []).map(r0), pp: (at(B, 'precipitation_probability') || []).map(r0),
       parts: { models: Object.keys(models).length, ens: E.status === 'fulfilled', see: C.status === 'fulfilled', aq: Q.status === 'fulfilled', ground: B.status === 'fulfilled' },
     };
     if (wxKey(activeLoc().site) !== key) return false;
-    WX.d = next; WX.err = false; LS.set(WX_LS, WX.d); return true;
+    WX.d = next; WX.err = false; wxCachePut(next); return true;
   } catch (e) { if (wxKey(activeLoc().site) === key) WX.err = true; return false; }
   finally {
     WX.busy = false;
@@ -161,7 +167,13 @@ function applyWeather() {
   if (C.ahead) C.ahead.cache.clear();
 }
 function weatherChanged() { applyWeather(); renderFacts(); drawStrip(); renderNightBar(); renderTonight(); renderList(); renderTopList(); if (UI.view === 'sky') renderSky(); if (state.sel && !$('#drawer').hidden) { const sc = $('#drawer').scrollTop; renderDetail(); $('#drawer').scrollTop = sc; } }
-async function refreshWeather(force) { if (await loadWeather(force)) weatherChanged(); else if (force && UI.view === 'sky') renderSky(); planNotifications(); }
+async function refreshWeather(force) { const got = await loadWeather(force); if (syncSiteTz()) { /* rifatto tutto */ } else if (got) weatherChanged(); else if (force && UI.view === 'sky') renderSky(); planNotifications(); }
+/* il fuso del luogo arriva con il meteo: se è nuovo o diverso, notti e orari si rifanno */
+function syncSiteTz() {
+  const l = activeLoc(), tz = wxOk() && WX.d.tz; if (!tz || l.site.tz === tz) return false;
+  state.locs[state.locs.indexOf(l)] = { ...l, site: { ...l.site, tz } }; if (!l.unsaved) saveStore();
+  refresh(true); return true;
+}
 /* una notte in breve (buio astronomico): quanto è sereno, la finestra serena più lunga, probabilità, accordo, seeing,
    trasparenza, condensa, vento. wxSpan lavora su istanti a passo regolare (ms, passo in minuti). */
 function wxNight(n) {

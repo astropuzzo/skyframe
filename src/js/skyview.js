@@ -15,8 +15,8 @@ const lvlBg = (l) => (l ? `background:${LVL_BG[l.i]};color:${LVL_COL[l.i]}` : ''
 function nightHours(x) {
   const p = active(), lat = p.site.lat * D2R, sL = Math.sin(lat), cL = Math.cos(lat), lon = +p.site.lon, out = [];
   const d0 = x.samples.length ? x.samples[0].ms : x.t0 + 8 * 3600e3, d1 = x.samples.length ? x.samples[x.samples.length - 1].ms : x.t0 + 16 * 3600e3;
-  const h0 = new Date(d0 - 2 * 3600e3); h0.setMinutes(0, 0, 0);
-  for (let t = h0.getTime(); t <= d1 + 2 * 3600e3; t += 3600e3) {
+  const h0 = hourFloor(d0 - 2 * 3600e3);
+  for (let t = h0; t <= d1 + 2 * 3600e3; t += 3600e3) {
     const J = jd(t), lst = lstDeg(t, lon), mo = moonPos(J), ma = altaz(mo.ra, mo.dec, lst, sL, cL)[0];
     out.push({ t, dark: x.samples.some((s) => Math.abs(s.ms - t - 1800e3) <= 1800e3), moon: ma > 0 ? ma : null });
   }
@@ -24,10 +24,10 @@ function nightHours(x) {
 }
 function skyNightCard(x, k) {
   const L = nightsAhead(), ref = Math.max(...L.map((q) => q.samples.length / 6)), q = rateNight(x.samples, 1 / 6, x.ill, ref);
-  const w = wxSpan(x.samples.map((s) => s.ms), 10), d = new Date(x.t0), hrs = nightHours(x).filter((h) => h.dark);
+  const w = wxSpan(x.samples.map((s) => s.ms), 10), hrs = nightHours(x).filter((h) => h.dark);
   const sl = w && seeLvl(w.see), tl = w && traLvl(w.aod), dl = w && w.dew != null ? (w.dew <= 1.5 ? 4 : w.dew <= 3 ? 2 : 0) : null, gl = w && windLvl(w.gust);
   const cells = hrs.map((h) => { const f = wxAt(h.t + 1800e3); return `<i style="background:${f == null ? 'var(--line-2)' : skyCol(f)}"></i>`; }).join('');
-  const title = k === 0 ? tx('Stanotte') : d.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' });
+  const title = k === 0 ? tx('Stanotte') : fmtNight(x.t0, { weekday: 'short', day: 'numeric', month: 'short' });
   const warn = [dl >= 2 ? `<span class="w" style="color:${LVL_COL[dl]}" title="${tx('Rischio di condensa: {t}', { t: tx(dl >= 4 ? 'alto' : 'medio') })}">${ic('drop')}</span>` : '', gl && gl.i >= 2 ? `<span class="w" style="color:${LVL_COL[gl.i]}" title="${tx('Raffiche fino a {v} km/h', { v: w.gust })}">${ic('wind')}</span>` : ''].join('');
   return `<button type="button" class="sk-n" data-k="${k}" aria-pressed="${k === SK.k}">
     <span class="h"><b>${esc(title)}</b><span class="mo">${moonSvg(x.ill, x.waxing, 6)}${Math.round(x.ill * 100)}%</span><span class="rate r${q.r}"><i></i>${tx(q.label)}</span></span>
@@ -38,7 +38,7 @@ function skyGrid(x) {
   const H = nightHours(x), s = active().site;
   const col = (h, fn) => H.map((q) => { const w = wxHour(q.t + 1800e3); return `<span class="c${q.dark ? ' dk' : ''}"${fn(w, q)}</span>`; }).join('');
   const row = (label, sub, fn) => `<span class="rl"><b>${label}</b>${sub ? `<small>${sub}</small>` : ''}</span>${col(null, fn)}`;
-  const hh = H.map((q) => `<span class="c hd${q.dark ? ' dk' : ''}">${String(new Date(q.t).getHours()).padStart(2, '0')}</span>`).join('');
+  const hh = H.map((q) => `<span class="c hd${q.dark ? ' dk' : ''}">${pad2(hourOf(q.t))}</span>`).join('');
   const txt = (v) => (v == null ? '' : v);
   const rows = [
     row(tx('Nubi basse'), '', (w) => (w && w.lo != null ? ` style="background:${cloudCol(w.lo)}">${w.lo >= 5 ? w.lo : ''}` : '>')),
@@ -65,7 +65,7 @@ function skyModels(x) {
   const ids = Object.keys(d.models).filter((id) => H.some((h) => { const i = Math.round(((h.t + 1800e3) / 1000 - d.t0) / 3600); return d.models[id][i] != null; }));
   if (!ids.length) return '';
   const rows = ids.map((id) => `<div class="mr"><span class="mn"><i style="background:${MODEL_COL[id]}"></i>${esc(names[id] || id)}</span>${H.map((h) => { const i = Math.round(((h.t + 1800e3) / 1000 - d.t0) / 3600), f = d.models[id][i]; return `<span class="mc" style="background:${f == null ? 'transparent' : skyCol(f)}" title="${f == null ? '' : Math.round(f * 100) + '%'}"></span>`; }).join('')}</div>`).join('');
-  const ax = `<div class="mr ax"><span class="mn"></span>${H.map((h) => `<span class="mc">${new Date(h.t).getHours() % 2 ? '' : String(new Date(h.t).getHours()).padStart(2, '0')}</span>`).join('')}</div>`;
+  const ax = `<div class="mr ax"><span class="mn"></span>${H.map((h) => `<span class="mc">${hourOf(h.t) % 2 ? '' : pad2(hourOf(h.t))}</span>`).join('')}</div>`;
   return `<div class="card"><div class="card-h"><h3>${tx('Modelli a confronto')}</h3><small>${tx('blu sereno, grigio coperto')}</small></div><div class="mgrid" style="--n:${H.length}">${rows}${ax}</div></div>`;
 }
 async function skyOther(box) {
@@ -92,8 +92,8 @@ function renderSky() {
     return;
   }
   const L = nightsAhead().slice(0, 8); SK.k = clamp(SK.k, 0, L.length - 1);
-  const x = L[SK.k], d = new Date(x.t0), p = WX.d.parts;
-  const title = SK.k === 0 ? tx('Ora per ora') : tx('{d}, ora per ora', { d: d.toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' }) });
+  const x = L[SK.k], p = WX.d.parts;
+  const title = SK.k === 0 ? tx('Ora per ora') : tx('{d}, ora per ora', { d: fmtNight(x.t0, { weekday: 'long', day: 'numeric', month: 'long' }) });
   el.innerHTML = head + `
     <div class="sk-nights">${L.map(skyNightCard).join('')}</div>
     <div class="card"><div class="card-h"><h3>${esc(title)}</h3></div>${skyGrid(x)}

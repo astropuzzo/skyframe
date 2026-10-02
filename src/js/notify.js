@@ -52,6 +52,7 @@ function evalNight(n, plan) {
   const body = [blocks.slice(0, 3).map((b) => `${b.id} ${fmtT(b.t0)}–${fmtT(b.t1)}`).join(' · '), extra].filter(Boolean).join('\n');
   return { n, q, w, good, when, body, title: tx('Stanotte sereno: {w}', { w: when }), d0: n.t[n.first], d1: n.t[n.last] + DT };
 }
+const BG_N = 30; // notti passate allo script in background
 const addDays = (ds, k) => { const d = new Date(ds + 'T12:00:00'); d.setDate(d.getDate() + k); return dateStr(d); };
 
 async function planNotifications() {
@@ -101,10 +102,9 @@ async function planNotifications() {
       const x = L[k], key = x.ds + 't'; if (sent[key]) continue;
       const q = rateNight(x.samples, 1 / 6, x.ill, ref), w = wxSpan(x.samples.map((s) => s.ms), 10);
       if (!w || q.r < 4 || w.clear < 0.7 || (w.prob != null && w.prob < 0.6)) continue;
-      const d = new Date(x.t0), noon = new Date(d); noon.setDate(noon.getDate() - 1); noon.setHours(12, 30, 0, 0);
-      const at = Math.max(noon.getTime(), now + 3000); if (at > x.t0 + 6 * 3600e3) continue;
+      const at = Math.max(x.t0 - 864e5 + 1800e3, now + 3000); if (at > x.t0 + 6 * 3600e3) continue;
       const who = SP.plan ? (SP.plan.nights[k] || { alloc: [] }).alloc.map((a) => a.id).slice(0, 3) : [];
-      const day = d.toLocaleDateString(LOCALE, { weekday: 'long' });
+      const day = fmtNight(x.t0, { weekday: 'long' });
       once(key, { id: 10 + k, at, title: tx('{d}: notte ottima', { d: day.charAt(0).toUpperCase() + day.slice(1) }), body: [tx('Senza Luna, sereno al {p}%', { p: Math.round(w.clear * 100) }) + (w.prob != null ? ' · ' + tx('probabilità {p}%', { p: Math.round(w.prob * 100) }) : ''), who.length ? tx('Per {t}', { t: who.join(', ') }) : ''].filter(Boolean).join('\n') });
     }
   }
@@ -122,10 +122,15 @@ async function planNotifications() {
   try { await notifySchedule(out); } catch { /* niente */ }
   // configurazione per lo script in background
   if (window.cielo && window.cielo.bgConfig) {
-    const L = activeLoc().site;
+    const L = activeLoc().site, minClear = c.min >= 4 ? 0.7 : c.min >= 3 ? 0.5 : 0.3;
+    // dopo domani e fino a un mese: solo le notti con abbastanza buio senza Luna; le nuvole le guarda lo script quando arrivano
+    const far = nightsAhead(BG_N).map((x, k) => ({ x, k })).slice(2).filter(({ x }) => x.samples.length >= 9 && rateNight(x.samples, 1 / 6, x.ill, x.samples.length / 6, true).r >= c.min);
     window.cielo.bgConfig({
-      on: true, evening: c.evening, change: c.change, lat: (+L.lat).toFixed(3), lon: (+L.lon).toFixed(3), tz: -new Date().getTimezoneOffset(),
-      nights: nights.map((x) => ({ id: 1 + x.k, ds: x.ds, d0: x.ev.d0, d1: x.ev.d1, alertAt: x.ev.d0 - lead, minH: 1.5, minClear: c.min >= 4 ? 0.7 : c.min >= 3 ? 0.5 : 0.3, good: x.ev.good, appScheduled: !bgOk && x.ev.good && c.evening, body: x.ev.body })),
+      on: true, evening: c.evening, change: c.change, lat: (+L.lat).toFixed(3), lon: (+L.lon).toFixed(3), tz: tzOff(now, TZ.id),
+      nights: [
+        ...nights.map((x) => ({ id: 1 + x.k, ds: x.ds, d0: x.ev.d0, d1: x.ev.d1, alertAt: x.ev.d0 - lead, minH: 1.5, minClear, good: x.ev.good, appScheduled: !bgOk && x.ev.good && c.evening, body: x.ev.body, tz: tzOff(x.ev.d0, TZ.id) })),
+        ...far.map(({ x }) => { const d0 = x.samples[0].ms, d1 = x.samples[x.samples.length - 1].ms + 600000; return { id: 3, ds: x.ds, d0, d1, alertAt: d0 - lead, minH: 1.5, minClear, good: null, appScheduled: false, body: '', tz: tzOff(d0, TZ.id) }; }),
+      ],
       txt: { title: tx('Stanotte sereno: {w}'), all: tx('sereno tutta la notte'), win: tx('sereno {a}–{b}'), pct: tx('{p}% del buio sereno'), open: tx('Schiarita prevista: {w}'), bad: tx('Cambio di programma: nuvole'), badBody: tx('Previsione aggiornata: solo il {p}% del buio è sereno.') },
     });
   }

@@ -167,10 +167,10 @@ input[type=checkbox] { width: 17px; height: 17px; }
 .nb:hover { border-color: var(--line-3); }
 .nb .wd { font-size: 11.5px; line-height: 1; text-transform: capitalize; color: var(--ink-3); }
 .nb .dd { font: 600 19px/1 var(--font-d); color: var(--ink); letter-spacing: .02em; }
-.nb .mo { height: 16px; display: grid; place-items: center; }
+.nb .mo { height: 16px; display: flex; align-items: center; justify-content: center; gap: 3px; }
 .nb .q { width: 34px; height: 4px; border-radius: 2px; background: var(--line-2); overflow: hidden; margin-top: 2px; }
 .nb .q b { display: block; height: 100%; border-radius: 2px; }
-.nb .wx { position: absolute; top: 5px; right: 5px; width: 13px; height: 13px; color: var(--ink-3); }
+.nb .wx { width: 12px; height: 12px; color: var(--ink-3); }
 .nightbar { position: sticky; }
 .nb-ind { position: absolute; left: 0; top: 0; border: 1px solid var(--accent); background: var(--accent-dim); border-radius: 14px; pointer-events: none; z-index: 1; will-change: transform; }
 .nb[aria-pressed="true"] { border-color: transparent; }

@@ -88,7 +88,10 @@ async function importProfiles() {
 /* ============================ calcolo ============================ */
 /* si consiglia solo con il materiale del profilo attivo: le sue ottiche, i loro accessori, la sua camera e i suoi filtri */
 function recompute(force) {
-  const a = active(), ds = $('#nightDate').value || defaultNightStr();
+  const a = active();
+  // orari e date nell'ora del luogo attivo; «stanotte» è la notte in corso lì
+  setDisplayTz(a.site); if (state.live) $('#nightDate').value = defaultNightStr();
+  const ds = $('#nightDate').value || defaultNightStr();
   const key = JSON.stringify(a) + ds;
   if (!force && key === state.computeKey && state.res) return false;
   state.computeKey = key;
@@ -334,7 +337,8 @@ function wire() {
   setPlayIcon();
   Dome.onPick((id) => openDetail(id));
   wireStrip(); wireEditor(); syncAdv();
-  setInterval(() => { if (state.live) { Dome.setTime(Date.now()); onTime(); } }, 1000);
+  const liveTick = () => { if (state.live && !document.hidden) { Dome.setTime(Date.now()); onTime(); } };
+  setInterval(liveTick, 15000); document.addEventListener('visibilitychange', liveTick); // l'ora si mostra al minuto: basta un passo ogni 15 s
   setInterval(() => { if (state.live && $('#nightDate').value !== defaultNightStr()) { $('#nightDate').value = defaultNightStr(); refresh(); } }, 300000);
 }
 
@@ -342,7 +346,11 @@ async function boot() {
   // prima si disegna la schermata d'avvio (l'intro parte), poi i calcoli
   await new Promise((r) => { requestAnimationFrame(() => setTimeout(r, 0)); setTimeout(r, 150); }); // (pagina nascosta: niente fotogrammi)
   Dome.init($('#dome'), $('#domeTip'));
-  if (DESK) { try { applyStore(await window.cielo.loadProfiles()); } catch (e) { applyStore(null); } }
+  if (DESK) {
+    let d = null; try { d = await window.cielo.loadProfiles(); } catch (e) { /* niente */ }
+    applyStore(d);
+    if (d && d.restored) setTimeout(() => toast(tx('Profili ripristinati dalla copia del {d}', { d: new Date(d.restored).toLocaleString(LOCALE, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) })), 2500);
+  }
   // fino alla 0.5.0 qui si rileggevano solo i profili: i luoghi si ricostruivano da quello attivo e gli altri si perdevano
   else applyStore(LS.get('sf.store', null) || { profiles: LS.get('sf.profiles', []), active: LS.get('sf.active', null), locations: LS.get('sf.locs', undefined), activeLoc: LS.get('sf.loc', null) });
   await restoreExtras(state.projects); // oggetti fuori lista salvati: prima del primo calcolo

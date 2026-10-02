@@ -13,7 +13,7 @@ const MODE_TXT = {
   dark: ['Solo senza Luna', 'Luna assente o sottile'],
 };
 const SC_DAYS_MIN = 14, SC_DAYS_MAX = 60;
-const endTxt = (cal) => (!cal ? '—' : cal.complete ? tx('già fatto') : !cal.done ? tx('oltre un anno') : dateStr(new Date(cal.done)) === defaultNightStr() ? tx('stanotte') : tx('fino al {d}', { d: fmtDay(cal.done) }));
+const endTxt = (cal) => (!cal ? '—' : cal.complete ? tx('già fatto') : !cal.done ? tx('oltre un anno') : dsOf(cal.done) === defaultNightStr() ? tx('stanotte') : tx('fino al {d}', { d: fmtDay(cal.done) }));
 const nightsTxt2 = (cal) => (!cal || cal.complete ? '' : cal.done ? nNights(cal.sessions) : tx('{p}% in un anno', { p: Math.round(cal.prog * 100) }));
 /* la striscia dei giorni: ogni notte usata è piena quanto il lavoro che fa; nuvole, Luna e "non si vede" hanno il loro segno */
 function dayStrip(cal, D) {
@@ -35,9 +35,9 @@ function dayStrip(cal, D) {
 function dayAxis(C, D) {
   let moon = '', lab = ''; const stp = D > 45 ? 14 : 7;
   for (let k = 0; k < D; k++) {
-    const nk = aheadNight(C, k), d = new Date(nk.t0);
+    const nk = aheadNight(C, k), d = wall(nk.t0);
     moon += `<i style="opacity:${(0.12 + 0.88 * nk.moon).toFixed(2)}" title="${tx('Luna {p}%', { p: Math.round(nk.moon * 100) })}"></i>`;
-    lab += `<span>${k === 0 ? tx('oggi') : k % stp === 0 ? d.getDate() + ' ' + d.toLocaleDateString(LOCALE, { month: 'short' }).replace('.', '') : ''}</span>`;
+    lab += `<span>${k === 0 ? tx('oggi') : k % stp === 0 ? d.getUTCDate() + ' ' + d.toLocaleDateString(LOCALE, { timeZone: 'UTC', month: 'short' }).replace('.', '') : ''}</span>`;
   }
   return `<div class="sc-ax"><span class="sc-tl moon" style="--d:${D}">${moon}</span><span class="sc-tl lab" style="--d:${D}">${lab}</span></div>`;
 }
@@ -108,17 +108,17 @@ function wireScen(r) {
 function targetCalHTML(r, e) {
   if (!e.best) return '';
   const C = state.res.C, mode = moonMode(), cal = shootCalendar(C, r, e, false, mode), darkOnly = mode === 'dark';
-  const t00 = aheadNight(C, 0).t0, lead = (new Date(t00).getDay() + 6) % 7, byK = new Map(cal.nights.map((x) => [x.k, x]));
+  const t00 = aheadNight(C, 0).t0, lead = (wall(t00).getUTCDay() + 6) % 7, byK = new Map(cal.nights.map((x) => [x.k, x]));
   const lastK = cal.done != null ? (cal.nights.find((x) => x.t0 === cal.done) || {}).k : -1, sel = $('#nightDate').value || defaultNightStr();
   const head = [...Array(7)].map((_, i) => `<span class="h">${new Date(2024, 0, 1 + i).toLocaleDateString(LOCALE, { weekday: 'short' }).replace('.', '')}</span>`).join('');
   let cells = '<span></span>'.repeat(lead);
   for (let k = 0; k < 42 - lead; k++) {
-    const x = nightRec(C, r, e, k, darkOnly), u = byK.get(k), d = new Date(x.t0), mi = moonIllum(jd(x.t0 + 11 * 3600e3)), ds = dateStr(d);
+    const x = nightRec(C, r, e, k, darkOnly), u = byK.get(k), d = wall(x.t0), mi = moonIllum(jd(x.t0 + 11 * 3600e3)), ds = dsOf(x.t0);
     let cls = x.hGeo < CAL_MIN_H ? 'no' : x.h < CAL_MIN_H ? 'cloud' : 'ok', f = 0;
     if (u && u.use && !u.deepOnly) { cls = 'use'; f = clamp((u.frac || 0) * 2.5, 0, 1); } else if (u && !u.use && x.h >= CAL_MIN_H) cls = 'skip';
-    const tip = [d.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' }), x.hGeo >= CAL_MIN_H ? tx('{d} utili', { d: fmtDur(x.h) }) : tx('non visibile con il buio'), tx('Luna {p}%', { p: Math.round(x.moon * 100) }), x.clear != null ? tx('meteo: {p}% sereno', { p: Math.round(x.clear * 100) }) : '', cls === 'use' ? tx('raccoglie il {p}% dell’integrazione', { p: Math.max(1, Math.round((u.frac || 0) * 100)) }) : cls === 'skip' ? tx('esclusa: rendimento troppo basso') : ''].filter(Boolean).join(' · ');
+    const tip = [d.toLocaleDateString(LOCALE, { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' }), x.hGeo >= CAL_MIN_H ? tx('{d} utili', { d: fmtDur(x.h) }) : tx('non visibile con il buio'), tx('Luna {p}%', { p: Math.round(x.moon * 100) }), x.clear != null ? tx('meteo: {p}% sereno', { p: Math.round(x.clear * 100) }) : '', cls === 'use' ? tx('raccoglie il {p}% dell’integrazione', { p: Math.max(1, Math.round((u.frac || 0) * 100)) }) : cls === 'skip' ? tx('esclusa: rendimento troppo basso') : ''].filter(Boolean).join(' · ');
     cells += `<button type="button" style="--k:${k + lead}" class="tc ${cls}${k === lastK ? ' end' : ''}${ds === sel ? ' sel' : ''}${k === 0 && ds === defaultNightStr() ? ' today' : ''}" data-t0="${x.t0}" style="--f:${(0.25 + 0.75 * f).toFixed(2)}" title="${esc(tip)}" aria-label="${esc(tip)}">
-      <span class="d">${d.getDate()}${d.getDate() === 1 || k === 0 ? `<small>${d.toLocaleDateString(LOCALE, { month: 'short' }).replace('.', '')}</small>` : ''}</span><span class="mo">${moonSvg(mi.k, mi.waxing, 5)}</span>
+      <span class="d">${d.getUTCDate()}${d.getUTCDate() === 1 || k === 0 ? `<small>${d.toLocaleDateString(LOCALE, { timeZone: 'UTC', month: 'short' }).replace('.', '')}</small>` : ''}</span><span class="mo">${moonSvg(mi.k, mi.waxing, 5)}</span>
       <span class="hh">${x.hGeo < CAL_MIN_H ? '—' : cls === 'cloud' ? ic('cloud') : fmtH(x.h)}</span>${k === lastK ? `<span class="ok">${ic('check')}</span>` : ''}</button>`;
   }
   const seg = `<div class="seg" role="radiogroup">${MOON_MODES.map((m) => `<button type="button" data-mode="${m}" aria-pressed="${m === mode}">${tx(MODE_TXT[m][0])}</button>`).join('')}</div>`;
@@ -131,7 +131,7 @@ function calSay(cal) {
   if (cal.complete) return tx('Completato: l’integrazione stimata è stata raccolta.');
   let t = cal.start > 0 ? tx('Già fatto: {p}%.', { p: Math.round(cal.start * 100) }) + ' ' : '';
   if (!cal.done) t += tx('In un anno: {p}% dell’integrazione. Richiede più stagioni.', { p: Math.round(cal.prog * 100) });
-  else t += tx('<b>{h}</b> in <b>{n}</b>: fine prevista <b>{d}</b>.', { h: fmtH(cal.hours), n: nNights(cal.sessions), d: dateStr(new Date(cal.done)) === defaultNightStr() ? tx('stanotte') : fmtDayLong(cal.done) });
+  else t += tx('<b>{h}</b> in <b>{n}</b>: fine prevista <b>{d}</b>.', { h: fmtH(cal.hours), n: nNights(cal.sessions), d: dsOf(cal.done) === defaultNightStr() ? tx('stanotte') : fmtDayLong(cal.done) });
   if (cal.cloudy) t += ' ' + tx('Salto {n}: nuvole.', { n: nNights(cal.cloudy) });
   if (cal.skipped) t += ' ' + tx('Escluse {n}: Luna troppo luminosa.', { n: nNights(cal.skipped) });
   return t;

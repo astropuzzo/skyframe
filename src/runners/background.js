@@ -1,8 +1,8 @@
 /* Skyframe, avvisi in background (Android, plugin Background Runner).
    Gira da solo circa ogni 15-30 minuti ad app chiusa (quando lo decide il sistema), in un motore JavaScript senza pagina.
-   L'app, ogni volta che si apre o aggiorna il meteo, gli passa le notti di stasera e domani già calcolate (finestra di
-   buio, soglia, piano, testi nella lingua dell'app): qui si riscaricano solo le nuvole (Open-Meteo, miglior modello) e si
-   decide se avvisare:
+   L'app, ogni volta che si apre o aggiorna il meteo, gli passa le notti del mese che viene (stasera e domani già
+   calcolate con finestra di buio, soglia e piano; le altre con il solo buio senza Luna) e i testi nella lingua dell'app:
+   qui si riscaricano solo le nuvole (Open-Meteo, miglior modello) e si decide se avvisare:
    - «Stasera si scatta» poco prima del buio, se il sereno previsto basta (e l'app non l'ha già programmato lei);
    - «Si apre» se una notte prevista coperta diventa buona;
    - «Cambio di programma» se dopo l'avviso le nuvole tornano.
@@ -43,11 +43,11 @@ async function check(force) {
     const j = await r.json(), h = j && j.hourly; if (!h || !h.time) return 'meteo assente';
     const w = span(h, Math.max(now, n.d0), n.d1); if (!w) return 'meteo fuori finestra';
     const good = w.h >= n.minH && w.clear >= n.minClear;
-    const when = w.clear >= 0.85 ? T.all : w.win ? fill(T.win, { a: hhmm(w.win[0], cfg.tz), b: hhmm(w.win[1], cfg.tz) }) : fill(T.pct, { p: Math.round(w.clear * 100) });
+    const when = w.clear >= 0.85 ? T.all : w.win ? fill(T.win, { a: hhmm(w.win[0], n.tz != null ? n.tz : cfg.tz), b: hhmm(w.win[1], n.tz != null ? n.tz : cfg.tz) }) : fill(T.pct, { p: Math.round(w.clear * 100) });
     let out = 'niente da dire';
     if (good && cfg.evening && !n.appScheduled && !sent[k + 'e'] && now >= n.alertAt - 20 * 60000 && now < n.d0 + 90 * 60000) {
       send(n.id, fill(T.title, { w: when }), n.body || ''); sent[k + 'e'] = now; out = 'sera';
-    } else if (good && cfg.change && !n.good && !sent[k + 'e'] && !sent[k + 'o'] && now > n.d0 - 6 * 3600e3 && now < n.d1 - 2 * 3600e3) {
+    } else if (good && cfg.change && n.good === false && !sent[k + 'e'] && !sent[k + 'o'] && now > n.d0 - 6 * 3600e3 && now < n.d1 - 2 * 3600e3) {
       send(n.id + 40, fill(T.open, { w: when }), n.body || ''); sent[k + 'o'] = now; sent[k + 'e'] = now; out = 'si apre';
     } else if (!good && cfg.change && (sent[k + 'e'] || (n.appScheduled && now > n.alertAt)) && !sent[k + 'b'] && now < n.d1 - 2 * 3600e3) {
       send(n.id + 50, T.bad, fill(T.badBody, { p: Math.round(w.clear * 100) })); sent[k + 'b'] = now; out = 'cambio';

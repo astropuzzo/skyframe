@@ -158,8 +158,8 @@ function renderTopbar() {
   const l = activeLoc(), p = activeProfile();
   $('#locName').textContent = exName(l.site.name, l.unsaved);
   $('#profName').textContent = exName(p.name, p.unsaved);
-  const ds = $('#nightDate').value || defaultNightStr(), d = new Date(ds + 'T12:00:00');
-  $('#nightName').textContent = ds === defaultNightStr() ? tx('Stanotte') : d.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' });
+  const ds = $('#nightDate').value || defaultNightStr(), d = new Date(ds + 'T12:00:00Z');
+  $('#nightName').textContent = ds === defaultNightStr() ? tx('Stanotte') : d.toLocaleDateString(LOCALE, { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' });
   $('#nightChip').classList.toggle('other', ds !== defaultNightStr());
 }
 const exName = (n, ex) => (ex && !/\(esempio\)|\(example\)/i.test(n) ? `${n} (${tx('esempio')})` : n);
@@ -202,7 +202,7 @@ function openNightSheet() {
     const head = [...Array(7)].map((_, i) => `<span class="h">${new Date(2024, 0, 1 + i).toLocaleDateString(LOCALE, { weekday: 'short' }).replace('.', '')}</span>`).join('');
     let cells = '<span></span>'.repeat(first);
     for (let d = 1; d <= n; d++) {
-      const t = new Date(y, m, d, 23, 0).getTime(), mi = moonIllum(jd(t)), ds = dateStr(new Date(y, m, d));
+      const t = wallMs(y, m, d, 23), mi = moonIllum(jd(t)), ds = dateStr(new Date(y, m, d));
       cells += `<button type="button" data-ds="${ds}" aria-pressed="${ds === sel}" class="${ds === today ? 'today' : ''}" title="${tx('Luna {p}%', { p: Math.round(mi.k * 100) })}">${d}<span class="mo">${moonSvg(mi.k, mi.waxing, 5)}</span></button>`;
     }
     return `<div class="cal-nav"><button type="button" class="icon-btn" data-m="-1" aria-label="${tx('Mese prima')}">${ic('chev-l')}</button><b>${m0.toLocaleDateString(LOCALE, { month: 'long', year: 'numeric' })}</b><button type="button" class="icon-btn" data-m="1" aria-label="${tx('Mese dopo')}">${ic('chev-r')}</button></div><div class="cal-pick">${head}${cells}</div>`;
@@ -212,7 +212,7 @@ function openNightSheet() {
     foot: `<button type="button" class="btn primary" data-today>${ic('night')}<span>${tx('Stanotte')}</span></button>`,
     onMount: (el, close) => el.addEventListener('click', (e) => {
       const mb = e.target.closest('[data-m]'); if (mb) { m0 = new Date(m0.getFullYear(), m0.getMonth() + +mb.dataset.m, 1, 12); el.querySelector('#calBox').innerHTML = days(); return; }
-      const b = e.target.closest('[data-ds]'); if (b) { close(); goNight(new Date(b.dataset.ds + 'T12:00:00').getTime()); return; }
+      const b = e.target.closest('[data-ds]'); if (b) { close(); goNight(b.dataset.ds); return; }
       if (e.target.closest('[data-today]')) { close(); setLive(); }
     }),
   });

@@ -5,7 +5,7 @@ const src = (f) => path.join(__dirname, '..', 'src', f);
 global.window = {};
 ['data/filters.js', 'data/dso.js', 'data/sky.js', 'data/quality.js', 'data/real.js'].forEach((f) => require(src(f)));
 // lingua fissa per il controllo: frasi italiane con i segnaposto riempiti
-const I18N_STUB = "const LANG = 'it', LOCALE = 'it-IT', txName = (n) => n, tx = (s, p) => (p ? s.replace(/[{](\w+)[}]/g, (m, k) => (k in p ? p[k] : m)) : s);";
+const I18N_STUB = "const LANG = 'it', LOCALE = 'it-IT', txName = (n) => n, tx = (s, p) => (p ? s.replace(/[{](\\w+)[}]/g, (m, k) => (k in p ? p[k] : m)) : s);";
 vm.runInThisContext(I18N_STUB + ';' + fs.readFileSync(src('js/astro.js'), 'utf8') + '\n' + fs.readFileSync(src('js/model.js'), 'utf8') +
   '\n;globalThis.__m={templateProfile,profileConfigs,computeAll,planOf,shootCalendar};');
 const M = globalThis.__m;

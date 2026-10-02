@@ -86,20 +86,20 @@ function seasonHTML(P) {
 const PM = { m: 0 };
 function monthHTML(P) {
   if (!P || !P.targets.length) return '';
-  const C = state.res.C, t00 = aheadNight(C, 0).t0, lead = (new Date(t00).getDay() + 6) % 7, byId = new Map(P.targets.map((t) => [t.id, t]));
+  const C = state.res.C, t00 = aheadNight(C, 0).t0, w00 = wall(t00), lead = (w00.getUTCDay() + 6) % 7, byId = new Map(P.targets.map((t) => [t.id, t]));
   const k0 = PM.m * 35 - lead, pages = Math.ceil((P.D + lead) / 35);
   const head = [...Array(7)].map((_, i) => `<span class="h">${new Date(2024, 0, 1 + i).toLocaleDateString(LOCALE, { weekday: 'short' }).replace('.', '')}</span>`).join('');
   const L = activeLoc().site, sL = Math.sin(L.lat * D2R), cL = Math.cos(L.lat * D2R);
   let cells = '';
   for (let k = k0; k < k0 + 35; k++) {
-    const t0 = new Date(new Date(t00).getFullYear(), new Date(t00).getMonth(), new Date(t00).getDate() + k, 12).getTime(), d = new Date(t0), mi = moonIllum(jd(t0 + 11 * 3600e3)), n = k >= 0 && k < P.D ? P.nights[k] : null;
+    const t0 = wallMs(w00.getUTCFullYear(), w00.getUTCMonth(), w00.getUTCDate() + k, 12), d = wall(t0), mi = moonIllum(jd(t0 + 11 * 3600e3)), n = k >= 0 && k < P.D ? P.nights[k] : null;
     const al = n ? n.alloc : [];
     const w = n && k < 8 ? wxSpan([...Array(12)].map((_, i) => t0 + (7 + i) * 3600e3).filter((t) => { const s2 = sunPos(jd(t)); return altaz(s2.ra, s2.dec, lstDeg(t, +L.lon), sL, cL)[0] < -18; }), 60) : null;
     const ths = al.slice(0, 3).map((a) => tThumb(byId.get(a.id).r.o, 20)).join('') + (al.length > 3 ? `<span class="more">+${al.length - 3}</span>` : '');
-    const tip = [d.toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' }), tx('Luna {p}%', { p: Math.round(mi.k * 100) }), w ? tx('{p}% sereno', { p: Math.round(w.clear * 100) }) : '', ...al.map((a) => `${a.id} ${fmtH(a.a)}${a.fin ? ' ✓' : ''}`)].filter(Boolean).join(' · ');
-    const lab = d.getDate() === 1 || k === k0 || k === 0 ? `<small>${d.toLocaleDateString(LOCALE, { month: 'short' }).replace('.', '')}</small>` : '';
+    const tip = [d.toLocaleDateString(LOCALE, { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' }), tx('Luna {p}%', { p: Math.round(mi.k * 100) }), w ? tx('{p}% sereno', { p: Math.round(w.clear * 100) }) : '', ...al.map((a) => `${a.id} ${fmtH(a.a)}${a.fin ? ' ✓' : ''}`)].filter(Boolean).join(' · ');
+    const lab = d.getUTCDate() === 1 || k === k0 || k === 0 ? `<small>${d.toLocaleDateString(LOCALE, { timeZone: 'UTC', month: 'short' }).replace('.', '')}</small>` : '';
     cells += `<button type="button" style="--k:${k - k0}" class="pm${k < 0 ? ' past' : ''}${al.length > 1 ? ' multi' : ''}${k === 0 ? ' today' : ''}" data-k="${k}" ${k < 0 || k >= P.D ? 'disabled' : ''} title="${esc(tip)}" aria-label="${esc(tip)}">
-      <span class="d">${d.getDate()}${lab}<span class="mo">${moonSvg(mi.k, mi.waxing, 5)}</span>${w && w.clear < 0.4 ? ic('cloud', 'wx') : ''}</span><span class="th">${ths}</span></button>`;
+      <span class="d">${d.getUTCDate()}${lab}<span class="mo">${moonSvg(mi.k, mi.waxing, 5)}</span>${w && w.clear < 0.4 ? ic('cloud', 'wx') : ''}</span><span class="th">${ths}</span></button>`;
   }
   const a = new Date(t00 + k0 * 864e5), b = new Date(t00 + (k0 + 34) * 864e5), rng = `${fmtDay(a)} – ${fmtDay(b)}`;
   return `<div class="card month-card"><div class="card-h"><h3>${tx('Calendario')}</h3><span class="acts"><button type="button" class="icon-btn" data-pm="-1" ${PM.m <= 0 ? 'disabled' : ''} aria-label="${tx('Settimane prima')}">${ic('chev-l')}</button><b class="pm-name">${rng}</b><button type="button" class="icon-btn" data-pm="1" ${PM.m >= pages - 1 ? 'disabled' : ''} aria-label="${tx('Settimane dopo')}">${ic('chev-r')}</button></span></div>
@@ -108,7 +108,7 @@ function monthHTML(P) {
 }
 function openSeasonNight(P, k) {
   const n = P.nights[k]; if (!n) return; const C = state.res.C, t0 = n.t0, byId = new Map(P.targets.map((t) => [t.id, t]));
-  const d = new Date(t0).toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
+  const d = fmtNight(t0, { weekday: 'long', day: 'numeric', month: 'long' });
   const rows = n.alloc.length ? n.alloc.map((a) => { const t = byId.get(a.id); return `<button type="button" class="st-item" data-id="${esc(a.id)}">${tThumb(t.r.o, 36)}<span class="tx"><b>${esc(a.id)}</b><small>${esc(t.r.o.nick || tx(TYPES[t.r.o.type]))} · ${tx('raccoglie il {p}% dell’integrazione', { p: Math.max(1, Math.round(a.f * 100)) })}${a.fin ? ' · ' + tx('ultima notte') : ''}</small></span><b class="num">${fmtH(a.a)}</b></button>`; }).join('') : `<div class="st-item"><span class="tx"><small>${tx('Stanotte nessun progetto.')}</small></span></div>`;
   openSheet({
     title: d.charAt(0).toUpperCase() + d.slice(1), body: `<p class="st-foot" style="margin:0 4px 10px">${tx('{h} di buio sereno', { h: fmtDur(n.cap) })} · ${tx('Luna {p}%', { p: Math.round(aheadNight(C, k).moon * 100) })}</p><div class="st-list">${rows}</div>`,
@@ -129,8 +129,8 @@ function fillYear(list) {
   const box = $('#yearBox'); if (!box) return;
   const p = active(), lut = state.res.lut, key = [JSON.stringify(p.site), p.session.sunThr, p.session.minAlt, JSON.stringify(p.horizon), defaultNightStr(), ...list.map((r) => r.o.id)].join('|');
   const draw = () => {
-    const now = new Date(), w0 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12).getTime(), W = 52;
-    let months = ''; for (let w = 0; w < W; w++) { const d = new Date(w0 + w * 7 * 864e5), prev = new Date(w0 + (w - 1) * 7 * 864e5), nx = new Date(w0 + (w + 2) * 7 * 864e5); months += `<span>${(w === 0 && nx.getMonth() === d.getMonth()) || (w > 0 && d.getMonth() !== prev.getMonth()) ? d.toLocaleDateString(LOCALE, { month: 'short' }).replace('.', '') : ''}</span>`; }
+    const now = wall(Date.now()), w0 = wallMs(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12), W = 52;
+    let months = ''; for (let w = 0; w < W; w++) { const d = wall(w0 + w * 7 * 864e5), prev = wall(w0 + (w - 1) * 7 * 864e5), nx = wall(w0 + (w + 2) * 7 * 864e5); months += `<span>${(w === 0 && nx.getUTCMonth() === d.getUTCMonth()) || (w > 0 && d.getUTCMonth() !== prev.getUTCMonth()) ? d.toLocaleDateString(LOCALE, { timeZone: 'UTC', month: 'short' }).replace('.', '') : ''}</span>`; }
     let moons = ''; for (let w = 0; w < W; w++) { let lo = 1; for (let i = 0; i < 7; i++) lo = Math.min(lo, moonIllum(jd(w0 + (w * 7 + i) * 864e5 + 11 * 3600e3)).k); moons += `<i class="${lo < 0.05 ? 'nm' : ''}"></i>`; }
     // ogni riga sul suo massimo: il periodo migliore di ciascun target si vede subito (le ore vere sono nel suggerimento)
     const rows = YR.rows.map((r) => { const mx = Math.max(1, ...r.h); return `<button type="button" class="yr-row" data-id="${esc(r.id)}"><span class="yr-n">${tThumb(r.o, 20)}<b>${esc(r.id)}</b></span><span class="yr-c" style="--w:${W}">${r.h.map((h, w) => `<i style="--a:${Math.pow(h / mx, 1.8).toFixed(2)}" title="${esc(tx('settimana del {d}: {h} di buio', { d: fmtDay(w0 + w * 7 * 864e5), h: fmtDur(h) }))}"></i>`).join('')}</span></button>`; }).join('');
@@ -138,7 +138,7 @@ function fillYear(list) {
   };
   if (YR.key === key && YR.rows) { draw(); return; }
   const job = ++YR.job, rows = list.map((r) => ({ id: r.o.id, o: r.o, h: [] })); let i = 0, w = 0;
-  const now = new Date(), w0 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12).getTime();
+  const now = wall(Date.now()), w0 = wallMs(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12);
   const step = () => {
     if (job !== YR.job) return; const t0 = performance.now();
     while (i < rows.length && performance.now() - t0 < 12) { rows[i].h.push(nightHoursFor(rows[i].o, p, lut, w0 + (w * 7 + 3) * 864e5)); if (++w >= 52) { w = 0; i++; } }
