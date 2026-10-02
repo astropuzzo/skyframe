@@ -48,6 +48,7 @@ const TOUR_STEPS = [
 ];
 /* novità per versione (le più recenti in cima) */
 const NEWS = [
+  { v: '0.29.0', items: ['Luce della Luna con il modello di Krisciunas & Schaefer (1991): tempi con la Luna più realistici', 'Nuvole ECMWF a 9 km invece di 25 km'] },
   { v: '0.28.0', items: ['Nessun blocco cambiando notte, luogo o profilo, anche sui telefoni lenti'] },
   { v: '0.27.0', items: ['Computer: Electron 44, calcolo della notte più rapido'] },
   { v: '0.26.0', items: ['Notti, orari e date nell’ora del luogo, anche lontano da casa', 'Android: avvisi delle notti serene per un mese anche senza aprire l’app', 'Cupola: nomi dei target senza sovrapposizioni, meno consumo di batteria', 'Computer: copie di sicurezza dei profili e ripristino se il file si rovina', 'Meteo dei luoghi recenti in memoria; guida e suggerimenti più brevi'] },

@@ -60,7 +60,7 @@ Stessi casi nella notte più illuminata del mese, con cielo SQM 19,3 (città) e 
 | --- | --- | --- | --- | --- | --- | --- |
 `;
   for (const [cam, name, fl] of [['osc', 'colori, UV/IR + L-eXtreme', ['uvir', 'lextreme']], ['mono', 'mono, LRGB + Hα/OIII/SII 3 nm', ['L', 'R', 'G', 'B', 'opt3-Ha', 'opt3-OIII', 'opt3-SII']]])
-    for (const sqm of [19.3, 21.3]) for (const [id] of OBJ) { const a = runMoon(NEW, cam, fl, sqm, id); if (a) out += `| ${name} | ${String(sqm).replace('.', ',')} | ${id} | ${Math.round(a.ill * 100)}%, ${Math.round(a.sep)}° | ${a.dark} | ${a.same} | ${a.moon} |\n`; }
+    for (const sqm of [19.3, 21.3]) for (const [id] of OBJ) { const a = runMoon(NEW, cam, fl, sqm, id), b = OLD ? runMoon(OLD, cam, fl, sqm, id) : null; if (a) out += `| ${name} | ${String(sqm).replace('.', ',')} | ${id} | ${Math.round(a.ill * 100)}%, ${Math.round(a.sep)}° | ${a.dark} | ${a.same}${b ? ` (${b.same})` : ''} | ${a.moon}${b ? ` (${b.moon})` : ''} |\n`; }
 }
 // confronto con le foto, ognuna con la SUA attrezzatura e il SUO cielo (scripts/calibrate.cjs, CAL_DUMP): rapporto ore vere / modello
 if (process.env.CASES_CAL) {

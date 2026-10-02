@@ -58,7 +58,7 @@ function skyGrid(x) {
   return `<div class="hg" style="--n:${H.length}"><div class="hr head"><span class="rl"></span>${hh}</div>${rows}</div>`;
 }
 /* i modelli uno sopra l'altro: una riga per modello, ora per ora */
-const MODEL_COL = { italia_meteo_arpae_icon_2i: '#4CCFBC', icon_d2: '#7FA8F0', meteofrance_seamless: '#B58CF0', ecmwf_ifs025: '#E6AA45', icon_seamless: '#5ACD8B', ukmo_seamless: '#E88A6E', gfs_seamless: '#C3CCDC', ens: '#F0D264' };
+const MODEL_COL = { italia_meteo_arpae_icon_2i: '#4CCFBC', icon_d2: '#7FA8F0', meteofrance_seamless: '#B58CF0', ecmwf_ifs: '#E6AA45', icon_seamless: '#5ACD8B', ukmo_seamless: '#E88A6E', gfs_seamless: '#C3CCDC', ens: '#F0D264' };
 function skyModels(x) {
   const d = WX.d, H = nightHours(x).filter((h) => h.dark); if (!H.length) return '';
   const names = Object.fromEntries([...WX_MODELS, WX_ENS].map((m) => [m[0], m[1]]));

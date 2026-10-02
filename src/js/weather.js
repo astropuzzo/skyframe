@@ -2,7 +2,7 @@
 /* ============================ meteo astronomico ============================
    Cinque fonti, tutte da Open-Meteo (dati liberi, CC BY 4.0), per il luogo attivo, tenute 90 minuti:
    1) nuvole basse, medie e alte da sette modelli: ItaliaMeteo ICON-2I (2 km, Italia), DWD ICON-D2 (2 km, Europa
-      centrale), Météo-France AROME/ARPEGE, ECMWF IFS, DWD ICON, UK Met Office, NOAA GFS (quelli regionali solo dove
+      centrale), Météo-France AROME/ARPEGE, ECMWF IFS (9 km), DWD ICON, UK Met Office, NOAA GFS (quelli regionali solo dove
       coprono). Ogni modello dà una frazione di cielo sgombro (1 fino al 15% di nubi, 0 dal 75%; le alte, sottili,
       pesano il 60%); si usa la media pesata (più peso all'alta risoluzione) e la distanza fra il modello più ottimista e
       il più pessimista dice quanto sono d'accordo;
@@ -15,8 +15,8 @@
    Fuori dalle previsioni i valori sono null e i calcoli assumono sereno. */
 const WX = { d: null, busy: false, err: false, other: new Map() };
 const wxKey = (s) => `${(+s.lat).toFixed(2)},${(+s.lon).toFixed(2)}`;
-const WX_TTL = 90 * 60e3, WX_LS = 'sf.wx4';
-try { localStorage.removeItem('sf.wx2'); localStorage.removeItem('sf.wx3'); } catch { /* niente */ } // formati della 0.6 e della 0.25 (un luogo solo)
+const WX_TTL = 90 * 60e3, WX_LS = 'sf.wx5';
+try { ['sf.wx2', 'sf.wx3', 'sf.wx4'].forEach((k) => localStorage.removeItem(k)); } catch { /* niente */ } // formati precedenti (0.6, 0.25, 0.26: ECMWF a 0,25°)
 /* meteo completo degli ultimi quattro luoghi usati: cambiando luogo non si riscarica tutto */
 const wxCache = () => { const c = LS.get(WX_LS, {}); return c && typeof c === 'object' && !Array.isArray(c) ? c : {}; };
 function wxCachePut(d) {
@@ -28,7 +28,7 @@ const clearTot = (cc) => clamp((75 - cc) / 60, 0, 1);
 /* modelli per le nuvole: id Open-Meteo, nome, peso nella media */
 const WX_MODELS = [
   ['italia_meteo_arpae_icon_2i', 'ItaliaMeteo ICON-2I', 1.6], ['icon_d2', 'DWD ICON-D2', 1.5], ['meteofrance_seamless', 'Météo-France', 1.2],
-  ['ecmwf_ifs025', 'ECMWF IFS', 1.3], ['icon_seamless', 'DWD ICON', 1.1], ['ukmo_seamless', 'UK Met Office', 1.0], ['gfs_seamless', 'NOAA GFS', 0.8],
+  ['ecmwf_ifs', 'ECMWF IFS', 1.3], ['icon_seamless', 'DWD ICON', 1.1], ['ukmo_seamless', 'UK Met Office', 1.0], ['gfs_seamless', 'NOAA GFS', 0.8],
 ];
 const WX_ENS = ['ens', 'ECMWF ensemble', 1.0];
 const WX_PL = [1000, 975, 950, 925, 900, 850, 800, 750, 700, 650, 600, 550, 500, 450, 400, 350, 300, 275, 250, 225, 200, 175, 150, 125, 100];
@@ -72,6 +72,7 @@ async function loadWeather(force) {
     const [A, B, C, E, Q] = await Promise.allSettled([
       wxGet(`https://api.open-meteo.com/v1/forecast?${wxQ(s, 8)}&hourly=${cc}&models=${WX_MODELS.map((m) => m[0]).join(',')}`),
       wxGet(`https://api.open-meteo.com/v1/forecast?${wxQ(s, 8, 'auto')}&hourly=temperature_2m,dew_point_2m,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,precipitation_probability`),
+      // livelli di pressione: ECMWF a 9 km non li ha su Open-Meteo, si resta a 0,25°
       wxGet(`https://api.open-meteo.com/v1/forecast?${wxQ(s, 3)}&hourly=${plv}&models=gfs_seamless,ecmwf_ifs025&wind_speed_unit=ms`),
       wxGet(`https://ensemble-api.open-meteo.com/v1/ensemble?${wxQ(s, 8)}&hourly=cloud_cover&models=ecmwf_ifs025`),
       wxGet(`https://air-quality-api.open-meteo.com/v1/air-quality?${wxQ(s, 5)}&hourly=aerosol_optical_depth,dust`),

@@ -542,7 +542,7 @@ function computeNight(p, ds, withMoon = true) {
   return {
     t0, t, lst, sun, mAlt, mAz, mIll, mV, dark, darkAll, sL, cL, thr, w0, w1, sunset: idxT(sunset), sunrise: idxT(sunrise),
     darkH: dc * STEP / 60, moonUpFrac: dc ? mUp / dc : 0, moonIll: mIll[mid], waxing, mRise: idxT(cross(mAlt, 0, false)), mSet: idxT(cross(mAlt, 0, true)),
-    first, last, ds, tz, J: jd(t0 + N / 2 * DT),
+    first, last, ds, tz, J: jd(t0 + N / 2 * DT), kV: extV(p.site),
   };
 }
 
@@ -607,7 +607,7 @@ function skyModel(site) {
 }
 
 /* ============================ calcolo target ============================ */
-const F0 = 1000, MOON0 = Math.pow(10, -0.4 * 17.8);
+const F0 = 1000;
 /* Qualità = SNR per elemento di risoluzione sulla parte principale dell'oggetto e sulle sue parti deboli.
    Prima taratura sulle foto reali (README, «Taratura»; scripts/calibrate.cjs): 190 foto su AstroBin di 23 oggetti, con
    strumento, filtri, cielo e integrazione dichiarati; il modello rifà i conti con la loro attrezzatura e si confronta
@@ -704,11 +704,20 @@ function subLimits(f, fr) {
   if (f.kind === 'multi') return fr < 3 ? [120, 300] : [180, 300]; // foto vere: 300 s quasi sempre
   return fr < 3 ? [30, 120] : [120, 300];
 }
-const moonFlux = (night, i, v) => {
+/* Luce della Luna diffusa dal cielo nella direzione del target (Krisciunas & Schaefer 1991, PASP 103, 1033): luce della
+   Luna per angolo di fase, diffusione Rayleigh e Mie con la distanza dalla Luna, estinzione verso la Luna, spessore d'aria
+   verso il target. B in nanoLambert; nel flusso del modello 10^(−0,4·V) = B / (34,08·e^20,7233). Coefficiente di
+   estinzione in V dalla quota del luogo (Rayleigh ridotto con la pressione, più gli aerosol): 0,20 al mare, 0,15 a 4000 m. */
+const KS_NL = 34.08 * Math.exp(20.7233), ksX = (alt) => 1 / Math.sqrt(1 - 0.96 * Math.cos(alt * D2R) ** 2);
+const extV = (site) => 0.13 * Math.exp(-(+site.elev || 0) / 8000) + 0.07;
+function moonFlux(night, i, v, alt) {
   if (night.mAlt[i] <= 0) return [0, 180];
   const mv = night.mV[i], sp = Math.acos(clamp(mv[0] * v[0] + mv[1] * v[1] + mv[2] * v[2], -1, 1)) * R2D;
-  return [MOON0 * Math.pow(night.mIll[i], 3.3) * (0.8 + 3 * Math.exp(-sp / 18)) * clamp(Math.sin(night.mAlt[i] * D2R) * 1.6, 0, 1), sp];
-};
+  const ph = Math.acos(clamp(2 * night.mIll[i] - 1, -1, 1)) * R2D, I = Math.pow(10, -0.4 * (3.84 + 0.026 * ph + 4e-9 * ph ** 4));
+  const f = 229086.8 * (1.06 + Math.cos(sp * D2R) ** 2) + Math.pow(10, 6.15 - sp / 40), k = night.kV;
+  const B = f * I * Math.pow(10, -0.4 * k * ksX(night.mAlt[i])) * (1 - Math.pow(10, -0.4 * k * ksX(Math.max(alt, 0))));
+  return [B / KS_NL, sp];
+}
 /* campo da inquadrare: oggetto più le polveri/nebulosità deboli che lo circondano */
 /* Estensione reale di oggetto + contesto: punti delle ellissi (il contesto all'85%, i bordi sono i più deboli),
    asse principale dalla loro distribuzione, lunghezze lungo e attraverso quell'asse. */
@@ -995,7 +1004,7 @@ function computeObj(C, o) {
     if (night.dark[i] && a >= minAlt && a < b && first < 0 && riseBlocked < 0) riseBlocked = i;
     if (night.dark[i] && a >= b) {
       use[i] = 1; if (first < 0) first = i; last = i;
-      const [mf, sp] = moonFlux(night, i, v); if (mf > 0 && sp < minSep) minSep = sp;
+      const [mf, sp] = moonFlux(night, i, v, a); if (mf > 0 && sp < minSep) minSep = sp;
       U.X[U.n] = airmass(a); U.art[U.n] = sky.art(a, z); U.nat[U.n] = sky.nat(a); U.mf[U.n] = mf; U.n++;
     }
   }
@@ -1040,7 +1049,7 @@ const deepHoursOf = (b) => (b ? (isFinite(b.darkDeep) ? b.darkDeep : b.idealDeep
 /* ricostruisce i passi utili di un oggetto (per le valutazioni "e se…" nel dettaglio) */
 function usableSteps(r, night, sky) {
   const U = { X: new Float32Array(N + 1), art: new Float32Array(N + 1), nat: new Float32Array(N + 1), mf: new Float32Array(N + 1), n: 0, h: 0 };
-  for (let i = 0; i <= N; i++) if (r.use[i]) { U.X[U.n] = airmass(r.alt[i]); U.art[U.n] = sky.art(r.alt[i], r.az[i]); U.nat[U.n] = sky.nat(r.alt[i]); U.mf[U.n] = moonFlux(night, i, r.v)[0]; U.n++; }
+  for (let i = 0; i <= N; i++) if (r.use[i]) { U.X[U.n] = airmass(r.alt[i]); U.art[U.n] = sky.art(r.alt[i], r.az[i]); U.nat[U.n] = sky.nat(r.alt[i]); U.mf[U.n] = moonFlux(night, i, r.v, r.alt[i])[0]; U.n++; }
   U.h = U.n * STEP / 60; return U;
 }
 
@@ -1049,7 +1058,7 @@ function usableSteps(r, night, sky) {
    Si calcolano solo quando servono e restano nel contesto di calcolo del luogo. */
 const CAL_STEP = 20, CAL_N = 72, CAL_MAX = 366, CAL_MIN_H = 0.25, CAL_SKIP = 2.5, CAL_BLOCK = 30;
 function aheadCtx(C) {
-  return C.ahead || (C.ahead = { list: [], cache: new Map(), sL: C.night.sL, cL: C.night.cL, lon: +C.active.site.lon, thr: +C.active.session.sunThr, f: hmToOff(C.active.session.from), to: hmToOff(C.active.session.to), ymd: C.night.ds.split('-').map(Number), tz: siteTz(C.active.site) });
+  return C.ahead || (C.ahead = { list: [], cache: new Map(), sL: C.night.sL, cL: C.night.cL, lon: +C.active.site.lon, thr: +C.active.session.sunThr, f: hmToOff(C.active.session.from), to: hmToOff(C.active.session.to), ymd: C.night.ds.split('-').map(Number), tz: siteTz(C.active.site), kV: extV(C.active.site) });
 }
 function aheadNight(C, k) {
   const A = aheadCtx(C); if (A.list[k]) return A.list[k];
@@ -1064,7 +1073,7 @@ function aheadNight(C, k) {
     dark[i] = 1; nd++; mAlt[i] = aa[0] - 0.95 * Math.cos(aa[0] * D2R); mV[i] = unit(mo.ra, mo.dec); if (mAlt[i] > 0) up++;
     const el = Math.acos(clamp(Math.cos(mo.lat * D2R) * Math.cos((mo.lon - sn.lon) * D2R), -1, 1)); mIll[i] = moon = (1 - Math.cos(el)) / 2;
   }
-  return (A.list[k] = { t0, lst, dark, mAlt, mIll, mV, moon, moonUp: nd ? up / nd : 0 });
+  return (A.list[k] = { t0, lst, dark, mAlt, mIll, mV, moon, moonUp: nd ? up / nd : 0, kV: A.kV });
 }
 /* Tre modi di riprendere (scelta dell'utente, C.mode):
    - smart (consigliato): tutte le notti utili, salvo quelle in cui il target rende più di 2,5 volte meno che nella notte
@@ -1109,7 +1118,7 @@ function nightRec(C, r, e, k, darkOnly) {
     for (let i = 0; i < CAL_N; i++) {
       if (!nk.dark[i] || (darkOnly && nk.mAlt[i] > 0 && nk.mIll[i] > 0.1)) continue; const aa = altaz(r.pr.ra, r.pr.dec, nk.lst[i], A.sL, A.cL), a = aa[0], z = aa[1];
       if (a < Math.max(C.minAlt, C.lut[Math.round(z) % 360])) continue;
-      U.X[U.n] = airmass(a); U.art[U.n] = C.sky.art(a, z); U.nat[U.n] = C.sky.nat(a); U.mf[U.n] = moonFlux(nk, i, r.v)[0];
+      U.X[U.n] = airmass(a); U.art[U.n] = C.sky.art(a, z); U.nat[U.n] = C.sky.nat(a); U.mf[U.n] = moonFlux(nk, i, r.v, a)[0];
       const t = nk.t0 + (i + 0.5) * CAL_STEP * 60000, f = wx ? wx(t) : null;
       if (f != null) known = true;
       const clear = f == null ? 1 : clamp(f, 0, 1);

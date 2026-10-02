@@ -13,7 +13,7 @@ const ctx = { window: {}, console, Date, Math, Map, Set, Intl, JSON, Float32Arra
 vm.createContext(ctx);
 for (const name of ['filters', 'dso', 'sky', 'quality', 'real']) vm.runInContext(file(`data/${name}.js`), ctx);
 vm.runInContext("const LANG='it',LOCALE='it-IT',txName=(s)=>s,tx=(s,p)=>p?s.replace(/[{](\\w+)[}]/g,(_,k)=>p[k]??_):s;" + file('js/astro.js') + '\n' + file('js/model.js') +
-  '\n;this.M={siteTz,tzOff,wall,wallMs,dsOf,TZ,setDisplayTz,defaultNightStr,computeNight,moonCalendar,templateProfile,migrateProfile,migrateLoc,locsFromProfiles};', ctx);
+  '\n;this.M={siteTz,tzOff,wall,wallMs,dsOf,TZ,setDisplayTz,defaultNightStr,computeNight,moonCalendar,templateProfile,migrateProfile,migrateLoc,locsFromProfiles,moonFlux,unit};', ctx);
 const M = ctx.M;
 
 const SITES = {
@@ -83,6 +83,19 @@ test('«stanotte» nell’ora del luogo', () => {
     Date.now = () => Date.UTC(2026, 9, 9, 23, 0); // 01:00 a Roma, 10:00 a Sydney
     assert.equal(M.defaultNightStr(), '2026-10-09');
   } finally { Date.now = real; M.setDisplayTz(null); }
+});
+
+test('Luna: Krisciunas & Schaefer 1991', () => {
+  // Luna a 30° dallo zenit, target a 45° dallo zenit e a 45° dalla Luna, k = 0,172: conto a mano dalle formule dell'articolo
+  const mag = (ill, sep, mAlt = 60, tAlt = 45, kV = 0.172) => {
+    const night = { mAlt: [mAlt], mIll: [ill], mV: [M.unit(sep, 0)], kV };
+    return -2.5 * Math.log10(M.moonFlux(night, 0, M.unit(0, 0), tAlt)[0]);
+  };
+  assert.ok(Math.abs(mag(1, 45) - 17.97) < 0.03, String(mag(1, 45)));
+  assert.ok(mag(1, 10) < mag(1, 45) && mag(1, 45) < mag(1, 90), 'più luminoso vicino alla Luna');
+  const q = mag(0.5, 45) - mag(1, 45); assert.ok(q > 2.4 && q < 2.8, `primo quarto ${q} mag sotto la piena`);
+  assert.ok(mag(1, 45, 60, 20) < mag(1, 45, 60, 70), 'più aria verso il target, più luce diffusa');
+  assert.equal(M.moonFlux({ mAlt: [-1], mIll: [1], mV: [M.unit(0, 0)], kV: 0.2 }, 0, M.unit(0, 0), 45)[0], 0);
 });
 
 test('profili delle versioni vecchie', () => {

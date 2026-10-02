@@ -988,4 +988,6 @@ window.I18N.en = {
   "Meteo dei luoghi recenti in memoria; guida e suggerimenti più brevi": "Weather of recent locations kept; shorter guide and hints",
   "Computer: Electron 44, calcolo della notte più rapido": "Desktop: Electron 44, faster night computation",
   "Nessun blocco cambiando notte, luogo o profilo, anche sui telefoni lenti": "No freezes when switching night, location or profile, even on slow phones",
+  "Luce della Luna con il modello di Krisciunas & Schaefer (1991): tempi con la Luna più realistici": "Moonlight with the Krisciunas & Schaefer (1991) model: more realistic times under the Moon",
+  "Nuvole ECMWF a 9 km invece di 25 km": "ECMWF clouds at 9 km instead of 25 km",
 };
