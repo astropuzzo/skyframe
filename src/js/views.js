@@ -328,6 +328,15 @@ function closeDetail(fromPop, how) {
   d.classList.remove('on');
   setTimeout(done, 300);
 }
+/* N.I.N.A. (Sequencer → importa): il CSV dei piani di mosaico di Telescopius, un pannello per riga con centro J2000 e PA come
+   nell'anteprima (rotazione, centro dell'inquadratura, mosaico se acceso) */
+function ninaExport(r, e) {
+  const f = e.fill, g = e.cfg.geom, mos = state.mosaic && f.nx * f.ny > 1, P = mosaicPanes(r.o, g, mos ? f.nx : 1, mos ? f.ny : 1, state.rot, state.frameOff || [0, 0]);
+  const sex = (v, h) => { const neg = v < 0, t = Math.round(Math.abs(v) * 3600 * 100) / 100, a = Math.floor(t / 3600), b = Math.floor((t - a * 3600) / 60), c = t - a * 3600 - b * 60; return `${neg ? '-' : h ? '' : '+'}${String(a).padStart(2, '0')} ${String(b).padStart(2, '0')} ${c.toFixed(2).padStart(5, '0')}`; };
+  const name = r.o.id.replace(/,/g, ' ');
+  const rows = P.map((p, i) => [P.length > 1 ? `${name} ${i + 1}` : name, sex(p.ra / 15, true), sex(p.dec, false), p.pa.toFixed(2), g.W.toFixed(2), g.H.toFixed(2), P.length > 1 ? 10 : 0, p.row, p.col].join(','));
+  saveText(`${r.o.id.replace(/[^\w.-]+/g, '')}-nina.csv`, ['Pane,RA,DEC,Position Angle (East),Pane width (arcmins),Pane height (arcmins),Overlap,Row,Column', ...rows].join('\r\n') + '\r\n');
+}
 /* con la Luna della notte scelta può convenire un'altra combinazione (model.js, pickMoon): la si mostra con i suoi passi */
 function moonHTML(e, b, n) {
   const m = e.moonBest; if (!m) return '';
@@ -568,7 +577,7 @@ function renderDetail() {
       <div class="pc-sub">${tx('livello {q} · {cfg}, {f}', { q: tx(QLABEL[p.session.quality] || 'standard'), cfg: esc(e.cfg.label), f: e.cfg.short })}</div>
       ${skyR && skyR[0] && skyR[1] ? `<div class="pc-sub">${tx('SQM ± {s}: {a}–{b}', { a: fmtH(skyR[0]), b: fmtH(skyR[1]), s: it(skyS.sigma, 1), src: tx(SKY_SRC[skyS.k]) })}</div>` : ''}
       ${b.deep ? `<div class="deep">${tx('Con l’Hα diffuso attorno ({r} R): <b>{h}</b>', { r: it(o.ha, 1), h: fmtH(planDeep) })}</div>` : ''}
-      <div class="steps">${plan.map((s) => `<div class="step${s.optional ? ' opt' : ''}"><div class="f">${esc(s.filter)}<small>${s.optional ? `${esc(s.what)} · ${tx('facoltativo')}` : tx('raccoglie {w}', { w: esc(s.what) }) + (s.why ? ' · ' + esc(s.why) : '')}</small></div><div class="h">${fmtH(s.h)}${s.hDeep > s.h * 1.15 ? `<small title="${esc(s.whyDeep)}">${fmtH(s.hDeep)} ${tx('profondo')}</small>` : ''}</div><div class="sb" title="${tx('Posa singola (sub) consigliata')}">sub ≈ ${s.sub} s</div></div>`).join('')}</div>
+      <div class="steps">${plan.map((s) => `<div class="step${s.optional ? ' opt' : ''}"><div class="f">${esc(s.filter)}<small>${s.optional ? `${esc(s.what)} · ${tx('facoltativo')}` : tx('raccoglie {w}', { w: esc(s.what) }) + (s.why ? ' · ' + esc(s.why) : '')}</small></div><div class="h">${fmtH(s.h)}${s.hDeep > s.h * 1.15 ? `<small title="${esc(s.whyDeep)}">${fmtH(s.hDeep)} ${tx('profondo')}</small>` : ''}</div><div class="sb" title="${tx('Pose singole (sub) consigliate')}">${s.sub > 0 && s.h > 0 ? `${Math.max(1, Math.ceil(s.h * 3600 / s.sub / (b.panels || 1)))} × ${s.sub} s${b.panels > 1 ? ' ' + tx('per pannello') : ''}` : `sub ≈ ${s.sub} s`}</div></div>`).join('')}</div>
       ${moonHTML(e, b, n)}
       ${b.panels > 1 ? `<div class="note">${tx('Mosaico di {n} pannelli', { n: b.panels })}</div>` : ''}
       ${alts.length ? `<details class="alts"><summary>${tx('Altre combinazioni')} <span class="num">(${alts.length})</span></summary>${alts.map((s) => { const c = shootCalendar(state.res.C, r, { ...e, best: s }, false); return `<div class="a"><span>${esc(s.label)}</span><b>${fmtH(hoursOf(s))}${c ? ` · ${c.done ? nNights(c.sessions) : tx('oltre un anno')}` : ''}</b></div>`; }).join('')}</details>` : ''}</div>`
@@ -612,7 +621,7 @@ function renderDetail() {
         ${e.fill.nx * e.fill.ny > 1 ? `<label class="chk"><input type="checkbox" id="mos" ${state.mosaic ? 'checked' : ''}> ${tx('Mosaico')} ${e.fill.nx}×${e.fill.ny}</label>` : ''}
         <label class="chk"><input type="checkbox" id="realSky" ${state.realSky ? 'checked' : ''}> ${tx('Foto reale')}</label></div></div>
       <p class="note"><span id="skyNote"></span></p></div>
-    <div class="d-actions"><button class="btn sm" id="copyCoord">${ic('copy')}${tx('Copia coordinate J2000')}</button>${Math.hypot(fr.dx, fr.dy) > 2 ? `<button class="btn sm" id="copyFrame">${ic('copy')}${tx('Copia centro inquadratura')}</button>` : ''}<a class="btn sm ghost" href="${aladin}" target="_blank" rel="noopener">Aladin${ic('ext')}</a><a class="btn sm ghost" href="${stel}" target="_blank" rel="noopener">Stellarium Web${ic('ext')}</a></div>
+    <div class="d-actions"><button class="btn sm" id="copyCoord">${ic('copy')}${tx('Copia coordinate J2000')}</button>${Math.hypot(fr.dx, fr.dy) > 2 ? `<button class="btn sm" id="copyFrame">${ic('copy')}${tx('Copia centro inquadratura')}</button>` : ''}<button class="btn sm" id="ninaBtn" title="${tx('Pannelli per N.I.N.A. (CSV come Telescopius)')}">${ic('download')}N.I.N.A.</button><a class="btn sm ghost" href="${aladin}" target="_blank" rel="noopener">Aladin${ic('ext')}</a><a class="btn sm ghost" href="${stel}" target="_blank" rel="noopener">Stellarium Web${ic('ext')}</a></div>
   </section>
 
   ${tips.length ? `<section class="tabp" data-tab="consigli" ${tab === 'consigli' ? '' : 'hidden'}>
@@ -627,6 +636,7 @@ function renderDetail() {
   $('#rotBest').onclick = () => { state.rot = bestRot; state.frameOff = [fr.dx, fr.dy]; $('#rot').value = bestRot; $('#rotV').textContent = bestRot + '°'; drawPreview(); };
   const cf = $('#copyFrame'); if (cf) cf.onclick = () => copyText(`${o.id} (${tx('centro inquadratura')}) ${raStr(fr.ra)} ${decStr(fr.dec).replace('−', '-')} · ${tx('PA lato lungo')} ${bestRot}°`);
   const m = $('#mos'); if (m) m.onchange = (ev) => { state.mosaic = ev.target.checked; drawPreview(); };
+  $('#ninaBtn').onclick = () => ninaExport(r, e);
   $('#realSky').onchange = (ev) => { state.realSky = ev.target.checked; LS.set('sf.realSky', state.realSky); drawPreview(); };
   state.dTab = tab;
   // le schede restano ferme sotto la testata (che cambia altezza col riassunto)

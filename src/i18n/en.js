@@ -379,7 +379,6 @@ window.I18N.en = {
   // testi riscritti (0.15): t3-setup-avvisi.cjs
   "Tutti i {n} di stanotte": "All {n} tonight",
   "profili, luoghi e progetti in un file": "profiles, places and projects to a file",
-  "profili, luoghi e progetti negli appunti": "profiles, places and projects to the clipboard",
   "Tutto resta su questo computer.": "Everything stays on this computer.",
   "Tutto resta su questo dispositivo.": "Everything stays on this device.",
   "arriva fra 5 secondi": "arrives in 5 seconds",
@@ -435,7 +434,6 @@ window.I18N.en = {
   "Periodo favorevole, fino al {d}": "Favourable period, until {d}",
   "Periodo favorevole dal {d}": "Favourable period from {d}",
   "Apri la scheda Quando": "Open the When tab",
-  "Posa singola (sub) consigliata": "Recommended sub-exposure",
   "Immagine non disponibile": "Image not available",
   "Con cielo sereno, in un anno: {p}% dell’integrazione": "With clear skies, in one year: {p}% of the integration",
   "Con cielo sereno: {n}, l’ultima il {d}": "With clear skies: {n}, the last on {d}",
@@ -990,4 +988,12 @@ window.I18N.en = {
   "Nessun blocco cambiando notte, luogo o profilo, anche sui telefoni lenti": "No freezes when switching night, location or profile, even on slow phones",
   "Luce della Luna con il modello di Krisciunas & Schaefer (1991): tempi con la Luna più realistici": "Moonlight with the Krisciunas & Schaefer (1991) model: more realistic times under the Moon",
   "Nuvole ECMWF a 9 km invece di 25 km": "ECMWF clouds at 9 km instead of 25 km",
+  "Salvato in {f}": "Saved to {f}",
+  "per pannello": "per panel",
+  "Pose singole (sub) consigliate": "Recommended single exposures (subs)",
+  "Pannelli per N.I.N.A. (CSV come Telescopius)": "Panels for N.I.N.A. (Telescopius-style CSV)",
+  "Copia automatica": "Automatic backup",
+  "Esportazione per N.I.N.A.: centro, PA e pannelli del mosaico": "Export for N.I.N.A.: centre, PA and mosaic panels",
+  "Android: esportazione in un file e copia automatica in Documenti/Skyframe": "Android: export to a file and automatic backup in Documents/Skyframe",
+  "Piano: numero di pose per filtro": "Plan: number of subs per filter",
 };

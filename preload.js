@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('cielo', {
   loadProfiles: () => ipcRenderer.invoke('profiles:load'),
   saveProfiles: (data) => ipcRenderer.invoke('profiles:save', data),
   exportProfiles: (data) => ipcRenderer.invoke('profiles:export', data),
+  saveFile: (name, text) => ipcRenderer.invoke('file:save', String(name), String(text)),
   importProfiles: () => ipcRenderer.invoke('profiles:import'),
   copy: (text) => ipcRenderer.invoke('clipboard:write', String(text)),
   lpLookup: (lat, lon) => ipcRenderer.invoke('lp:lookup', lat, lon),

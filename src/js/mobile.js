@@ -24,6 +24,20 @@
       try { const r = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${+lat}&longitude=${+lon}`); if (!r.ok) return null; const j = await r.json(); return Array.isArray(j.elevation) ? Math.round(j.elevation[0]) : null; } catch { return null; }
     },
     copy: (t) => navigator.clipboard.writeText(String(t)),
+    // file veri: in Documenti/Skyframe (Android 11+, senza permessi) e poi la condivisione (Drive, mail, «Salva sul dispositivo»)
+    async saveFile(name, text) {
+      const F = plug('Filesystem'), Sh = plug('Share'); if (!F) return null;
+      let where = null; try { where = await writeDoc(name, text); } catch { /* Android 10 o precedente */ }
+      if (Sh) try { const { uri } = await F.writeFile({ path: name, data: text, directory: 'CACHE', encoding: 'utf8' }); await Sh.share({ title: name, files: [uri] }); } catch { /* condivisione annullata */ }
+      return where;
+    },
+    // copia automatica: sempre lo stesso file; se non si può riscrivere (era di un'installazione precedente) se ne fa uno nuovo
+    async backup(text) {
+      let name = localStorage.getItem('sf.bakName') || 'skyframe-backup.json';
+      try { return await writeDoc(name, text); } catch { /* sotto */ }
+      name = `skyframe-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      try { const w = await writeDoc(name, text); localStorage.setItem('sf.bakName', name); return w; } catch { return null; }
+    },
     // aggiornamenti: si avvisa quando esce una versione nuova; l'APK si scarica dalla pagina della release
     onUpdate(cb) {
       const check = async () => {
@@ -58,6 +72,13 @@
     async bgStatus() { const B = bgRunner(); if (!B) return null; try { return await B.dispatchEvent({ label: BG_LABEL, event: 'status', details: {} }); } catch { return null; } },
   };
   const BG_LABEL = 'io.github.astropuzzo.skyframe.check';
+  const plug = (n) => (C.Plugins && C.Plugins[n]) || null;
+  const android11 = () => { const m = /Android (\d+)/.exec(navigator.userAgent); return !!m && +m[1] >= 11; };
+  async function writeDoc(name, text) {
+    const F = plug('Filesystem'); if (!F || !android11()) throw new Error('no');
+    await F.writeFile({ path: 'Skyframe/' + name, data: text, directory: 'DOCUMENTS', encoding: 'utf8', recursive: true });
+    return 'Documenti/Skyframe/' + name;
+  }
   // il plugin nativo si chiama CapacitorBackgroundRunner (con BackgroundRunner non si trovava: la configurazione non arrivava)
   function bgRunner() { return (C.Plugins && (C.Plugins.CapacitorBackgroundRunner || C.Plugins.BackgroundRunner)) || null; }
   // tasto indietro di Android: chiude foglio, dettaglio, editor o guida aperti, riporta a Stanotte; da Stanotte riduce l'app

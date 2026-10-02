@@ -1237,6 +1237,21 @@ const niceFloor = (s) => NICE_SUBS.filter((v) => v <= s + 1e-6).pop() || Math.ma
 
 /* ============================ inquadratura: rotazione e centro migliori ============================ */
 /* Piano tangente in primi d'arco: x verso est, y verso nord. PA da nord verso est. */
+/* Pannelli dell'inquadratura (per N.I.N.A., che legge i piani di mosaico di Telescopius): centro J2000 e PA del lato alto
+   dell'immagine, est da nord. Stessa geometria dell'anteprima: centro spostato di off [est, nord] in primi, lato lungo a
+   PA rot, pannelli sovrapposti del 10%; riga 1 a nord, colonna 1 a est. Ogni pannello ha il PA del suo punto: nei mosaici
+   larghi il nord del cielo non è parallelo a quello del centro (proiezione gnomonica attorno al target). */
+function mosaicPanes(o, g, nx, ny, rot, off) {
+  const a0 = o.ra * D2R, d0 = o.dec * D2R, th = -(rot - 90) * D2R, out = [];
+  const sky = (e, n) => { const x = e / 60 * D2R, y = n / 60 * D2R, den = Math.cos(d0) - y * Math.sin(d0); return [norm360((a0 + Math.atan2(x, den)) * R2D), Math.atan2(Math.sin(d0) + y * Math.cos(d0), Math.hypot(x, den)) * R2D]; };
+  const paTo = (a, b) => { const da = (b[0] - a[0]) * D2R, d1 = a[1] * D2R, d2 = b[1] * D2R; return Math.atan2(Math.sin(da), Math.cos(d1) * Math.tan(d2) - Math.sin(d1) * Math.cos(da)) * R2D; };
+  for (let iy = 0; iy < ny; iy++) for (let ix = 0; ix < nx; ix++) {
+    const u = (ix - (nx - 1) / 2) * g.W * 0.9, v = (iy - (ny - 1) / 2) * g.H * 0.9;
+    const e = off[0] - (u * Math.cos(th) - v * Math.sin(th)), n = off[1] - (u * Math.sin(th) + v * Math.cos(th)), c = sky(e, n);
+    out.push({ row: iy + 1, col: ix + 1, ra: c[0], dec: c[1], pa: norm360(rot - 90 + paTo(c, sky(e, n + 1))) });
+  }
+  return out;
+}
 function offsetOf(o, c) { const d = Math.cos(o.dec * D2R); return [((c.ra - o.ra + 540) % 360 - 180) * d * 60, (c.dec - o.dec) * 60]; }
 function ellipsePts(cx, cy, a, b, pa, n) {
   const u = [Math.sin(pa * D2R), Math.cos(pa * D2R)], v = [u[1], -u[0]], out = [[cx, cy]];

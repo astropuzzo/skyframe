@@ -13,7 +13,7 @@ const ctx = { window: {}, console, Date, Math, Map, Set, Intl, JSON, Float32Arra
 vm.createContext(ctx);
 for (const name of ['filters', 'dso', 'sky', 'quality', 'real']) vm.runInContext(file(`data/${name}.js`), ctx);
 vm.runInContext("const LANG='it',LOCALE='it-IT',txName=(s)=>s,tx=(s,p)=>p?s.replace(/[{](\\w+)[}]/g,(_,k)=>p[k]??_):s;" + file('js/astro.js') + '\n' + file('js/model.js') +
-  '\n;this.M={siteTz,tzOff,wall,wallMs,dsOf,TZ,setDisplayTz,defaultNightStr,computeNight,moonCalendar,templateProfile,migrateProfile,migrateLoc,locsFromProfiles,moonFlux,unit};', ctx);
+  '\n;this.M={siteTz,tzOff,wall,wallMs,dsOf,TZ,setDisplayTz,defaultNightStr,computeNight,moonCalendar,templateProfile,migrateProfile,migrateLoc,locsFromProfiles,moonFlux,unit,mosaicPanes};', ctx);
 const M = ctx.M;
 
 const SITES = {
@@ -96,6 +96,29 @@ test('Luna: Krisciunas & Schaefer 1991', () => {
   const q = mag(0.5, 45) - mag(1, 45); assert.ok(q > 2.4 && q < 2.8, `primo quarto ${q} mag sotto la piena`);
   assert.ok(mag(1, 45, 60, 20) < mag(1, 45, 60, 70), 'più aria verso il target, più luce diffusa');
   assert.equal(M.moonFlux({ mAlt: [-1], mIll: [1], mV: [M.unit(0, 0)], kV: 0.2 }, 0, M.unit(0, 0), 45)[0], 0);
+});
+
+test('pannelli per N.I.N.A.: centro e PA come nell’anteprima', () => {
+  const o = { ra: 10.68, dec: 41.27 }, g = { W: 150, H: 100 }, near = (a, b, e, m) => assert.ok(Math.abs(a - b) < e, `${m}: ${a} invece di ${b}`);
+  const dRa = (p) => (((p.ra - o.ra + 540) % 360) - 180) * Math.cos(o.dec * Math.PI / 180) * 60; // primi verso est
+  const angle = (a) => Math.min(a, 360 - a);
+  // un'inquadratura, lato lungo est-ovest: il target al centro, il nord in alto
+  let [p] = M.mosaicPanes(o, g, 1, 1, 90, [0, 0]);
+  near(p.ra, o.ra, 1e-9, 'RA'); near(p.dec, o.dec, 1e-9, 'Dec'); near(angle(p.pa), 0, 1e-6, 'PA');
+  // centro spostato di 20' a est e 10' a nord
+  [p] = M.mosaicPanes(o, g, 1, 1, 90, [20, 10]);
+  near(dRa(p), 20, 0.3, 'est'); near((p.dec - o.dec) * 60, 10, 0.1, 'nord'); // proiezione gnomonica: a 20' di distanza la Dec cala di 0,05'
+  // due pannelli affiancati sul lato lungo: colonna 1 a est, simmetrici, a 0,9 lati di distanza
+  let P = M.mosaicPanes(o, g, 2, 1, 90, [0, 0]);
+  assert.equal(P.map((x) => `${x.row}.${x.col}`).join(' '), '1.1 1.2');
+  near(dRa(P[0]), 67.5, 0.5, 'est'); near(dRa(P[1]), -67.5, 0.5, 'ovest'); near(P[0].dec, P[1].dec, 1e-9, 'stessa Dec');
+  near(angle(P[0].pa), angle(P[1].pa), 1e-9, 'PA simmetrici');
+  // lato lungo nord-sud: pannelli uno sopra l'altro, PA dell'alto dell'immagine a 270°
+  P = M.mosaicPanes(o, g, 2, 1, 0, [0, 0]);
+  near(dRa(P[0]), 0, 0.05, 'stessa RA'); near(Math.abs(P[0].dec - P[1].dec) * 60, 135, 0.05, 'distanza'); near(P[0].pa, 270, 1, 'PA');
+  // due righe: la prima a nord
+  P = M.mosaicPanes(o, g, 1, 2, 90, [0, 0]);
+  assert.ok(P[0].dec > o.dec && P[1].dec < o.dec && P[0].row === 1);
 });
 
 test('profili delle versioni vecchie', () => {

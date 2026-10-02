@@ -48,6 +48,7 @@ const TOUR_STEPS = [
 ];
 /* novità per versione (le più recenti in cima) */
 const NEWS = [
+  { v: '0.30.0', items: ['Esportazione per N.I.N.A.: centro, PA e pannelli del mosaico', 'Android: esportazione in un file e copia automatica in Documenti/Skyframe', 'Piano: numero di pose per filtro'] },
   { v: '0.29.0', items: ['Luce della Luna con il modello di Krisciunas & Schaefer (1991): tempi con la Luna più realistici', 'Nuvole ECMWF a 9 km invece di 25 km'] },
   { v: '0.28.0', items: ['Nessun blocco cambiando notte, luogo o profilo, anche sui telefoni lenti'] },
   { v: '0.27.0', items: ['Computer: Electron 44, calcolo della notte più rapido'] },

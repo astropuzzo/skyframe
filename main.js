@@ -285,6 +285,15 @@ ipcMain.handle('profiles:export', async (e, data) => {
   return filePath;
 });
 
+// un file di testo (CSV per N.I.N.A., ...): il nome è un suggerimento, il posto lo sceglie chi salva
+ipcMain.handle('file:save', async (e, name, text) => {
+  const win = BrowserWindow.fromWebContents(e.sender), base = path.basename(String(name)), ext = path.extname(base).slice(1) || 'txt';
+  const { canceled, filePath } = await dialog.showSaveDialog(win, { defaultPath: path.join(app.getPath('documents'), base), filters: [{ name: ext.toUpperCase(), extensions: [ext] }] });
+  if (canceled || !filePath) return null;
+  await fs.writeFile(filePath, String(text), 'utf8');
+  return filePath;
+});
+
 ipcMain.handle('profiles:import', async (e) => {
   const win = BrowserWindow.fromWebContents(e.sender);
   const { canceled, filePaths } = await dialog.showOpenDialog(win, {

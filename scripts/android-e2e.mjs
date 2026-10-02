@@ -165,6 +165,17 @@ try {
   out.checks.indietro_torna_a_stanotte = await ev(`return UI.view === 'tonight'`);
   shot('08-dopo-indietro');
 
+  log('file'); // esportazione (Documenti/Skyframe + condivisione) e copia automatica dei dati
+  const docs = () => { try { return adb('shell ls /sdcard/Documents/Skyframe'); } catch { return ''; } };
+  await ev(`window.__sf = window.cielo.saveFile('e2e-nina.csv', 'Pane,RA,DEC\\r\\nNGC 7000,20 59 17.14,+44 31 43.6\\r\\n'); return 1`); await sleep(4000);
+  shot('10-condivisione');
+  adb('shell input keyevent KEYCODE_BACK'); await sleep(1500);
+  out.salvataggio = await ev(`return await window.__sf`, 15000).catch((e) => 'errore: ' + e.message);
+  out.checks.file_in_documenti = out.salvataggio === 'Documenti/Skyframe/e2e-nina.csv' && /e2e-nina\.csv/.test(docs());
+  await ev(`backupSoon({ ...storeData(), locations: [{ id: 'e2e' }] }); return 1`);
+  out.checks.copia_automatica = await until(`(LS.get('sf.bak', null) || {}).where === 'Documenti/Skyframe/skyframe-backup.json'`, 15000) && /skyframe-backup\.json/.test(docs());
+  await ev(`setView('setup'); return 1`); await sleep(1200); await ev(`document.querySelector('[data-export]').scrollIntoView({ block: 'center' }); return 1`); await sleep(800); shot('11-setup-dati');
+
   log('avvisi'); // avviso programmato (LocalNotifications): la prova di Setup
   await ev(`LS.set('sf.notify', true); await testNotify(); return 1`);
   await sleep(12000);

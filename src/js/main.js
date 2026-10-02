@@ -34,6 +34,7 @@ function saveStore() {
   LS.set('sf.store', d);
   LS.set('sf.profiles', d.profiles); LS.set('sf.active', state.activeId); LS.set('sf.locs', d.locations); LS.set('sf.loc', state.locId);
   if (DESK) window.cielo.saveProfiles(d).catch(() => toast(tx('Salvataggio su file non riuscito')));
+  backupSoon(d);
 }
 function persistProfile(p) { p = clone(p); delete p.unsaved; stripSite(p); p.updated = Date.now(); const i = state.profiles.findIndex((x) => x.id === p.id); if (i >= 0) state.profiles[i] = p; else state.profiles.push(p); state.profiles = state.profiles.filter((x) => !x.unsaved); return p; }
 function removeProfile(id) { state.profiles = state.profiles.filter((p) => p.id !== id); if (!state.profiles.length) state.profiles = [stripSite(templateProfile())]; if (!state.profiles.some((p) => p.id === state.activeId)) state.activeId = state.profiles[0].id; saveStore(); }
@@ -61,7 +62,21 @@ function applyStore(data) {
 }
 async function exportProfiles() {
   const data = storeData();
-  if (DESK) { const r = await window.cielo.exportProfiles(data); if (r) toast(tx('Profili e luoghi esportati in {f}', { f: r })); } else copyText(JSON.stringify(data, null, 2));
+  if (DESK) { const r = await window.cielo.exportProfiles(data); if (r) toast(tx('Profili e luoghi esportati in {f}', { f: r })); } else saveText('skyframe-profili.json', JSON.stringify(data, null, 2));
+}
+/* un file di testo: sul computer con la finestra di salvataggio, su Android in Documenti/Skyframe e con la condivisione,
+   nel browser come download */
+async function saveText(name, text) {
+  if (window.cielo && window.cielo.saveFile) { const r = await window.cielo.saveFile(name, text); if (r) toast(tx('Salvato in {f}', { f: r })); return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' })); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+/* Android: copia automatica dei dati in Documenti/Skyframe (resta anche disinstallando l'app), qualche secondo dopo ogni
+   salvataggio; mai senza luoghi salvati, così un'installazione nuova non copre la copia buona */
+const BAK = { t: 0 };
+function backupSoon(d) {
+  if (!(window.cielo && window.cielo.backup) || !d.locations.length) return;
+  clearTimeout(BAK.t); BAK.t = setTimeout(async () => { const w = await window.cielo.backup(JSON.stringify(d, null, 2)); if (w) LS.set('sf.bak', { at: Date.now(), where: w }); }, 4000);
 }
 async function importProfiles() {
   let data;
@@ -379,6 +394,7 @@ async function boot() {
   // fino alla 0.5.0 qui si rileggevano solo i profili: i luoghi si ricostruivano da quello attivo e gli altri si perdevano
   else applyStore(LS.get('sf.store', null) || { profiles: LS.get('sf.profiles', []), active: LS.get('sf.active', null), locations: LS.get('sf.locs', undefined), activeLoc: LS.get('sf.loc', null) });
   await restoreExtras(state.projects); // oggetti fuori lista salvati: prima del primo calcolo
+  const bk = LS.get('sf.bak', null); if (!bk || Date.now() - bk.at > 864e5) backupSoon(storeData()); // almeno una copia al giorno
   wire(); refresh(true);
   window.__bootMs = Math.round(performance.now());
   // guida al primo avvio e novità dopo un aggiornamento: quando il logo è arrivato al suo posto
