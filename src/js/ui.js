@@ -61,7 +61,7 @@ function setView(v, fromPop) {
     if (v === 'setup') renderSetup();
   };
   // passaggio fra sezioni: la nuova entra dal lato verso cui si va nella barra (View Transitions, dove c'è)
-  if (vt) { document.documentElement.dataset.dir = to < from ? 'back' : 'fwd'; document.startViewTransition(apply); } else apply();
+  if (vt) { document.documentElement.dataset.dir = to < from ? 'back' : 'fwd'; const t = document.startViewTransition(apply); t.ready.catch(() => {}); t.finished.catch(() => {}); } else apply(); // una sezione scelta subito dopo l'altra salta la transizione: non è un errore
   // indietro da una sezione qualsiasi riporta a Stanotte (e da Stanotte esce)
   if (!fromPop) {
     const ve = viewEntry();
