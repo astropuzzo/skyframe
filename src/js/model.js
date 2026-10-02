@@ -1252,6 +1252,18 @@ function mosaicPanes(o, g, nx, ny, rot, off) {
   }
   return out;
 }
+/* Il CSV dei piani di mosaico di Telescopius, come lo scrive Telescopius (RA 20hr 59' 17.1", Dec 44º 31' 43", PA est da nord,
+   sovrapposizione in %): N.I.N.A. lo importa dal Sequencer (Importa target), un target per pannello con centro e rotazione.
+   Anche un'inquadratura sola va come pannello: il CSV di Telescopius per un'inquadratura singola (colonna Name) N.I.N.A. non
+   lo riconosce. */
+function ninaCsv(name, P, g, label) {
+  const p2 = (v) => String(v).padStart(2, '0');
+  const ra = (deg) => { const t = Math.round(norm360(deg) / 15 * 36000) % 864000; return `${Math.floor(t / 36000)}hr ${p2(Math.floor(t / 600) % 60)}' ${(t % 600 / 10).toFixed(1).padStart(4, '0')}"`; };
+  const dec = (d) => { const t = Math.round(Math.abs(d) * 3600); return `${d < 0 && t ? '-' : ''}${Math.floor(t / 3600)}º ${p2(Math.floor(t / 60) % 60)}' ${p2(t % 60)}"`; };
+  const n = String(name).replace(/,/g, ' '), many = P.length > 1;
+  return ['Pane, RA, DEC, Position Angle (East), Pane width (arcmins), Pane height (arcmins), Overlap, Row, Column',
+    ...P.map((p, i) => [many ? `${n} ${label} ${i + 1}` : n, ra(p.ra), dec(p.dec), (Math.round(p.pa * 100) / 100 % 360).toFixed(2), g.W.toFixed(2), g.H.toFixed(2), `${many ? 10 : 0}%`, p.row, p.col].join(', '))].join('\n') + '\n';
+}
 function offsetOf(o, c) { const d = Math.cos(o.dec * D2R); return [((c.ra - o.ra + 540) % 360 - 180) * d * 60, (c.dec - o.dec) * 60]; }
 function ellipsePts(cx, cy, a, b, pa, n) {
   const u = [Math.sin(pa * D2R), Math.cos(pa * D2R)], v = [u[1], -u[0]], out = [[cx, cy]];

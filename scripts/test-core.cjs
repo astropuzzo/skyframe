@@ -13,7 +13,7 @@ const ctx = { window: {}, console, Date, Math, Map, Set, Intl, JSON, Float32Arra
 vm.createContext(ctx);
 for (const name of ['filters', 'dso', 'sky', 'quality', 'real']) vm.runInContext(file(`data/${name}.js`), ctx);
 vm.runInContext("const LANG='it',LOCALE='it-IT',txName=(s)=>s,tx=(s,p)=>p?s.replace(/[{](\\w+)[}]/g,(_,k)=>p[k]??_):s;" + file('js/astro.js') + '\n' + file('js/model.js') +
-  '\n;this.M={siteTz,tzOff,wall,wallMs,dsOf,TZ,setDisplayTz,defaultNightStr,computeNight,moonCalendar,templateProfile,migrateProfile,migrateLoc,locsFromProfiles,moonFlux,unit,mosaicPanes};', ctx);
+  '\n;this.M={siteTz,tzOff,wall,wallMs,dsOf,TZ,setDisplayTz,defaultNightStr,computeNight,moonCalendar,templateProfile,migrateProfile,migrateLoc,locsFromProfiles,moonFlux,unit,mosaicPanes,ninaCsv};', ctx);
 const M = ctx.M;
 
 const SITES = {
@@ -119,6 +119,24 @@ test('pannelli per N.I.N.A.: centro e PA come nell’anteprima', () => {
   // due righe: la prima a nord
   P = M.mosaicPanes(o, g, 1, 2, 90, [0, 0]);
   assert.ok(P[0].dec > o.dec && P[1].dec < o.dec && P[0].row === 1);
+});
+
+test('CSV per N.I.N.A. nel formato di Telescopius', () => {
+  // come legge N.I.N.A. (AstroUtil.DMSToDegrees): i numeri nell'ordine, segno dal «-»
+  const dms = (s) => { const v = (s.match(/[0-9.]+/g) || []).map(Number); return (s.includes('-') ? -1 : 1) * ((v[0] || 0) + (v[1] || 0) / 60 + (v[2] || 0) / 3600); };
+  const g = { W: 134.6, H: 89.96 }, near = (a, b, e, m) => assert.ok(Math.abs(a - b) < e, `${m}: ${a} invece di ${b}`);
+  const one = M.ninaCsv('NGC 7000', [{ ra: 314.8214, dec: 44.5289, pa: 359.996, row: 1, col: 1 }], g, 'Pannello').split('\n');
+  assert.equal(one[0], 'Pane, RA, DEC, Position Angle (East), Pane width (arcmins), Pane height (arcmins), Overlap, Row, Column');
+  assert.equal(one[1], 'NGC 7000, 20hr 59\' 17.1", 44º 31\' 44", 0.00, 134.60, 89.96, 0%, 1, 1');
+  assert.equal(one[2], '');
+  const f = one[1].split(',').map((x) => x.trim());
+  near(dms(f[1]) * 15, 314.8214, 0.0005, 'RA'); near(dms(f[2]), 44.5289, 0.0003, 'Dec');
+  // riporti (59,97 s → minuto dopo), Dec negativa vicino a zero, mosaico con il nome dei pannelli
+  const P = [{ ra: (20 + 59 / 60 + 59.97 / 3600) * 15, dec: -0.30001, pa: 12.345, row: 1, col: 1 }, { ra: 359.99999, dec: -45.9999999, pa: 0, row: 1, col: 2 }];
+  const m = M.ninaCsv('M 42, Orione', P, g, 'Pannello').split('\n');
+  assert.equal(m[1], 'M 42  Orione Pannello 1, 21hr 00\' 00.0", -0º 18\' 00", 12.35, 134.60, 89.96, 10%, 1, 1');
+  assert.equal(m[2], 'M 42  Orione Pannello 2, 0hr 00\' 00.0", -46º 00\' 00", 0.00, 134.60, 89.96, 10%, 1, 2');
+  near(dms(m[1].split(',')[2]), -0.3, 1e-9, 'Dec negativa');
 });
 
 test('profili delle versioni vecchie', () => {

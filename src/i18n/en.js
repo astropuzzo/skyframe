@@ -991,10 +991,12 @@ window.I18N.en = {
   "Salvato in {f}": "Saved to {f}",
   "per pannello": "per panel",
   "Pose singole (sub) consigliate": "Recommended single exposures (subs)",
-  "Pannelli per N.I.N.A. (CSV come Telescopius)": "Panels for N.I.N.A. (Telescopius-style CSV)",
+  "CSV per N.I.N.A., formato Telescopius": "CSV for N.I.N.A., Telescopius format",
+  "Pannello": "Panel",
   "Copia automatica": "Automatic backup",
   "Esportazione per N.I.N.A.: centro, PA e pannelli del mosaico": "Export for N.I.N.A.: centre, PA and mosaic panels",
   "Android: esportazione in un file e copia automatica in Documenti/Skyframe": "Android: export to a file and automatic backup in Documents/Skyframe",
   "Piano: numero di pose per filtro": "Plan: number of subs per filter",
   "Android: riga della copia automatica allineata in Setup": "Android: automatic backup row aligned in Setup",
+  "N.I.N.A.: CSV nel formato di Telescopius, anche per un’inquadratura sola": "N.I.N.A.: CSV in Telescopius format, single framings too",
 };

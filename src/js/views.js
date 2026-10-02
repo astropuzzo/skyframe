@@ -328,14 +328,10 @@ function closeDetail(fromPop, how) {
   d.classList.remove('on');
   setTimeout(done, 300);
 }
-/* N.I.N.A. (Sequencer → importa): il CSV dei piani di mosaico di Telescopius, un pannello per riga con centro J2000 e PA come
-   nell'anteprima (rotazione, centro dell'inquadratura, mosaico se acceso) */
+/* N.I.N.A.: il CSV di Telescopius (model.js, ninaCsv) con l'inquadratura dell'anteprima: rotazione, centro, mosaico se acceso */
 function ninaExport(r, e) {
-  const f = e.fill, g = e.cfg.geom, mos = state.mosaic && f.nx * f.ny > 1, P = mosaicPanes(r.o, g, mos ? f.nx : 1, mos ? f.ny : 1, state.rot, state.frameOff || [0, 0]);
-  const sex = (v, h) => { const neg = v < 0, t = Math.round(Math.abs(v) * 3600 * 100) / 100, a = Math.floor(t / 3600), b = Math.floor((t - a * 3600) / 60), c = t - a * 3600 - b * 60; return `${neg ? '-' : h ? '' : '+'}${String(a).padStart(2, '0')} ${String(b).padStart(2, '0')} ${c.toFixed(2).padStart(5, '0')}`; };
-  const name = r.o.id.replace(/,/g, ' ');
-  const rows = P.map((p, i) => [P.length > 1 ? `${name} ${i + 1}` : name, sex(p.ra / 15, true), sex(p.dec, false), p.pa.toFixed(2), g.W.toFixed(2), g.H.toFixed(2), P.length > 1 ? 10 : 0, p.row, p.col].join(','));
-  saveText(`${r.o.id.replace(/[^\w.-]+/g, '')}-nina.csv`, ['Pane,RA,DEC,Position Angle (East),Pane width (arcmins),Pane height (arcmins),Overlap,Row,Column', ...rows].join('\r\n') + '\r\n');
+  const f = e.fill, mos = state.mosaic && f.nx * f.ny > 1, P = mosaicPanes(r.o, e.cfg.geom, mos ? f.nx : 1, mos ? f.ny : 1, state.rot, state.frameOff || [0, 0]);
+  saveText(`${r.o.id.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-nina.csv`, ninaCsv(r.o.id, P, e.cfg.geom, tx('Pannello')));
 }
 /* con la Luna della notte scelta può convenire un'altra combinazione (model.js, pickMoon): la si mostra con i suoi passi */
 function moonHTML(e, b, n) {
@@ -621,7 +617,7 @@ function renderDetail() {
         ${e.fill.nx * e.fill.ny > 1 ? `<label class="chk"><input type="checkbox" id="mos" ${state.mosaic ? 'checked' : ''}> ${tx('Mosaico')} ${e.fill.nx}×${e.fill.ny}</label>` : ''}
         <label class="chk"><input type="checkbox" id="realSky" ${state.realSky ? 'checked' : ''}> ${tx('Foto reale')}</label></div></div>
       <p class="note"><span id="skyNote"></span></p></div>
-    <div class="d-actions"><button class="btn sm" id="copyCoord">${ic('copy')}${tx('Copia coordinate J2000')}</button>${Math.hypot(fr.dx, fr.dy) > 2 ? `<button class="btn sm" id="copyFrame">${ic('copy')}${tx('Copia centro inquadratura')}</button>` : ''}<button class="btn sm" id="ninaBtn" title="${tx('Pannelli per N.I.N.A. (CSV come Telescopius)')}">${ic('download')}N.I.N.A.</button><a class="btn sm ghost" href="${aladin}" target="_blank" rel="noopener">Aladin${ic('ext')}</a><a class="btn sm ghost" href="${stel}" target="_blank" rel="noopener">Stellarium Web${ic('ext')}</a></div>
+    <div class="d-actions"><button class="btn sm" id="copyCoord">${ic('copy')}${tx('Copia coordinate J2000')}</button>${Math.hypot(fr.dx, fr.dy) > 2 ? `<button class="btn sm" id="copyFrame">${ic('copy')}${tx('Copia centro inquadratura')}</button>` : ''}<button class="btn sm" id="ninaBtn" title="${tx('CSV per N.I.N.A., formato Telescopius')}">${ic('download')}N.I.N.A.</button><a class="btn sm ghost" href="${aladin}" target="_blank" rel="noopener">Aladin${ic('ext')}</a><a class="btn sm ghost" href="${stel}" target="_blank" rel="noopener">Stellarium Web${ic('ext')}</a></div>
   </section>
 
   ${tips.length ? `<section class="tabp" data-tab="consigli" ${tab === 'consigli' ? '' : 'hidden'}>
