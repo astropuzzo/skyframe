@@ -235,7 +235,7 @@ const Dome = (() => {
     raf = 0;
     tweenStep(now);
     if (document.hidden || !cv.offsetParent) return; // sezione nascosta: niente disegni (si riparte quando torna visibile)
-    const introOn = now - t0 < 1800, sparkle = !reduced() && now - lastAct < SPARKLE_MS, twinkle = sparkle && now - lastDraw > 66;
+    const introOn = now - t0 < 1800, sparkle = !reduced() && now - lastAct < SPARKLE_MS && !document.documentElement.classList.contains('computing'), twinkle = sparkle && now - lastDraw > 66; // durante un calcolo la cupola non scintilla: il tempo va al calcolo
     if (dirty || anim || introOn || twinkle) { draw(now); lastDraw = now; dirty = false; }
     if (tw || anim || introOn || sparkle) kick();
   }

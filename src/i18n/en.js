@@ -987,4 +987,5 @@ window.I18N.en = {
   "Computer: copie di sicurezza dei profili e ripristino se il file si rovina": "Desktop: profile backups and recovery if the file gets damaged",
   "Meteo dei luoghi recenti in memoria; guida e suggerimenti più brevi": "Weather of recent locations kept; shorter guide and hints",
   "Computer: Electron 44, calcolo della notte più rapido": "Desktop: Electron 44, faster night computation",
+  "Nessun blocco cambiando notte, luogo o profilo, anche sui telefoni lenti": "No freezes when switching night, location or profile, even on slow phones",
 };

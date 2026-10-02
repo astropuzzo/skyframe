@@ -86,24 +86,44 @@ async function importProfiles() {
 }
 
 /* ============================ calcolo ============================ */
-/* si consiglia solo con il materiale del profilo attivo: le sue ottiche, i loro accessori, la sua camera e i suoi filtri */
-function recompute(force) {
+/* si consiglia solo con il materiale del profilo attivo: le sue ottiche, i loro accessori, la sua camera e i suoi filtri.
+   Con dei risultati già sullo schermo (async) il catalogo si calcola a pezzi da 12 ms: l'interfaccia resta fluida anche
+   dove il calcolo intero dura un secondo (telefoni economici); intanto restano i risultati di prima, poi si ridisegna.
+   Ritorna false (niente da rifare), true (rifatto) o 'pending' (in calcolo). */
+const JOB = { id: 0, key: '' };
+const yieldTask = (() => { const ch = new MessageChannel(), q = []; ch.port1.onmessage = () => { const f = q.shift(); if (f) f(); }; return (f) => { q.push(f); ch.port2.postMessage(0); }; })();
+function recompute(force, async) {
   const a = active();
   // orari e date nell'ora del luogo attivo; «stanotte» è la notte in corso lì
   setDisplayTz(a.site); if (state.live) $('#nightDate').value = defaultNightStr();
   const ds = $('#nightDate').value || defaultNightStr();
   const key = JSON.stringify(a) + ds;
-  if (!force && key === state.computeKey && state.res) return false;
-  state.computeKey = key;
-  state.cfgs = profileConfigs(a);
+  if (!force && key === state.computeKey && state.res && !JOB.key) return false;
+  if (!force && async && key === JOB.key) return 'pending';
+  const cfgs = profileConfigs(a), id = ++JOB.id, now = Date.now();
+  if (!async) { JOB.key = ''; applyResult(key, a, cfgs, computeAll(cfgs, a, ds, now)); return true; }
+  JOB.key = key;
+  const C = computePrep(cfgs, a, ds, now), out = []; let i = 0;
+  const step = () => {
+    if (id !== JOB.id) return; // superato da un calcolo più nuovo
+    const t0 = performance.now();
+    while (i < CAT.length && performance.now() - t0 < 12) { const r = computeObj(C, CAT[i++]); if (r) out.push(r); }
+    if (i < CAT.length) { yieldTask(step); return; }
+    JOB.key = ''; applyResult(key, a, cfgs, { night: C.night, results: out, lut: C.lut, sky: C.sky, sqm: C.sky.sqm, Q: C.Q, C });
+    document.documentElement.classList.remove('computing'); render(true);
+  };
+  yieldTask(step);
+  return 'pending';
+}
+function applyResult(key, a, cfgs, res) {
+  state.computeKey = key; state.cfgs = cfgs;
   if (state.cfgFilter && !state.cfgs.some((c) => c.key === state.cfgFilter)) state.cfgFilter = '';
-  state.res = computeAll(state.cfgs, a, ds, Date.now());
+  state.res = res;
   state.res.C.progOf = projProgress; state.res.C.mode = moonMode(); applyWeather();
   state.byId = new Map(state.res.results.map((r) => [r.o.id, r]));
   const ck = siteKey(a.site) + a.session.sunThr + defaultNightStr();
   if (ck !== state.calKey) { state.calKey = ck; const cal = moonCalendar(a, defaultNightStr(), 45); state.windows = darkWindows(cal); }
   const w = state.windows && state.windows[0]; state.nextDarkTxt = w ? `${fmtDay(w.from)}–${fmtDay(w.to)}` : '';
-  return true;
 }
 /* Come riprendi con la Luna: consigliato (salta le notti peggiori), tutte le sere, solo senza Luna. Preferenza dell'app;
    finché non la scegli vale quella scritta nel profilo dalle versioni precedenti. */
@@ -220,7 +240,12 @@ function pushDome() {
   Dome.setData({ site: a.site, lut: state.res.lut, sqm: state.res.sqm, sky: state.res.sky, night: state.res.night, targets: top, sel: state.sel, byId: state.byId, minAlt: +a.session.minAlt || 0 });
 }
 function refresh(force) {
-  const changed = recompute(force);
+  const changed = recompute(force, !!state.res);
+  document.documentElement.classList.toggle('computing', changed === 'pending');
+  if (changed === 'pending') { renderHeader(); renderNightBar(); return; } // il resto a calcolo finito
+  render(changed);
+}
+function render(changed) {
   if (changed) initTime();
   if (changed || cmp.keys.size !== state.locs.length) scheduleCompare();
   applyFilters();

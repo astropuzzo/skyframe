@@ -249,6 +249,8 @@ function locHint(r) {
   return `<span class="lochint" title="${title}">${ic('pin')}${name} ≈ ${h}${b.gain != null ? ` <em>−${Math.round(b.gain * 100)}%</em>` : ''}</span>`;
 }
 function renderList() {
+  if (UI.view !== 'targets') { UI.listDirty = true; return; } // lista nascosta: si disegna quando si apre la sezione
+  UI.listDirty = false;
   const L = state.filtered, shown = L.slice(0, state.page);
   const visN = state.res.results.filter((r) => r.usableH >= 0.25).length;
   $('#count').innerHTML = tx('{n} di {v} target la notte del {d}', { n: `<span class="num">${L.length}</span>`, v: visN, d: fmtNight(state.res.night.t0, { weekday: 'long', day: 'numeric', month: 'long' }) });

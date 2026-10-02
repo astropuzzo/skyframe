@@ -56,6 +56,7 @@ function setView(v, fromPop) {
     navInd(true);
     $$('.views > .view').forEach((s) => { const on = s.dataset.view === v; s.hidden = !on; if (on && !vt) { s.classList.remove('enter'); void s.offsetWidth; s.classList.add('enter'); } });
     if (v === 'tonight') { Dome.refresh(); drawStrip(); }
+    if (v === 'targets' && UI.listDirty) renderList();
     if (v === 'projects') renderProjects();
     if (v === 'sky') renderSky();
     if (v === 'setup') renderSetup();
