@@ -302,7 +302,7 @@ function renderSetup() {
     <div class="st-sec"><h3>${tx('Dati')}</h3><div class="st-list">
       <button type="button" class="st-item" data-export>${ic('upload')}<span class="tx"><b>${tx('Esporta')}</b><small>${tx('profili, luoghi e progetti in un file')}</small></span></button>
       <button type="button" class="st-item" data-import>${ic('download')}<span class="tx"><b>${tx('Importa')}</b><small>${tx('da un file esportato da Skyframe')}</small></span></button>
-      ${(() => { const b = window.cielo && window.cielo.backup && LS.get('sf.bak', null); return b ? `<div class="st-item"><span class="tx"><b>${tx('Copia automatica')}</b><small>${esc(b.where)} · ${new Date(b.at).toLocaleString(LOCALE, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</small></span></div>` : ''; })()}
+      ${(() => { const b = window.cielo && window.cielo.backup && LS.get('sf.bak', null); return b ? `<div class="st-item">${ic('check')}<span class="tx"><b>${tx('Copia automatica')}</b><small>${esc(b.where)} · ${new Date(b.at).toLocaleString(LOCALE, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</small></span></div>` : ''; })()}
     </div><p class="st-foot">${tx(DESK ? 'Tutto resta su questo computer.' : 'Tutto resta su questo dispositivo.')}</p></div>
     <div class="st-sec" id="stGuide"><h3>${tx('Guida')}</h3><div class="st-list">
       <button type="button" class="st-item" data-tour>${ic('info')}<span class="tx"><b>${tx('Rivedi la guida')}</b><small>${tx('configurazione e uso dell’app')}</small></span>${ic('chev-r')}</button>

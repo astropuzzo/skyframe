@@ -996,4 +996,5 @@ window.I18N.en = {
   "Esportazione per N.I.N.A.: centro, PA e pannelli del mosaico": "Export for N.I.N.A.: centre, PA and mosaic panels",
   "Android: esportazione in un file e copia automatica in Documenti/Skyframe": "Android: export to a file and automatic backup in Documents/Skyframe",
   "Piano: numero di pose per filtro": "Plan: number of subs per filter",
+  "Android: riga della copia automatica allineata in Setup": "Android: automatic backup row aligned in Setup",
 };
