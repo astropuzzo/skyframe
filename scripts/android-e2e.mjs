@@ -63,7 +63,7 @@ const keep = setInterval(() => {}, 1000); // il processo resta vivo mentre si as
 
 try {
   await reconnect();
-  log('attendo avvio'); out.checks.avvio = await until('typeof state !== "undefined" && state.res && document.querySelector("#list .row")', 90000);
+  log('attendo avvio'); out.checks.avvio = await until('typeof state !== "undefined" && state.res && state.filtered && state.filtered.length && document.querySelector("#v-tonight")', 90000); // la lista dei target si disegna quando si apre la sezione
   shot('01-avvio');
   // guida al primo avvio: parte da sola
   out.checks.guida_parte = await until('typeof TOUR !== "undefined" && TOUR.el', 8000);
@@ -152,7 +152,7 @@ try {
   out.checks.meteo = await until('wxOk()', 60000);
   await ev(`for (const id of ['NGC 7000','IC 1396','NGC 281','IC 1805','NGC 6960']) if (state.byId.has(id) && !isFav(id)) toggleFav(id); return 1`);
   log('sezioni'); const views = [['tonight', 'stanotte'], ['targets', 'target'], ['sky', 'cielo'], ['projects', 'progetti'], ['setup', 'setup']];
-  for (const [v, name] of views) { await ev(`setView('${v}'); return 1`); await sleep(v === 'projects' ? 4500 : 2500); shot(`05-${name}`); }
+  for (const [v, name] of views) { await ev(`setView('${v}'); return 1`); await sleep(v === 'projects' ? 4500 : 2500); shot(`05-${name}`); if (v === 'targets') out.checks.lista_target = await until('document.querySelector("#list .row")', 10000); }
   await ev(`setView('tonight'); document.getElementById('v-tonight').scrollTop = 900; return 1`); await sleep(1200); shot('05-stanotte-giu');
   // dettaglio di un target: tempi e calendario
   await ev(`const id = state.byId.has('NGC 7000') ? 'NGC 7000' : state.filtered[0].o.id; openDetail(id); setDTab('piano'); return 1`); await sleep(2500);
