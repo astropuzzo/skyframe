@@ -5,12 +5,22 @@ import fs from 'node:fs';
 
 const PKG = 'io.github.astropuzzo.skyframe';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const adb = (a) => execSync(`adb ${a}`, { encoding: 'utf8', maxBuffer: 64e6 });
 const out = { checks: {}, notes: [] };
+/* un comando adb, al massimo un minuto; se l'emulatore è sparito (capita sui runner di GitHub) si esce subito con 4:
+   il workflow riprova da capo invece di restare fermo fino al limite del job */
+const adb = (a) => {
+  try { return execSync(`adb ${a}`, { encoding: 'utf8', maxBuffer: 64e6, timeout: 60000 }); } catch (e) {
+    if (/device offline|device '[^']*' not found|no devices\/emulators found/.test(String(e.stderr || e.message))) {
+      out.notes.push('emulatore sparito: ' + a); try { fs.writeFileSync('e2e/risultati.json', JSON.stringify(out, null, 2)); } catch { /* niente */ }
+      console.log('emulatore sparito, esco'); process.exit(4);
+    }
+    throw e;
+  }
+};
 const T0 = Date.now(), log = (m) => { const l = `[${Math.round((Date.now() - T0) / 1000)} s] ${m}`; console.log(l); out.notes.push(l); try { fs.writeFileSync('e2e/risultati.json', JSON.stringify(out, null, 2)); } catch { /* niente */ } };
 // limite generale: dopo 20 minuti si scrive quello che c'è e si esce
 setTimeout(() => { log('limite di tempo raggiunto'); process.exit(3); }, 20 * 60000);
-const shot = (name, shade) => { if (!shade) try { execSync('adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS', { stdio: 'ignore' }); } catch { /* niente */ } try { fs.writeFileSync(`e2e/${name}.png`, execSync('adb exec-out screencap -p', { maxBuffer: 64e6 })); } catch (e) { out.notes.push(`schermata ${name}: ${e.message}`); } };
+const shot = (name, shade) => { if (!shade) try { execSync('adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS', { stdio: 'ignore', timeout: 20000 }); } catch { /* niente */ } try { fs.writeFileSync(`e2e/${name}.png`, execSync('adb exec-out screencap -p', { maxBuffer: 64e6, timeout: 30000 })); } catch (e) { out.notes.push(`schermata ${name}: ${e.message}`); } };
 const notifs = () => { try { return adb('shell dumpsys notification --noredact'); } catch { return ''; } };
 
 async function devtools() {
@@ -18,7 +28,7 @@ async function devtools() {
     const pid = (() => { try { return adb(`shell pidof ${PKG}`).trim().split(/\s+/)[0]; } catch { return ''; } })();
     const socks = adb('shell cat /proc/net/unix').match(/@webview_devtools_remote_\d+/g) || [];
     const m = socks.find((x) => pid && x.endsWith('_' + pid)) || socks[0];
-    if (m) { try { execSync('adb forward --remove-all', { stdio: 'ignore' }); } catch { /* niente */ } adb(`forward tcp:9222 localabstract:${m.slice(1)}`); break; }
+    if (m) { try { execSync('adb forward --remove-all', { stdio: 'ignore', timeout: 20000 }); } catch { /* niente */ } adb(`forward tcp:9222 localabstract:${m.slice(1)}`); break; }
     await sleep(2000);
   }
   for (let i = 0; i < 30; i++) {

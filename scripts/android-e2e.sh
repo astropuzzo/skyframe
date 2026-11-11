@@ -3,7 +3,7 @@
 set -u
 PKG=io.github.astropuzzo.skyframe
 APK=android/app/build/outputs/apk/debug/app-debug.apk
-mkdir -p e2e
+rm -rf e2e; mkdir -p e2e
 adb wait-for-device
 adb shell cmd alarm set-timezone Europe/Rome || true
 adb shell settings put global package_verifier_enable 0 || true
@@ -28,7 +28,8 @@ if [ -s e2e/avvio.mp4 ] && command -v ffmpeg >/dev/null; then mkdir -p e2e/avvio
 sleep 8
 node scripts/android-e2e.mjs
 code=$?
-adb logcat -d > e2e/logcat-all.txt || true
+# se l'emulatore è sparito questi comandi resterebbero in attesa fino al limite del job
+timeout 60 adb logcat -d > e2e/logcat-all.txt || true
 grep -iE "capacitor|skyframe|chromium|console|WM-|AlarmManager" e2e/logcat-all.txt > e2e/logcat.txt || true
-adb shell dumpsys notification --noredact > e2e/notifications.txt || true
+timeout 30 adb shell dumpsys notification --noredact > e2e/notifications.txt || true
 exit $code
