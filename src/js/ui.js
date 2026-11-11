@@ -347,7 +347,9 @@ async function renderAlertStatus() {
   if (wb) wb.onclick = async () => { const r = await nat.pinWidget(); if (!r || !r.asked) toast(tx('Aggiungilo dai widget della schermata Home')); setTimeout(alertsSync, 4000); };
   if (!box) return;
   show('#stBlocked', !st.enabled); show('#stExact', !st.exact); show('#stBatt', !st.battery);
-  box.hidden = !st.run; if (st.run) box.querySelector('small').textContent = new Date(st.ok || st.run).toLocaleString(LOCALE, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  // quando ha guardato il meteo l'ultima volta, e quando l'ha fatto da solo ad app chiusa: così si vede se il telefono lo lascia lavorare
+  const when = (t) => new Date(t).toLocaleString(LOCALE, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  box.hidden = !st.run; if (st.run) box.querySelector('small').textContent = when(st.ok || st.run) + (st.bg ? ' · ' + tx('ad app chiusa {t}', { t: when(st.bg) }) : '');
 }
 function setRed(v) { $('#veil').hidden = !v; $('#nightBtn').setAttribute('aria-pressed', String(!!v)); LS.set('sf.red', !!v); const s = $('#swRed'); if (s) s.checked = !!v; }
 

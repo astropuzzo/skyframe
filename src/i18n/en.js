@@ -1021,6 +1021,7 @@ window.I18N.en = {
   "Computer: avvisi anche a finestra chiusa, dalla barra di sistema": "Desktop: alerts even with the window closed, from the system tray",
   "A finestra chiusa": "With the window closed", "Skyframe resta nella barra di sistema": "Skyframe stays in the system tray", "accesi, anche a finestra chiusa": "on, even with the window closed",
   "Barra di sistema non disponibile": "System tray not available", "Esci": "Quit",
+  "ad app chiusa {t}": "with the app closed {t}",
   "prevista coperta": "forecast overcast",
   "Prossima notte utile": "Next usable night", "meteo non ancora previsto": "no forecast yet",
   "Esporta il piano": "Export the plan", "Testo": "Text", "orari, target e filtri": "times, targets and filters", "CSV per N.I.N.A.": "CSV for N.I.N.A.",

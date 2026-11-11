@@ -79,6 +79,7 @@ public class AlertsPlugin extends Plugin {
         JSObject r = new JSObject();
         r.put("run", st == null ? 0 : st.optLong("run"));
         r.put("ok", st == null ? 0 : st.optLong("ok"));
+        r.put("bg", st == null ? 0 : st.optLong("bg"));
         r.put("why", st == null ? "" : st.optString("why"));
         r.put("log", st == null ? "" : st.optString("log"));
         r.put("next", st == null ? 0 : st.optLong("next"));

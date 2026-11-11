@@ -93,6 +93,7 @@ public final class AlertsEngine {
             setAlarm(ctx, out.nextAlarm);
             log = out.log;
             st.put("run", now); st.put("why", why); st.put("log", log); st.put("next", out.nextAlarm);
+            if (!"app".equals(why)) st.put("bg", now); // l'ultimo controllo fatto senza l'app: in Setup si vede se il telefono li lascia girare
             SharedPreferences.Editor ed = p.edit().putString("st", st.toString());
             if (widgets > 0) { String[] s = AlertsCore.summary(cfg, wx, now); ed.putString("widget", new JSONObject().put("t", s[0]).put("l", s[1]).put("at", now).toString()); }
             ed.commit(); // il widget rilegge subito

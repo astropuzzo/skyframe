@@ -225,6 +225,7 @@ try {
   const home = ui(); out.widget_testo = (home.match(/text="(E2E stanotte[^"]*)"/) || [])[1] || null;
   out.checks.widget_sulla_home = /E2E stanotte · ottima/.test(home);
   out.log_sveglia = logcat(/alarm: /).slice(-3);
+  out.prefs_bg = (() => { try { return /&quot;bg&quot;:\d{13}|"bg":\d{13}/.test(adb(`shell run-as ${PKG} cat shared_prefs/sf.alerts.xml`)); } catch { return null; } })();
   out.checks.sveglia_scattata = out.log_sveglia.length > 0;
   // 4) il lavoro periodico (WorkManager), forzato dal sistema ad app chiusa
   try {
