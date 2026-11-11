@@ -99,6 +99,7 @@ function tourStart(steps, i0 = 0) {
     <div class="tour-card"><div class="tour-top"><span class="tour-n"></span><button type="button" class="link" data-t="skip"></button></div><div class="tour-body"></div>
     <div class="tour-bar"><i></i></div><div class="tour-acts"></div></div>`;
   document.body.appendChild(el); TOUR.el = el; TOUR.steps = steps; TOUR.i = -1;
+  if (state.res) renderTonight(); // il piano a cielo sereno, per tutta la guida
   TOUR.hole = Motion.follower(4, 'glide'); TOUR.card = Motion.follower(2, 'glide'); TOUR.last = 0;
   el.addEventListener('click', (e) => {
     const b = e.target.closest('[data-t]'); if (!b) return;
@@ -134,6 +135,7 @@ function tourEnd(fromPop) {
   if (fromPop === true) { if (TOUR.el) { cancelAnimationFrame(TOUR.raf); TOUR.el.remove(); TOUR.el = null; TOUR.seq++; UI.noVT = false; document.removeEventListener('keydown', tourKey, true); } tourPreview(null); } else tourClose();
   if (!$('#drawer').hidden) closeDetail(false, $('#drawer').dataset.preview ? 'drag' : undefined);
   if (UI.view !== 'tonight') setView('tonight');
+  renderTonight(); // il piano torna quello col meteo vero
 }
 /* il target d'esempio del dettaglio: fra quelli visibili stanotte, prima uno dei tuoi, poi uno con le foto vere */
 const tourSample = () => {

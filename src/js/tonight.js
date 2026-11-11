@@ -121,7 +121,9 @@ function logFromPlan(id) {
 }
 function renderTonight() {
   const el = $('#tonight'); if (!el || !state.res) return;
-  const n = state.res.night, P = tonightPlan(), wn = wxNight(n);
+  // durante la guida il piano è quello a cielo sereno: con una notte coperta il passo «Piano» non avrebbe blocchi da mostrare
+  const demo = typeof TOUR !== 'undefined' && !!TOUR.el;
+  const n = state.res.night, P = tonightPlan(demo), wn = wxNight(n);
   const on = notifyOn(), today = n.ds === defaultNightStr();
   const bell = `<button type="button" class="icon-btn tn-bell" id="notifyBtn" aria-pressed="${on}" title="${tx(on ? 'Avviso attivo: un’ora prima del buio, se la previsione è serena' : 'Avvisami se la notte è serena')}" aria-label="${tx('Avvisi')}">${ic(on ? 'bell-on' : 'bell')}</button>`;
   const share = P.blocks.length ? `<button type="button" class="icon-btn" id="planShare" title="${tx('Esporta il piano')}" aria-label="${tx('Esporta il piano')}">${ic('upload')}</button>` : '';

@@ -228,7 +228,7 @@ function renderTopList() {
     L.map((r) => {
       const b = r.e.best, h = b ? hoursOf(b) : Infinity;
       return `<button type="button" class="tl-row" data-id="${esc(r.o.id)}"><span class="score" style="--c:${scoreColor(r.score)};--v:${r.score}"><b>${r.score}</b></span>
-        <span class="n"><span class="l1"><b>${esc(r.o.id)}</b>${r.o.nick ? `<span class="nick">${esc(r.o.nick)}</span>` : ''}</span><small>${tx(TYPES_PL[r.o.type])} · ${r.first >= 0 ? `${fmtT(n.t[r.first])}–${fmtT(n.t[r.last] + DT)}` : ''} · max ${Math.round(r.maxA)}°</small></span>
+        <span class="n"><span class="l1"><b>${esc(r.o.id)}</b>${r.o.nick ? `<span class="nick">${esc(r.o.nick)}</span>` : ''}</span><small>${r.first >= 0 ? `${fmtT(r.tIn)}–${fmtT(r.tOut)} · ` : ''}max ${Math.round(r.maxA)}° · ${tx(TYPES_PL[r.o.type])}</small></span>
         <span class="h">${isFinite(h) ? '≈ ' + fmtH(h) : '—'}<small>${b ? esc(r.e.moonBest ? b.short : b.label) : ''}${r.e.moonBest ? ` · ${ic('moon', 'sm')} ${esc(r.e.moonBest.short)}` : ''}</small></span></button>`;
     }).join('') + `<button type="button" class="btn tl-more" data-all>${tx('Tutti i {n} di stanotte', { n: state.filtered.length })}${ic('arrow-r', 'sm')}</button>`;
   el.onclick = (e) => { if (e.target.closest('[data-all]')) { setView('targets'); return; } const r = e.target.closest('[data-id]'); if (r) openDetail(r.dataset.id, r); };
