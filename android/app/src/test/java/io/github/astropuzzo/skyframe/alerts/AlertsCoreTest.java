@@ -287,9 +287,12 @@ public class AlertsCoreTest {
         assertEquals(1, AlertsCore.decide(c, st, w, D0 - 30 * M, NONE).post.size());
         assertTrue(AlertsCore.decide(other, st, wx((h) -> 0.05), D0 - 20 * M, NONE).post.isEmpty());
         assertEquals("b", st.getJSONObject("nights").getJSONObject("2026-12-16").getString("p"));
+        // e tornando a quello sereno il suo avviso arriva senza suono
+        AlertsCore.Out o = AlertsCore.decide(c, st, w, D0 - 10 * M, NONE);
+        assertEquals(1, o.post.size()); assertTrue(o.post.get(0).quiet);
         // stesso luogo: le nuvole che tornano si dicono
         JSONObject st2 = new JSONObject();
-        AlertsCore.decide(c, st2, w, D0 - 30 * M, NONE);
+        assertFalse(AlertsCore.decide(c, st2, w, D0 - 30 * M, NONE).post.get(0).quiet);
         assertEquals(1, AlertsCore.decide(c, st2, wx((h) -> 0.05), D0 - 20 * M, NONE).post.size());
     }
 

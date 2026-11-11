@@ -265,7 +265,8 @@ final class AlertsCore {
         JSONArray nights = cfg.optJSONArray("nights"); if (nights == null) nights = new JSONArray();
         // luogo cambiato: quello che si è detto delle notti valeva per l'altro, e passare a un posto coperto non è un «cambio»
         String site = site(cfg);
-        if (!site.equals(st.optString("site", site))) st.remove("nights");
+        boolean moved = !site.equals(st.optString("site", site));
+        if (moved) st.remove("nights");
         st.put("site", site);
         JSONObject sn = child(st, "nights"), sent = child(st, "sent");
         long lead = cfg.optLong("lead", 60) * MIN;
@@ -308,7 +309,8 @@ final class AlertsCore {
                     s.put("p", good ? "g" : "b"); s.put("at", now);
                     // a notte iniziata da un pezzo (telefono spento la sera) non si annuncia più niente
                     if (good && evening && now < d0 + 90 * MIN) {
-                        out.post.add(new Note(ID_NIGHT, fill(txt.optString("title"), "w", w), text, ds, false));
+                        // il luogo si cambia dall'app, che in quel momento è sullo schermo: l'avviso del nuovo posto non suona
+                        out.post.add(new Note(ID_NIGHT, fill(txt.optString("title"), "w", w), text, ds, moved));
                         s.put("t", w); s.put("x", text); out.log = "sera";
                     }
                 } else if (change && now < d1 - 2 * HOUR) {
