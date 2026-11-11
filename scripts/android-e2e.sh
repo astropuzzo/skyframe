@@ -3,7 +3,13 @@
 set -u
 PKG=io.github.astropuzzo.skyframe
 APK=android/app/build/outputs/apk/debug/app-debug.apk
-rm -rf e2e; mkdir -p e2e
+# il tentativo di prima resta in e2e/primo-tentativo: serve a capire perché è fallito
+rm -rf e2e-prima; [ -d e2e ] && mv e2e e2e-prima; mkdir -p e2e; [ -d e2e-prima ] && mv e2e-prima e2e/primo-tentativo
+# L'emulatore dei runner ogni tanto sparisce senza dire niente: memoria e carico della macchina ogni 10 secondi, per
+# distinguere la memoria finita (il sistema lo chiude) da un suo crash
+{ nproc; grep -m1 'model name' /proc/cpuinfo; free -m; df -h / | tail -1; } > e2e/macchina.txt 2>&1 || true
+( while sleep 10; do echo "$(date -u +%T) $(free -m | awk '/Mem:/{print "usata " $3 " MB, disponibile " $7 " MB"}'), emulatore $(ps -o rss= -p "$(pgrep -f qemu-system | head -1)" 2>/dev/null | awk '{print int($1/1024)}') MB, carico $(cut -d' ' -f1 /proc/loadavg)"; done > e2e/memoria.txt 2>/dev/null ) &
+MEM=$!
 adb wait-for-device
 adb shell cmd alarm set-timezone Europe/Rome || true
 adb shell settings put global package_verifier_enable 0 || true
@@ -15,6 +21,9 @@ adb install -r "$APK"
 adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS || true
 adb shell appops set $PKG SCHEDULE_EXACT_ALARM allow || true
 adb logcat -c || true
+# il log si salva mentre la prova gira: se l'emulatore sparisce, alla fine non si può più chiedere
+adb logcat -v threadtime > e2e/logcat-live.txt 2>/dev/null &
+LOGCAT=$!
 # animazioni del sistema accese (l'emulatore parte senza, e l'app le rispetta): l'avvio si filma come su un telefono vero
 for k in window_animation_scale transition_animation_scale animator_duration_scale; do adb shell settings put global $k 1 || true; done
 adb shell screenrecord --time-limit 12 --bit-rate 12000000 /sdcard/avvio.mp4 &
@@ -28,8 +37,11 @@ if [ -s e2e/avvio.mp4 ] && command -v ffmpeg >/dev/null; then mkdir -p e2e/avvio
 sleep 8
 node scripts/android-e2e.mjs
 code=$?
+kill $LOGCAT $MEM 2>/dev/null || true
+{ echo '--- fine'; free -m; uptime; sudo dmesg -T | grep -iE 'oom|out of memory|killed process|qemu|segfault|kvm' | tail -40; } >> e2e/macchina.txt 2>&1 || true
 # se l'emulatore è sparito questi comandi resterebbero in attesa fino al limite del job
 timeout 60 adb logcat -d > e2e/logcat-all.txt || true
+[ -s e2e/logcat-all.txt ] || cp e2e/logcat-live.txt e2e/logcat-all.txt 2>/dev/null || true
 grep -iE "capacitor|skyframe|chromium|console|WM-|AlarmManager" e2e/logcat-all.txt > e2e/logcat.txt || true
 timeout 30 adb shell dumpsys notification --noredact > e2e/notifications.txt || true
 exit $code
