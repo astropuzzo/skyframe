@@ -129,6 +129,34 @@ test('Luna vista dal luogo: sorge col lembo sull’orizzonte, uguale nella stris
   }
 });
 
+test('buio e finestra utile al minuto, non al passo di cinque', () => {
+  const p = M.templateProfile(); p.site = { lat: 45, lon: 9, sqm: 19 }; p.horizon = [[0, 0], [90, 30], [180, 10], [270, 0]]; p.session.sunThr = -18; p.session.minAlt = 25;
+  const C = M.computePrep(M.profileConfigs(p), p, '2026-10-10', 0), n = C.night, step = M.STEP * 60000;
+  // il Sole è alla soglia proprio in quegli istanti, dentro il passo che li contiene
+  const sunAt = (ms) => { const i = Math.floor((ms - n.t0) / step), u = (ms - n.t[i]) / step; return n.sun[i] * (1 - u) + n.sun[i + 1] * u; };
+  assert.ok(Math.abs(sunAt(n.dusk) + 18) < 1e-6 && Math.abs(sunAt(n.dawn) + 18) < 1e-6);
+  assert.ok(n.dusk > n.t[n.first] - step && n.dusk <= n.t[n.first] && n.dawn >= n.t[n.last] && n.dawn < n.t[n.last] + step);
+  let inside = 0;
+  for (const id of ['NGC 7000', 'M 31', 'M 42', 'IC 1396', 'M 45', 'NGC 281']) {
+    const r = M.computeObj(C, M.CAT_BY_ID.get(id)); if (!r || r.first < 0) continue;
+    assert.ok(r.tIn > n.t[r.first] - step - 1 && r.tIn <= n.t[r.first] + 1 && r.tOut >= n.t[r.last] - 1 && r.tOut < n.t[r.last] + step + 1, id);
+    assert.ok(r.tIn >= n.dusk - 1 && r.tOut <= n.dawn + 1 && r.tOut > r.tIn, id);
+    if (r.tIn > n.dusk + 1 || r.tOut < n.dawn - 1) inside++;
+  }
+  assert.ok(inside >= 2, 'almeno due target con sorgere o tramonto dentro la notte');
+  // contro un almanacco (Roma, novembre 2026, ora locale): fine e inizio del crepuscolo astronomico, tramonto e alba, entro 90 s
+  const rome = M.templateProfile(); rome.site = { lat: 41.9028, lon: 12.4964, tz: 'Europe/Rome', sqm: 19 }; rome.session.sunThr = -18;
+  const at = (s) => Date.parse(s + ':30+01:00'); // l'almanacco tronca al minuto
+  for (const [ds, dusk, dawn, set, rise] of [['2026-11-11', '2026-11-11T18:28', '2026-11-12T05:19', '2026-11-11T16:53', '2026-11-12T06:55'], ['2026-11-20', '2026-11-20T18:22', '2026-11-21T05:29', '2026-11-20T16:45', '2026-11-21T07:06'], ['2026-11-29', '2026-11-29T18:19', '2026-11-30T05:37', '2026-11-29T16:40', '2026-11-30T07:16']]) {
+    const x = M.computeNight(rome, ds);
+    for (const [got, want, what] of [[x.dusk, dusk, 'fine crepuscolo'], [x.dawn, dawn, 'inizio crepuscolo'], [x.sunset, set, 'tramonto'], [x.sunrise, rise, 'alba']]) assert.ok(Math.abs(got - at(want)) < 90e3, `${ds} ${what}: ${new Date(got).toISOString()}`);
+  }
+  // con l'orario della sessione decide lui
+  p.session.from = '21:00'; p.session.to = '03:00'; const s = M.computeNight(p, '2026-10-10');
+  assert.equal(M.wall(s.dusk, null).getUTCHours() * 60 + M.wall(s.dusk, null).getUTCMinutes(), 21 * 60);
+  assert.equal(M.wall(s.dawn, null).getUTCHours() * 60 + M.wall(s.dawn, null).getUTCMinutes(), 3 * 60);
+});
+
 test('sessione dalle 20:00 alle 04:00: otto ore giuste', () => {
   const p = M.templateProfile(); p.site = { ...SITES.Roma, sqm: 21 }; p.session.sunThr = -18; p.session.from = '20:00'; p.session.to = '04:00';
   assert.equal(M.computeNight(p, '2026-12-15').darkH, 8);
@@ -200,6 +228,20 @@ test('piano di stagione: due target nello stesso punto del cielo si dividono la 
     const one = M.buildSeason(C, [r], mode), cal = M.shootCalendar(C, r, r.e, false, mode);
     if (one.targets[0].done != null || cal.done) assert.equal(M.aheadNight(C, one.targets[0].done).t0, cal.done, mode);
   }
+});
+
+test('notte quasi coperta: niente ritagli di sereno nei calendari e nel piano di stagione', () => {
+  const p = M.templateProfile(); p.site = { lat: 45, lon: 9, sqm: 19 }; p.horizon = [];
+  const C = M.computePrep(M.profileConfigs(p), p, '2026-10-10', 0), r = M.computeObj(C, M.CAT_BY_ID.get('IC 1396'));
+  // le prime due notti al 10% di cielo sgombro (un'ora di «sereno» sparsa su undici), poi sereno
+  const t2 = M.aheadNight(C, 2).t0; C.wx = (ms) => (ms < t2 ? 0.1 : 1);
+  for (const k of [0, 1]) { const x = M.nightRec(C, r, r.e, k, false); assert.equal(x.h, 0, `notte ${k}`); assert.ok(x.hGeo > 3 && !isFinite(x.T)); }
+  assert.ok(M.nightRec(C, r, r.e, 2, false).h > 3);
+  const P = M.buildSeason(C, [r], 'all');
+  assert.equal(P.nights[0].alloc.length + P.nights[1].alloc.length, 0);
+  assert.equal(P.nights[2].alloc.length, 1);
+  const cal = M.shootCalendar(C, r, r.e, false, 'all');
+  assert.ok(cal.cloudy >= 2 && cal.nights.filter((x) => x.use).every((x) => x.k >= 2));
 });
 
 test('pannelli per N.I.N.A.: centro e PA come nell’anteprima', () => {

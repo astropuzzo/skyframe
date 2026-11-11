@@ -551,10 +551,16 @@ function computeNight(p, ds, withMoon = true) {
   for (let i = 0; i <= N; i++) if (dark[i]) { dc++; if (first < 0) first = i; last = i; if (mAlt[i] > 0) mUp++; }
   const idxT = (x) => (x == null ? null : t0 + x * DT);
   const mid = first >= 0 ? Math.round((first + last) / 2) : N / 2;
+  // inizio e fine del buio al minuto: dove il Sole attraversa la soglia fra due passi; se decide l'orario della sessione, il passo
+  let dusk = null, dawn = null;
+  if (first >= 0) {
+    dusk = first > 0 && !darkAll[first - 1] ? t[first - 1] + DT * (sun[first - 1] - thr) / (sun[first - 1] - sun[first]) : t[first];
+    dawn = last < N && !darkAll[last + 1] ? t[last] + DT * (thr - sun[last]) / (sun[last + 1] - sun[last]) : t[last] + DT;
+  }
   return {
     t0, t, lst, sun, mAlt, mAz, mIll, mV, dark, darkAll, sL, cL, thr, w0, w1, sunset: idxT(sunset), sunrise: idxT(sunrise),
     darkH: dc * STEP / 60, moonUpFrac: dc ? mUp / dc : 0, moonIll: mIll[mid], waxing, mRise: idxT(cross(mAlt, MOON_RISE, false)), mSet: idxT(cross(mAlt, MOON_RISE, true)),
-    first, last, ds, tz, J: jd(t0 + N / 2 * DT), kV: extV(p.site),
+    first, last, dusk, dawn, ds, tz, J: jd(t0 + N / 2 * DT), kV: extV(p.site),
   };
 }
 
@@ -1027,6 +1033,14 @@ function computeObj(C, o) {
     }
   }
   if (maxAll < minAlt) return null;
+  // inizio e fine della finestra utile al minuto: dove l'altezza attraversa il limite (altezza minima o orizzonte) fra due
+  // passi, oppure dove comincia e finisce il buio
+  let tIn = null, tOut = null;
+  if (first >= 0) {
+    const gap = (i) => alt[i] - blk[i];
+    tIn = first > 0 && night.dark[first - 1] ? night.t[first - 1] + DT * -gap(first - 1) / (gap(first) - gap(first - 1)) : first === night.first ? night.dusk : night.t[first];
+    tOut = last < N && night.dark[last + 1] ? night.t[last] + DT * gap(last) / (gap(last) - gap(last + 1)) : last === night.last ? night.dawn : night.t[last] + DT;
+  }
   // passaggio in meridiano dentro la notte: lì una montatura equatoriale alla tedesca si ribalta
   let transit = null;
   for (let i = 1; i <= N; i++) {
@@ -1053,7 +1067,7 @@ function computeObj(C, o) {
   let nowAlt = null, nowAz = null, nowUse = false;
   if (C.nowIn) { const aa = altaz(pr.ra, pr.dec, C.nowLst, night.sL, night.cL); nowAlt = aa[0]; nowAz = aa[1]; nowUse = nowAlt >= Math.max(minAlt, lut[Math.round(nowAz) % 360]); }
   const skyMag = U.n ? -2.5 * Math.log10(U.art.slice(0, U.n).reduce((a, x) => a + x, 0) / U.n + U.nat.slice(0, U.n).reduce((a, x) => a + x, 0) / U.n) : null;
-  return { o, pr, v, alt: alt.slice(), az: az.slice(), use, blk, usableH, maxA, maxI, maxAll, first, last, transit, minSep, riseBlocked, vis, evals, e: bestE, score: bestE.score, nowAlt, nowAz, nowUse, T, field, skyMag };
+  return { o, pr, v, alt: alt.slice(), az: az.slice(), use, blk, usableH, maxA, maxI, maxAll, first, last, tIn, tOut, transit, minSep, riseBlocked, vis, evals, e: bestE, score: bestE.score, nowAlt, nowAz, nowUse, T, field, skyMag };
 }
 /* Interesse fotografico: a parità di inquadratura, ore e fatica, una nebulosa vale più di un ammasso aperto (che esce in
    un'ora ma raramente è il soggetto di una foto). Gli oggetti con un nome proprio o nella lista dei classici pesano un
@@ -1107,6 +1121,11 @@ function aheadNight(C, k) {
    - all (tutte le sere): ogni notte in cui il target si vede, anche con la Luna piena;
    - dark (solo senza Luna): contano solo le ore con la Luna sotto l'orizzonte o sottile (fino al 10% illuminata). */
 const MOON_MODES = ['smart', 'all', 'dark'];
+/* Sotto il 30% di cielo sgombro non si riprende: vale per il piano della notte, per i calendari, per il piano di stagione
+   e per gli avvisi. Prima i calendari contavano anche i ritagli di sereno di una notte coperta (il 6% di undici ore fa
+   quaranta minuti) e assegnavano un target a una notte in cui il piano della notte diceva «coperto». */
+const CLOUD_MIN = 0.3;
+const clearW = (f) => (f == null ? 1 : f < CLOUD_MIN ? 0 : Math.min(1, f));
 const calMode = (C, mode) => mode || C.mode || (C.active.session.moon === 'dark' ? 'dark' : 'smart');
 const calKey = (r, e, deep, mode) => r.o.id + '|' + e.cfg.key + '|' + (e.best ? e.best.id : '') + (deep ? '|d' : '') + '|' + (mode || 'smart');
 /* La notte k per un target nella configurazione e: ore utili h (serene dove c'è la previsione, mai più di quelle
@@ -1127,7 +1146,7 @@ function nightRec(C, r, e, k, darkOnly) {
     for (let i = 0; i <= N; i++) if (r.use[i]) {
       const t = C.night.t[i], f = wx ? wx(t) : null;
       if (f != null) known = true;
-      const clear = f == null ? 1 : clamp(f, 0, 1), j = Math.floor(i / per);
+      const clear = clearW(f), j = Math.floor(i / per);
       hs++; clearSum += clear; if (j < CAL_N) { sl[j] += clear / per; sa[j] = Math.max(sa[j], r.alt[i]); }
       U.w[u] = clear * (tr ? tr(t, U.X[u]) : 1); U.wSum += U.w[u]; u++;
     }
@@ -1150,7 +1169,7 @@ function nightRec(C, r, e, k, darkOnly) {
       U.X[U.n] = airmass(a); U.art[U.n] = C.sky.art(a, z); U.nat[U.n] = C.sky.nat(a); U.mf[U.n] = moonFlux(nk, i, r.v, a)[0];
       const t = nk.t0 + (i + 0.5) * CAL_STEP * 60000, f = wx ? wx(t) : null;
       if (f != null) known = true;
-      const clear = f == null ? 1 : clamp(f, 0, 1);
+      const clear = clearW(f);
       clearSum += clear; sl[i] = clear; sa[i] = a;
       U.w[U.n] = clear * (tr ? tr(t, U.X[U.n]) : 1); U.wSum += U.w[U.n]; U.n++;
     }

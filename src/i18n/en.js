@@ -1011,6 +1011,7 @@ window.I18N.en = {
   "meridiano {t}": "meridian {t}",
   "Esporta nel calendario": "Export to calendar",
   "Notte coperta: la prossima notte utile, a un tocco; dettaglio con un solo numero per le ore": "Overcast night: the next usable night, one tap away; target detail shows a single figure for the hours",
+  "prevista coperta": "forecast overcast",
   "Prossima notte utile": "Next usable night", "meteo non ancora previsto": "no forecast yet",
   "Esporta il piano": "Export the plan", "Testo": "Text", "orari, target e filtri": "times, targets and filters", "CSV per N.I.N.A.": "CSV for N.I.N.A.",
   "tutti i target con l’inquadratura consigliata": "every target with the suggested framing",

@@ -49,7 +49,7 @@ function planNight(n, cand, mine, pins = [], noWx = false) {
   for (let i = n.first; i <= n.last; i++) {
     if (!n.dark[i]) { cur = -1; len = 0; continue; }
     const f = noWx ? null : wxAt(n.t[i]), w = f == null ? 1 : f;
-    if (w < 0.3) { cur = -1; len = 0; continue; } // coperto: niente
+    if (w < CLOUD_MIN) { cur = -1; len = 0; continue; } // coperto: niente
     const free = (k) => T[k].r.use[i] && T[k].got < T[k].need;
     let best = -1, bv = 0; for (let k = 0; k < T.length; k++) if (free(k)) { const v = val(T[k], i); if (v > bv) { bv = v; best = k; } }
     if (cur >= 0 && free(cur) && (len < PLAN_MIN || val(T[cur], i) >= 0.85 * bv)) best = cur;
@@ -74,7 +74,7 @@ function planNight(n, cand, mine, pins = [], noWx = false) {
 function planText() {
   const n = state.res.night, P = tonightPlan(), day = fmtNight(n.t0, { weekday: 'long', day: 'numeric', month: 'long' });
   const rows = P.blocks.map((b) => `${fmtT(b.t0)}–${fmtT(b.t1)}  ${b.id}${b.r.o.nick ? ' (' + b.r.o.nick + ')' : ''} · ${b.s.label} · ${fmtH(b.hClear)}${b.r.transit > b.t0 && b.r.transit < b.t1 ? ' · ' + tx('meridiano {t}', { t: fmtT(b.r.transit) }) : ''}`);
-  return [`${activeLoc().site.name} · ${day}`, n.first >= 0 ? tx('Buio {a}–{b}', { a: fmtT(n.t[n.first]), b: fmtT(n.t[n.last] + DT) }) + ' · ' + tx('Luna {p}%', { p: Math.round(n.moonIll * 100) }) : '', ...rows, 'Skyframe'].filter(Boolean).join('\n');
+  return [`${activeLoc().site.name} · ${day}`, n.first >= 0 ? tx('Buio {a}–{b}', { a: fmtT(n.dusk), b: fmtT(n.dawn) }) + ' · ' + tx('Luna {p}%', { p: Math.round(n.moonIll * 100) }) : '', ...rows, 'Skyframe'].filter(Boolean).join('\n');
 }
 async function sharePlan() {
   const text = planText();

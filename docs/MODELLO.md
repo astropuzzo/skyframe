@@ -137,6 +137,8 @@ Ipotesi e limiti: profili gaussiani, ottica limitata dalla diffrazione, errore u
 
 **Verifica incrociata fra oggetti, 0.31** (stesso procedimento, le due metà insieme; 311 oggetti): errore sull'oggetto ×1,48, 73% entro ×2 e 90% entro ×3; per i 221 oggetti con almeno 5 foto ×1,39, 80% e 93%; per i 127 con almeno 20 foto ×1,36, 83% e 95%. La 0.30 sugli stessi dati: ×1,46, 72% e 90%; ×1,38, 78% e 93%; ×1,36, 80% e 96%. Le correzioni fisiche della 0.31 (§ 4) non cambiano l'errore fuori campione, che è dominato dalle abitudini di chi riprende.
 
+**Ipotesi provata e scartata (0.32).** Nelle foto a colori in banda stretta il rapporto ore vere / modello cala col cielo più buio (×1,43 sotto SQM 19,5, ×0,87 sopra 21). Con due pendenze del cielo, una per la banda stretta (×1,6 per magnitudine) e una per la banda larga (×1,9), la deriva si riduce (×1,42 e ×1,09) ma l'errore sugli oggetti mai visti non migliora (×1,49 contro ×1,48, 73% entro ×2 in entrambi i casi): resta una pendenza sola.
+
 **Verifica incrociata fra oggetti, 0.21** (metà degli oggetti per tarare, con tutte le loro foto, l'altra metà per verificare, e viceversa): errore sull'oggetto ×1,45 e ×1,47, 74% e 70% entro ×2; foto mono ×1,55 e ×1,58, senza scarto sistematico (×0,99 e ×1,02).
 
 **Taratura finale** (0.31, 6918 foto di 311 oggetti): log g = 0,108 − 0,654 · log D; errore sull'oggetto lasciato fuori ×1,47. La stessa foto fatta da persone diverse varia di un fattore 2,7 (0,43 dex dopo aver tolto oggetto, camera e cielo): nessun modello può fare molto meglio sulla singola foto.

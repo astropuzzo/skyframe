@@ -7,7 +7,7 @@ function moonSvg(k, waxing, r = 9) {
 /* La notte scelta in poche righe: un voto, una frase che dice cosa conviene fare, e i quattro dati che servono. */
 function renderFacts() {
   const p = active(), n = state.res.night, sqm = state.res.sqm, q = rateSelected(n), w = wxNight(n);
-  const dark = n.first >= 0 ? `${fmtT(n.t[n.first])} – ${fmtT(n.t[n.last] + DT)}` : tx('nessuno');
+  const dark = n.first >= 0 ? `${fmtT(n.dusk)} – ${fmtT(n.dawn)}` : tx('nessuno');
   let moonS; if (n.moonUpFrac < 0.02 || n.moonIll < 0.03) moonS = n.moonIll < 0.03 ? tx('Luna nuova') : tx('sotto l’orizzonte col buio'); else { const p2 = []; if (n.mRise) p2.push(tx('sorge {t}', { t: fmtT(n.mRise) })); if (n.mSet) p2.push(tx('tramonta {t}', { t: fmtT(n.mSet) })); moonS = tx('alta per il {p}% del buio', { p: Math.round(n.moonUpFrac * 100) }) + (p2.length ? ' · ' + p2.join(', ') : ''); }
   const win = state.windows && state.windows[0];
   const nextDark = win ? (win.from <= n.t0 + 43200000 ? tx('adesso, fino al {d}', { d: fmtDay(win.to) }) : `${fmtDay(win.from)} – ${fmtDay(win.to)}`) : tx('oltre 6 settimane');
@@ -202,7 +202,7 @@ function rowHTML(r, i) {
     plan = `<b title="${esc(tx('Ore senza Luna · {s}', { s: b.label }))}">≈ ${fmtH(h)}</b><span class="nt">${nightsTag(r, e)}</span>${state.cfgs.length > 1 ? `<span class="rig" title="${tx('Setup consigliato')}: ${esc(e.cfg.label)} · ${e.cfg.short}"><i></i><span>${esc(e.cfg.tag)}</span><em>${e.cfg.short}</em></span>` : ''}`;
   }
   plan += rowProgress(r) + `<span class="lh">${locHint(r)}</span>`;
-  const win = r.first >= 0 ? `${fmtT(n.t[r.first])}–${fmtT(n.t[r.last] + DT)}` : '';
+  const win = r.first >= 0 ? `${fmtT(r.tIn)}–${fmtT(r.tOut)}` : '';
   const vis = r.usableH > 0 ? `${fmtDur(r.usableH)} · max ${Math.round(r.maxA)}°<small>${win}</small>` : `<span style="color:var(--ink-3)">${tx('non riprendibile')}</span><small>${tx('dietro l’orizzonte o sotto {a}°', { a: active().session.minAlt })}</small>`;
   const size = `${o.a >= 10 ? Math.round(o.a) : it(o.a, 1)}′${o.b !== o.a ? '×' + (o.b >= 10 ? Math.round(o.b) : it(o.b, 1)) + '′' : ''}`;
   return `<div class="row${r.usableH < 0.25 ? ' dim' : ''}${isDone(o.id) ? ' done' : ''}${state.sel === o.id ? ' sel' : ''}${i < 24 ? ' enter' : ''}" style="${i < 24 ? `animation-delay:${i * 22}ms` : ''}" role="button" tabindex="0" data-id="${esc(o.id)}">
@@ -258,7 +258,9 @@ function renderList() {
   UI.listDirty = false;
   const L = state.filtered, shown = L.slice(0, state.page);
   const visN = state.res.results.filter((r) => r.usableH >= 0.25).length;
-  $('#count').innerHTML = tx('{n} di {v} target la notte del {d}', { n: `<span class="num">${L.length}</span>`, v: visN, d: fmtNight(state.res.night.t0, { weekday: 'long', day: 'numeric', month: 'long' }) });
+  const wn = wxNight(state.res.night), cov = !!wn && wn.clear < 0.15;
+  $('#count').innerHTML = tx('{n} di {v} target la notte del {d}', { n: `<span class="num">${L.length}</span>`, v: visN, d: fmtNight(state.res.night.t0, { weekday: 'long', day: 'numeric', month: 'long' }) }) + (cov ? ` · <b class="cov">${tx('prevista coperta')}</b>` : '');
+  $('#list').classList.toggle('covered', cov);
   $('#list').innerHTML = (shown.length ? shown.map(rowHTML).join('') + (L.length > shown.length ? `<button class="btn more" id="moreBtn">${tx('Mostra altri {n}', { n: Math.min(60, L.length - shown.length) })}</button>` : '') : `<div class="empty">${tx('Nessun target corrisponde ai criteri scelti.')}</div>`) + indexHitsHTML(state.idxHits || []);
   $$('#list .idx-row').forEach((b) => (b.onclick = () => openIndexEntry(b.dataset.idx)));
   requestAnimationFrame(() => $$('#list .score').forEach((el) => el.style.setProperty('--v', el.dataset.v)));
@@ -446,8 +448,11 @@ function galShow(r, e) {
   cap.innerHTML = capHTML;
   if (img.dataset.src === src) return;
   img.dataset.src = src; load.hidden = false; load.textContent = tx('Carico l’immagine…'); img.classList.add('wait');
-  img.onload = () => { if (img.dataset.src === src) { load.hidden = true; img.classList.remove('wait'); } };
-  img.onerror = () => { if (img.dataset.src === src) load.textContent = tx('Immagine non disponibile'); };
+  // il servizio delle immagini a volte non risponde: dopo 20 secondi lo si dice, con un «Riprova»
+  const fail = () => { if (img.dataset.src === src && img.classList.contains('wait')) load.innerHTML = `${tx('Immagine non disponibile')} · <button type="button" class="link" data-retry>${tx('Riprova')}</button>`; };
+  clearTimeout(gal.wait); gal.wait = setTimeout(fail, 20000);
+  img.onload = () => { if (img.dataset.src === src) { clearTimeout(gal.wait); load.hidden = true; img.classList.remove('wait'); } };
+  img.onerror = fail;
   img.src = src;
 }
 function wireGallery(r, e) {
@@ -460,8 +465,10 @@ function wireGallery(r, e) {
   };
   $('#gZoom').onclick = (ev) => { ev.stopPropagation(); const b = ev.target.closest('.gz'); if (!b) return; gal.zoom = clamp(gal.zoom * +b.dataset.z, 0.25, 8); galShow(r, e); };
   // tocco sull'immagine: a tutto schermo (sul telefono si guarda meglio); un altro tocco o Esc chiude
-  $('#gView').onclick = () => {
-    const img = $('#gImg'); if (!img || !img.src || img.classList.contains('wait')) return;
+  $('#gView').onclick = (ev) => {
+    const img = $('#gImg');
+    if (ev.target.closest('[data-retry]')) { img.dataset.src = ''; img.removeAttribute('src'); galShow(r, e); return; }
+    if (!img || !img.src || img.classList.contains('wait')) return;
     const lb = document.createElement('div'); lb.className = 'lightbox'; lb.setAttribute('role', 'dialog');
     lb.innerHTML = `<img src="${esc(img.src)}" alt="${esc(o.id)}"><div class="lbcap">${$('#gCap').innerHTML}</div>`;
     const close = (fromPop) => { if (!lb.isConnected) return; lb.remove(); document.removeEventListener('keydown', key, true); if (fromPop !== true) backDone(close); };
@@ -561,13 +568,13 @@ function renderDetail() {
   const scoreTip = `${tx('Punteggio')} ${e.score}/100 · ${tx('Inquadratura')} ${Math.round(e.fill.score * 100)} · ${tx('Visibilità')} ${Math.round(r.vis * 100)} · ${tx('Impegno (notti necessarie)')} ${Math.round(e.effort * 100)} · ${tx('Interesse fotografico')} ${Math.round(interestOf(o) * 100)}`;
 
   // fatti rapidi della scheda Piano
-  const win = r.first >= 0 ? `${fmtT(n.t[r.first])}–${fmtT(n.t[r.last] + DT)}` : '';
+  const win = r.first >= 0 ? `${fmtT(r.tIn)}–${fmtT(r.tOut)}` : '';
   const hm = moonHoursOf(b), moonCost = b && isFinite(hm) && hm > cur * 1.15;
   const bl = betterLoc(r);
   const chips = [
     r.usableH >= 0.25 ? `<span class="hc">${tx('Stanotte visibile {w} · altezza massima {a}°', { w: win, a: Math.round(r.maxA) })}</span>` : `<span class="hc bad">${tx('Stanotte non è riprendibile')}</span>`,
     moonCost ? `<span class="hc warn">${tx('Luna al {p}%: stanotte {h}', { p: Math.round(n.moonIll * 100), h: fmtH(hm) })}</span>` : '',
-    r.transit && r.first >= 0 && r.transit > n.t[r.first] && r.transit < n.t[r.last] + DT ? `<span class="hc">${tx('Meridiano {t}', { t: fmtT(r.transit) })}</span>` : '',
+    r.transit && r.first >= 0 && r.transit > r.tIn && r.transit < r.tOut ? `<span class="hc">${tx('Meridiano {t}', { t: fmtT(r.transit) })}</span>` : '',
     `<span class="hc" id="periodChip">${tx('Periodo…')}</span>`,
     `<span class="hc">${esc(tx(e.fill.label))}${e.fill.sub ? ` · ${esc(e.fill.sub)}` : ''}</span>`,
     bl ? `<span class="hc loc">${esc(bl.l.site.name)} ≈ ${fmtH(bl.s.h)}${bl.gain != null ? ` (−${Math.round(bl.gain * 100)}%)` : ''}</span>` : '',
