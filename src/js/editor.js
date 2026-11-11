@@ -382,6 +382,7 @@ function wireEditor() {
   svg.addEventListener('pointerdown', (e) => { const q = hzPoint(e); if (e.shiftKey || e.button === 2) { hzDel(q.az); drawHz(); return; } down = true; svg.setPointerCapture(e.pointerId); hzSet(q.az, q.alt); drawHz(); });
   svg.addEventListener('pointermove', (e) => { if (!down) return; const q = hzPoint(e); hzSet(q.az, q.alt); drawHz(); });
   ['pointerup', 'pointercancel'].forEach((ev) => svg.addEventListener(ev, () => (down = false)));
+  F('hzScan').hidden = !hzScanAvailable(); F('hzScan').onclick = () => hzScanOpen();
   F('hzFlat').onclick = () => { draft.horizon = []; draft.hzSrc = 'none'; drawHz(); };
   F('hzUseMap').onclick = () => { const t = draft.site.skyMap && draft.site.skyMap.terr; if (!t) return; draft.horizon = t.map((q) => q.slice()); draft.hzSrc = 'map'; edDirty = true; drawHz(); };
   F('hzPasteBtn').onclick = () => { F('hzPaste').hidden = !F('hzPaste').hidden; if (!F('hzPaste').hidden) { F('hzText').value = (draft.horizon || []).map((p) => p[0] + ' ' + p[1]).join('\n'); F('hzText').focus(); } };

@@ -64,6 +64,10 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- misura dell'orizzonte: la fotocamera fa da mirino (niente foto salvate o inviate), un colpetto a ogni punto segnato -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- avviso della sera all'ora giusta; senza il consenso arriva lo stesso, con qualche minuto di margine -->

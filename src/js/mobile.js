@@ -63,6 +63,15 @@
       consumeOpen: () => plug('SkyframeAlerts').consumeOpen(),
       pinWidget: () => plug('SkyframeAlerts').pinWidget().catch(() => ({ asked: false })),
     },
+    // bussola per la misura dell'orizzonte: declinazione magnetica del luogo e quanto è calibrato il magnetometro (0–3)
+    compass: plug('SkyframeSensors') && {
+      declination: (lat, lon) => plug('SkyframeSensors').declination({ lat, lon }).then((r) => +r.deg).catch(() => null),
+      watch(cb) {
+        const P = plug('SkyframeSensors'); let h = null;
+        try { h = P.addListener('accuracy', (d) => cb(d.level)); P.start().then((r) => { if (r && r.level >= 0) cb(r.level); }).catch(() => {}); } catch { /* resta senza */ }
+        return () => { try { P.stop().catch(() => {}); Promise.resolve(h).then((x) => x && x.remove && x.remove()); } catch { /* niente */ } };
+      },
+    },
   };
   const android11 = () => { const m = /Android (\d+)/.exec(navigator.userAgent); return !!m && +m[1] >= 11; };
   async function writeDoc(name, text) {

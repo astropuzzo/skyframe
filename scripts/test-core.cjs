@@ -14,9 +14,9 @@ const ctx = { window: {}, console, Date, Math, Map, Set, Intl, JSON, Float32Arra
 vm.createContext(ctx);
 for (const name of ['filters', 'dso', 'sky', 'quality', 'real']) vm.runInContext(file(`data/${name}.js`), ctx);
 // nel piano di stagione il lavoro già fatto e i progetti in corso vengono dall'app: qui nessuno
-vm.runInContext("const LANG='it',LOCALE='it-IT',txName=(s)=>s,tx=(s,p)=>p?s.replace(/[{](\\w+)[}]/g,(_,k)=>p[k]??_):s,projProgress=()=>0,hasSessions=()=>false;" + file('js/astro.js') + '\n' + file('js/model.js') + '\n' + file('js/nights.js') + '\n' + file('js/season.js') +
+vm.runInContext("const LANG='it',LOCALE='it-IT',txName=(s)=>s,tx=(s,p)=>p?s.replace(/[{](\\w+)[}]/g,(_,k)=>p[k]??_):s,projProgress=()=>0,hasSessions=()=>false;" + file('js/astro.js') + '\n' + file('js/model.js') + '\n' + file('js/nights.js') + '\n' + file('js/season.js') + '\n' + file('js/hzscan.js') +
   '\n;this.M={siteTz,tzOff,wall,wallMs,dsOf,TZ,setDisplayTz,defaultNightStr,computeNight,moonCalendar,templateProfile,migrateProfile,migrateLoc,locsFromProfiles,moonFlux,unit,mosaicPanes,ninaCsv,' +
-  'channelSpec,qeRel,airmass,profileConfigs,computePrep,computeObj,hoursOf,nightRec,shootCalendar,aheadNight,buildSeason,seasonIcs,nightSamples,moonPos,altaz,lstDeg,jd,CAT_BY_ID,MOON_RISE,MOON_PAR,STEP,CAL_N,CAL_STEP};', ctx);
+  'channelSpec,qeRel,airmass,profileConfigs,computePrep,computeObj,hoursOf,nightRec,shootCalendar,aheadNight,buildSeason,seasonIcs,nightSamples,moonPos,altaz,lstDeg,jd,CAT_BY_ID,MOON_RISE,MOON_PAR,STEP,CAL_N,CAL_STEP,aimVec,aimOf,scanToHorizon,skyRefs,skyRef,horizonLUT,sunPos};', ctx);
 const M = ctx.M;
 
 const SITES = {
@@ -265,6 +265,72 @@ test('pannelli per N.I.N.A.: centro e PA come nell’anteprima', () => {
   // due righe: la prima a nord
   P = M.mosaicPanes(o, g, 1, 2, 90, [0, 0]);
   assert.ok(P[0].dec > o.dec && P[1].dec < o.dec && P[0].row === 1);
+});
+
+test('orizzonte col telefono: dove guarda la fotocamera', () => {
+  const aim = (a, b, g) => M.aimOf(M.aimVec(a, b, g)), near = (x, y, tol = 1e-6) => assert.ok(Math.abs(((x - y + 540) % 360) - 180) < tol, `${x} ≠ ${y}`);
+  // telefono in piedi (beta 90) col retro verso nord, poi girato: alpha cresce in senso antiorario
+  let p = aim(0, 90, 0); near(p.az, 0); near(p.alt, 0);
+  p = aim(270, 90, 0); near(p.az, 90); near(p.alt, 0);
+  p = aim(90, 90, 0); near(p.az, 270);
+  // inclinato all'indietro la fotocamera sale: beta 120 = 30° sopra l'orizzonte; in avanti scende
+  p = aim(180, 120, 0); near(p.az, 180); near(p.alt, 30);
+  p = aim(180, 70, 0); near(p.alt, -20);
+  // appoggiato sul tavolo con lo schermo in su guarda in basso; sul fianco destro (gamma 90) guarda a ovest
+  near(aim(37, 0, 0).alt, -90);
+  p = aim(0, 0, 90); near(p.az, 270); near(p.alt, 0);
+  // in orizzontale (ruotato attorno all'asse della fotocamera) la direzione non cambia: alpha 0, beta 0, gamma −90 guarda a est,
+  // e lo stesso telefono inclinato di 25° verso l'alto resta a est
+  p = aim(0, 0, -90); near(p.az, 90); near(p.alt, 0);
+  p = aim(0, 0, -115); near(p.az, 90); near(p.alt, 25);
+});
+
+test('orizzonte col telefono: Sole di riferimento', () => {
+  // Roma al solstizio d'estate: a mezzogiorno vero il Sole è a sud, alto 90 − latitudine + declinazione
+  const site = { lat: 41.9, lon: 12.5 }, t0 = Date.UTC(2026, 5, 21, 9, 0); let best = null;
+  for (let m = 0; m <= 240; m++) { const r = M.skyRefs(site, t0 + m * 60000).sun; if (!best || r.alt > best.alt) best = { ...r, m }; }
+  assert.ok(Math.abs(best.az - 180) < 0.6, `azimut al culmine ${best.az}`);
+  assert.ok(Math.abs(best.alt - (90 - 41.9 + 23.44)) < 0.1, `altezza al culmine ${best.alt}`);
+  // di mattina a est del sud, di sera a ovest; la sera di giugno alle 19 UTC è ancora sopra i 3° e fa da riferimento
+  assert.ok(M.skyRefs(site, t0).sun.az < 180 && M.skyRefs(site, t0 + 8 * 3600e3).sun.az > 180);
+  assert.equal(M.skyRef(site, t0).who, 'sun');
+  // a mezzanotte niente Sole: la Luna solo se è alta e illuminata, altrimenti nessun riferimento
+  const night = M.skyRef(site, Date.UTC(2026, 5, 21, 23, 0)); assert.ok(night === null || night.who === 'moon');
+  const refs = M.skyRefs(site, Date.UTC(2026, 5, 21, 23, 0)); assert.ok(refs.sun.alt < 0);
+  if (night) assert.ok(refs.moon.alt >= 5 && refs.moon.ill >= 0.15);
+});
+
+test('orizzonte col telefono: dai punti al profilo', () => {
+  const arc = (a, b, alt) => { const o = []; for (let x = a; x <= b; x += 1.5) o.push({ az: x % 360, alt: typeof alt === 'function' ? alt(x) : alt }); return o; };
+  const lut = (r) => M.horizonLUT(r.pts);
+  // una traccia da est a sud a 20°: lì vale 20°, il resto rimane piatto; pochi punti perché la retta si semplifica
+  let r = M.scanToHorizon(arc(90, 180, 20), []), L = lut(r);
+  assert.ok(Math.abs(L[100] - 20) < 0.01 && Math.abs(L[179] - 20) < 0.01); assert.ok(L[60] < 0.01 && L[250] < 0.01 && L[185] < 0.01);
+  assert.equal(r.measured[120], 1); assert.equal(r.measured[60], 0); assert.ok(r.pts.length <= 6, `${r.pts.length} punti`);
+  // dove non si è misurato resta l'orizzonte di prima, coi suoi punti
+  const old = [[0, 10], [45, 12], [270, 30], [315, 8]];
+  r = M.scanToHorizon(arc(90, 180, 20), old); L = lut(r);
+  assert.ok(Math.abs(L[270] - 30) < 0.01 && Math.abs(L[45] - 12) < 0.01 && Math.abs(L[0] - 10) < 0.01); assert.ok(Math.abs(L[120] - 20) < 0.01);
+  assert.ok(Math.abs(L[225] - M.horizonLUT(old)[225]) < 0.2);
+  // nello stesso grado vale il punto più alto (lo spigolo di un palazzo)
+  r = M.scanToHorizon([{ az: 100.2, alt: 8 }, { az: 100.4, alt: 35 }, { az: 103, alt: 35 }], []);
+  assert.ok(Math.abs(lut(r)[100] - 35) < 0.01);
+  // punti sparsi: si uniscono fino a 60° di distanza, oltre no
+  r = M.scanToHorizon([{ az: 0, alt: 10 }, { az: 50, alt: 20 }, { az: 200, alt: 40 }], []); L = lut(r);
+  assert.ok(Math.abs(L[25] - 15) < 0.01); assert.ok(L[100] < 0.01 && L[300] < 0.01); assert.ok(Math.abs(L[200] - 40) < 0.01);
+  assert.equal(r.measured[25], 1); assert.equal(r.measured[120], 0);
+  // una traccia a cavallo del nord resta unita
+  r = M.scanToHorizon(arc(340, 380, 25), []); L = lut(r);
+  assert.ok(Math.abs(L[350] - 25) < 0.01 && Math.abs(L[0] - 25) < 0.01 && Math.abs(L[15] - 25) < 0.01); assert.ok(L[180] < 0.01);
+  // un profilo curvo si conserva entro mezzo grado dopo la semplificazione; sotto zero conta zero
+  const hill = (x) => 30 * Math.sin((x - 90) / 90 * Math.PI / 2 * 2) ** 2;
+  r = M.scanToHorizon(arc(90, 270, hill), []); L = lut(r);
+  for (let x = 92; x < 268; x++) assert.ok(Math.abs(L[x] - hill(x)) < 0.9, `a ${x}°: ${L[x]} invece di ${hill(x)}`);
+  assert.ok(r.pts.length < 60, `${r.pts.length} punti`);
+  assert.equal(lut(M.scanToHorizon([{ az: 10, alt: -4 }, { az: 20, alt: -1 }], []))[15], 0);
+  // senza punti torna l'orizzonte di prima; il formato è quello dell'app: [azimut, altezza] in ordine
+  assert.deepEqual(JSON.parse(JSON.stringify(M.scanToHorizon([], old).pts)), old);
+  r = M.scanToHorizon(arc(90, 180, 20), old); for (let i = 1; i < r.pts.length; i++) assert.ok(r.pts[i][0] > r.pts[i - 1][0]);
 });
 
 test('CSV per N.I.N.A. nel formato di Telescopius', () => {

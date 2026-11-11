@@ -59,7 +59,7 @@ jobs:
           ram-size: 4096M
           cores: 4
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back emulated
           script: bash scripts/android-e2e.sh
 
       - name: Prova su Android 14 (secondo tentativo)
@@ -73,7 +73,7 @@ jobs:
           ram-size: 4096M
           cores: 4
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back emulated
           script: bash scripts/android-e2e.sh
 
       - uses: actions/upload-artifact@v7

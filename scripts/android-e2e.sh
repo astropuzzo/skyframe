@@ -19,6 +19,7 @@ sleep 60
 adb install -r "$APK"
 # permessi che un utente darebbe: notifiche e sveglie esatte (per l'avviso a orario)
 adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS || true
+adb shell pm grant $PKG android.permission.CAMERA || true   # il mirino della misura dell'orizzonte
 adb shell appops set $PKG SCHEDULE_EXACT_ALARM allow || true
 adb logcat -c || true
 # il log si salva mentre la prova gira: se l'emulatore sparisce, alla fine non si può più chiedere

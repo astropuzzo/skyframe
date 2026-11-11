@@ -186,6 +186,26 @@ try {
   out.checks.copia_automatica = await until(`(LS.get('sf.bak', null) || {}).where === 'Documenti/Skyframe/skyframe-backup.json'`, 15000) && /skyframe-backup\.json/.test(docs());
   await ev(`setView('setup'); return 1`); await sleep(1200); await ev(`document.querySelector('[data-export]').scrollIntoView({ block: 'center' }); return 1`); await sleep(800); shot('11-setup-dati');
 
+  log('orizzonte'); // misura dell'orizzonte: la fotocamera e i sensori dell'emulatore dentro la WebView
+  try {
+    await ev(`setView('setup'); openLocEditor(state.locId); return 1`); await sleep(1500);
+    out.checks.orizzonte_pulsante = await ev(`return !document.getElementById('hzScan').hidden`);
+    await ev(`document.getElementById('hzScan').click(); return 1`);
+    out.checks.orizzonte_fotocamera = await until(`HZS.el && HZS.cam === 'on' && HZS.el.querySelector('video').videoWidth > 0`, 25000);
+    out.checks.orizzonte_sensori = await until(`HZS.el && HZS.evN > 5 && !!HZS.aimNow() && HZS.aimNow().az != null`, 15000);
+    out.orizzonte = await ev(`const a = HZS.aimNow(), v = HZS.el.querySelector('video'); return { cam: HZS.cam, eventi: HZS.evN, rel: !!HZS.rel, abs: !!HZS.abs, declinazione: HZS.decl, bussola: HZS.acc, punta: a && { az: a.az == null ? null : Math.round(a.az), alt: Math.round(a.alt), ref: a.ref }, video: [v.videoWidth, v.videoHeight], msg: HZS.el.querySelector('[data-msg]').textContent }`).catch((e) => String(e));
+    await sleep(800); shot('15-orizzonte');
+    // un punto dal pulsante (dove punta l'emulatore), un secondo messo a mano 20° più in là, poi «Fine»
+    out.checks.orizzonte_punto = await ev(`HZS.el.querySelector('[data-mark]').click(); return HZS.strokes.length === 1 && HZS.strokes[0].length === 1`);
+    await ev(`const p = HZS.strokes[0][0]; HZS.strokes.push([{ az: (p.az + 20) % 360, alt: 15 }]); return 1`);
+    await until(`!HZS.el.querySelector('[data-done]').disabled`, 8000);
+    await ev(`HZS.el.querySelector('[data-done]').click(); return 1`); await sleep(1000);
+    out.checks.orizzonte_applicato = await ev(`return !HZS.el && !!draft && draft.hzSrc === 'user' && draft.horizon.length >= 2`);
+    await ev(`document.getElementById('edHorizon').scrollIntoView({ block: 'start' }); return 1`); await sleep(800); shot('16-orizzonte-editor');
+    // il luogo dell'emulatore resta com'era: si chiude senza salvare
+    await ev(`if (HZS.el) HZS.close(); edDirty = false; closeEditor(); setView('tonight'); return 1`); await sleep(800);
+  } catch (e) { out.notes.push('orizzonte: ' + e.message); for (const k of ['orizzonte_fotocamera', 'orizzonte_sensori', 'orizzonte_punto', 'orizzonte_applicato']) if (out.checks[k] === undefined) out.checks[k] = false; }
+
   out.errori_console = await ev(`return (window.__errs || []).slice(0, 10)`).catch(() => null);
 
   log('avvisi'); // il motore nativo: prova di Setup, poi una notte finta con una previsione finta (build di debug)

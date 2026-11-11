@@ -21,7 +21,7 @@ const TOUR_STEPS = [
     d: () => window.cielo && window.cielo.lpmAllSky
       ? 'Si scarica da sola dopo aver scelto il punto.'
       : 'Salva l’immagine All-sky da lightpollutionmap e importala qui.' },
-  { id: 'orizzonte', v: '0.25.1', view: 'setup', preview: 'loc', sel: '#f_minalt', t: '5. Orizzonte', d: 'Altezza minima; sotto, ostacoli disegnati o file .hrz.' },
+  { id: 'orizzonte', v: '0.25.1', view: 'setup', preview: 'loc', sel: '#f_minalt', t: '5. Orizzonte', d: 'Altezza minima; sotto, ostacoli misurati col telefono, disegnati o da file .hrz.' },
   { id: 'setup-profili', v: '0.25.2', view: 'setup', sel: '#stEquipment [data-newp]', t: 'Setup · Profilo', d: 'Nuovo profilo: camera, telescopio, filtri e sessione.' },
   { id: 'attrezzatura', v: '0.25.1', view: 'setup', preview: 'prof', sel: '#f_cam', t: '6. Camera', d: 'La camera, o sensore, pixel, QE e rumore di lettura.' },
   { id: 'ottica', v: '0.25.1', view: 'setup', preview: 'prof', sel: '#optics select[data-k="preset"]', t: '7. Telescopio', d: 'Telescopio, o apertura e focale; riduttori e Barlow.' },
@@ -48,6 +48,7 @@ const TOUR_STEPS = [
 ];
 /* novità per versione (le più recenti in cima) */
 const NEWS = [
+  { v: '0.33.0', items: ['Android: orizzonte misurato col telefono, con fotocamera e sensori; nord allineato al Sole o alla Luna'] },
   { v: '0.32.0', items: ['Android: widget «Stanotte» per la schermata Home, aggiornato anche ad app chiusa', 'Buio e finestre dei target al minuto', 'Notti quasi coperte fuori dai calendari e dal piano di stagione', 'Piano di stagione: un colore per target, notti con nuvole tratteggiate', 'Immagine del cielo: «Riprova» se non arriva', 'Computer: avvisi anche a finestra chiusa, dalla barra di sistema'] },
   { v: '0.31.0', items: ['Android: avvisi con la previsione del momento anche ad app chiusa; toccati, aprono la loro notte', 'Tempi più precisi: banda stretta con camera a colori, filtri da 3–5 nm, target fuori stagione', 'Luna vista dal luogo: sorge e tramonta al minuto giusto', 'Piano di stagione: i target non si sovrappongono più nella stessa notte; esportazione nel calendario', 'Passaggio in meridiano nel piano e nel dettaglio; piano della notte come testo o CSV per N.I.N.A.', '«Stanotte» passa da sola alla notte nuova; senza rete resta l’ultima previsione', 'Notte coperta: la prossima notte utile, a un tocco; dettaglio con un solo numero per le ore'] },
   { v: '0.30.2', items: ['N.I.N.A.: CSV nel formato di Telescopius, anche per un’inquadratura sola'] },
