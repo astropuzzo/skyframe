@@ -292,12 +292,15 @@ function renderSetup() {
       <div class="st-item">${ic('globe')}<span class="tx"><b>${tx('Lingua')}</b></span><select class="sel" id="langSel" aria-label="${tx('Lingua')}">${Object.entries(LANGS).map(([k, n]) => `<option value="${k}" ${k === LANG ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
     </div></div>
     <div class="st-sec" id="stAlerts"><h3>${tx('Avvisi')}</h3><div class="st-list">
-      <label class="st-item tap">${ic(on ? 'bell-on' : 'bell')}<span class="tx"><b>${tx('Avvisi')}</b><small>${tx(on ? 'accesi, anche ad app chiusa' : 'spenti')}</small></span><span class="switch"><input type="checkbox" id="swNotify" ${on ? 'checked' : ''}><i></i></span></label>
+      <label class="st-item tap">${ic(on ? 'bell-on' : 'bell')}<span class="tx"><b>${tx('Avvisi')}</b><small>${tx(!on ? 'spenti' : nativeAlerts() ? 'accesi, anche ad app chiusa' : 'accesi, ad app aperta')}</small></span><span class="switch"><input type="checkbox" id="swNotify" ${on ? 'checked' : ''}><i></i></span></label>
       ${on ? [['evening', 'Stanotte sereno', 'prima del buio'], ['top', 'Notte ottima prevista', 'il giorno prima, notte senza Luna e serena'], ['change', 'Il meteo è cambiato', 'se la previsione di stanotte cambia'], ['season', 'Ultime settimane di visibilità', 'un preferito sta per uscire di stagione']].map(([k, t, d]) => `<label class="st-item tap sub"><span class="tx"><b>${tx(t)}</b><small>${tx(d)}</small></span><span class="switch"><input type="checkbox" data-nk="${k}" ${nc[k] ? 'checked' : ''}><i></i></span></label>`).join('') +
         `<div class="st-item wrap sub"><span class="tx"><b>${tx('Quanto prima del buio')}</b></span><div class="seg" id="nLead">${[30, 60, 90, 120].map((m) => `<button type="button" data-v="${m}" aria-pressed="${nc.lead === m}">${fmtDur(m / 60)}</button>`).join('')}</div></div>
         <div class="st-item wrap sub"><span class="tx"><b>${tx('Da quale notte')}</b><small>${tx('voto minimo')}</small></span><div class="seg" id="nMin">${[[2, 'Discreta'], [3, 'Buona'], [4, 'Ottima']].map(([v, t]) => `<button type="button" data-v="${v}" aria-pressed="${nc.min === v}">${tx(t)}</button>`).join('')}</div></div>
-        <button type="button" class="st-item sub" id="stExact" data-exact hidden><span class="tx"><b>${tx('Orario preciso')}</b><small>${tx('consenti «sveglie e promemoria»')}</small></span>${ic('chev-r')}</button>
-        <button type="button" class="st-item sub" data-test><span class="tx"><b>${tx('Prova un avviso')}</b><small>${tx('arriva fra 5 secondi')}</small></span></button>` : ''}
+        <button type="button" class="st-item sub" id="stBlocked" data-aset="notify" hidden><span class="tx"><b>${tx('Notifiche bloccate')}</b><small>${tx('consentile nelle impostazioni')}</small></span>${ic('chev-r')}</button>
+        <button type="button" class="st-item sub" id="stExact" data-aset="exact" hidden><span class="tx"><b>${tx('Orario preciso')}</b><small>${tx('consenti «sveglie e promemoria»')}</small></span>${ic('chev-r')}</button>
+        <button type="button" class="st-item sub" id="stBatt" data-aset="battery" hidden><span class="tx"><b>${tx('Batteria')}</b><small>${tx('togli le restrizioni a Skyframe')}</small></span>${ic('chev-r')}</button>
+        <div class="st-item sub" id="stAlertSt" hidden><span class="tx"><b>${tx('Ultimo controllo del meteo')}</b><small></small></span></div>
+        <button type="button" class="st-item sub" data-test><span class="tx"><b>${tx('Prova un avviso')}</b><small>${tx(nativeAlerts() ? 'la notte in arrivo, adesso' : 'arriva fra 5 secondi')}</small></span></button>` : ''}
     </div></div>
     <div class="st-sec"><h3>${tx('Dati')}</h3><div class="st-list">
       <button type="button" class="st-item" data-export>${ic('upload')}<span class="tx"><b>${tx('Esporta')}</b><small>${tx('profili, luoghi e progetti in un file')}</small></span></button>
@@ -319,8 +322,8 @@ function renderSetup() {
   };
   el.querySelector('[data-test]') && (el.querySelector('[data-test]').onclick = testNotify);
   el.querySelector('[data-tour]').onclick = () => tourStart(TOUR_STEPS);
-  const ex = $('#stExact');
-  if (ex && window.cielo && window.cielo.exactStatus) window.cielo.exactStatus().then((st) => { if (st && st !== 'granted') { ex.hidden = false; ex.onclick = async () => { await window.cielo.exactOpen(); setTimeout(renderSetup, 800); }; } });
+  $$('#setupView [data-aset]').forEach((x) => (x.onclick = () => nativeAlerts() && nativeAlerts().openSettings(x.dataset.aset)));
+  renderAlertStatus();
   el.querySelector('[data-news]').onclick = () => openNews(null, null);
   $$('#setupView [data-nk]').forEach((x) => (x.onchange = () => setNcfg(x.dataset.nk, x.checked)));
   const segv = (id, k) => { const g = $(id); if (g) g.onclick = (e) => { const b = e.target.closest('[data-v]'); if (!b) return; setNcfg(k, +b.dataset.v); renderSetup(); }; };
@@ -330,6 +333,14 @@ function renderSetup() {
   $('#swNotify').onchange = () => toggleNotify();
   $('#swRed').onchange = (e) => setRed(e.target.checked);
   $('#langSel').onchange = (e) => setLang(e.target.value);
+}
+/* Android: cosa serve al sistema perché gli avvisi arrivino puntuali, e quando il motore ha guardato il meteo l'ultima volta */
+async function renderAlertStatus() {
+  const nat = nativeAlerts(); if (!nat || !$('#stAlertSt')) return;
+  const st = await nat.status(), box = $('#stAlertSt'); if (!st || !box) return;
+  const show = (id, on) => { const e = $(id); if (e) e.hidden = !on; };
+  show('#stBlocked', !st.enabled); show('#stExact', !st.exact); show('#stBatt', !st.battery);
+  box.hidden = !st.run; if (st.run) box.querySelector('small').textContent = new Date(st.ok || st.run).toLocaleString(LOCALE, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 function setRed(v) { $('#veil').hidden = !v; $('#nightBtn').setAttribute('aria-pressed', String(!!v)); LS.set('sf.red', !!v); const s = $('#swRed'); if (s) s.checked = !!v; }
 

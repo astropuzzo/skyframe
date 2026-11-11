@@ -29,6 +29,6 @@ sleep 8
 node scripts/android-e2e.mjs
 code=$?
 adb logcat -d > e2e/logcat-all.txt || true
-grep -iE "capacitor|runner|skyframe|chromium|console" e2e/logcat-all.txt > e2e/logcat.txt || true
+grep -iE "capacitor|skyframe|chromium|console|WM-|AlarmManager" e2e/logcat-all.txt > e2e/logcat.txt || true
 adb shell dumpsys notification --noredact > e2e/notifications.txt || true
 exit $code

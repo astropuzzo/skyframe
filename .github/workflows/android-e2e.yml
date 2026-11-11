@@ -1,8 +1,8 @@
 name: Android e2e
 
 # L'app vera su un Android 14 virtuale: si installa l'APK di debug, la si pilota dall'interno (DevTools della WebView),
-# si fanno le schermate di ogni sezione e della guida, e si provano gli avvisi (quello programmato e quello dello script
-# in background). Schermate, avvisi ricevuti e log restano come artifact del run.
+# si fanno le schermate di ogni sezione e della guida, e si provano gli avvisi nativi, anche ad app chiusa (sveglia e
+# lavoro periodico). Schermate, avvisi ricevuti e log restano come artifact del run.
 
 on:
   push:

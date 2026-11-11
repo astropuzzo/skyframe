@@ -9,6 +9,7 @@
   const REPO = 'astropuzzo/skyframe';
   const newer = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
   let updUrl = `https://github.com/${REPO}/releases/latest`;
+  const plug = (n) => (C.Plugins && C.Plugins[n]) || null;
   window.cielo = {
     platform: 'android',
     lpLookup: (lat, lon) => window.LPAtlas.lookup(+lat, +lon).catch((e) => ({ error: String(e && e.message || e) })),
@@ -51,38 +52,27 @@
       setTimeout(check, 5000); setInterval(check, 30 * 60e3);
     },
     openUpdate: () => { window.open(updUrl, '_blank'); },
-    // avvisi della sera: notifiche locali programmate nel sistema (arrivano anche ad app chiusa)
-    async notifyPermission() {
-      const LN = localNotif(); if (!LN) return false;
-      try { let p = await LN.checkPermissions(); if (p.display !== 'granted') p = await LN.requestPermissions(); return p.display === 'granted'; } catch { return false; }
+    async notifyPermission() { const A = plug('SkyframeAlerts'); if (!A) return false; try { return !!(await A.permission()).granted; } catch { return false; } },
+    // avvisi: il motore nativo (android/…/alerts) riceve la ricetta delle notti e lavora da solo ad app chiusa
+    alerts: plug('SkyframeAlerts') && {
+      configure: (cfg) => plug('SkyframeAlerts').configure({ cfg }),
+      run: (o) => plug('SkyframeAlerts').run(o || {}),
+      status: () => plug('SkyframeAlerts').status().catch(() => null),
+      openSettings: (which) => plug('SkyframeAlerts').openSettings({ which }).catch(() => {}),
+      consumeOpen: () => plug('SkyframeAlerts').consumeOpen(),
     },
-    async notifySchedule(list) {
-      const LN = localNotif(); if (!LN) return;
-      try {
-        const pend = await LN.getPending(); if (pend && pend.notifications && pend.notifications.length) await LN.cancel({ notifications: pend.notifications.map((n) => ({ id: n.id })) });
-        const items = list.filter((n) => n.at > Date.now()).map((n) => ({ id: n.id, title: n.title, body: n.body, schedule: { at: new Date(n.at), allowWhileIdle: true } }));
-        if (items.length) await LN.schedule({ notifications: items });
-      } catch { /* niente */ }
-    },
-    // sveglie esatte (Android 12+): senza, l'avviso della sera può arrivare con qualche minuto di ritardo
-    async exactStatus() { const LN = localNotif(); if (!LN || !LN.checkExactNotificationSetting) return null; try { return (await LN.checkExactNotificationSetting()).exact_alarm; } catch { return null; } },
-    async exactOpen() { const LN = localNotif(); if (LN && LN.changeExactNotificationSetting) try { await LN.changeExactNotificationSetting(); } catch { /* niente */ } },
-    // avvisi ad app chiusa: lo script in background (src/runners/background.js) riceve le notti già calcolate
-    async bgConfig(details) { const B = bgRunner(); if (!B) return false; try { await B.dispatchEvent({ label: BG_LABEL, event: 'config', details }); return true; } catch { return false; } },
-    async bgStatus() { const B = bgRunner(); if (!B) return null; try { return await B.dispatchEvent({ label: BG_LABEL, event: 'status', details: {} }); } catch { return null; } },
   };
-  const BG_LABEL = 'io.github.astropuzzo.skyframe.check';
-  const plug = (n) => (C.Plugins && C.Plugins[n]) || null;
   const android11 = () => { const m = /Android (\d+)/.exec(navigator.userAgent); return !!m && +m[1] >= 11; };
   async function writeDoc(name, text) {
     const F = plug('Filesystem'); if (!F || !android11()) throw new Error('no');
     await F.writeFile({ path: 'Skyframe/' + name, data: text, directory: 'DOCUMENTS', encoding: 'utf8', recursive: true });
     return 'Documenti/Skyframe/' + name;
   }
-  // il plugin nativo si chiama CapacitorBackgroundRunner (con BackgroundRunner non si trovava: la configurazione non arrivava)
-  function bgRunner() { return (C.Plugins && (C.Plugins.CapacitorBackgroundRunner || C.Plugins.BackgroundRunner)) || null; }
   // tasto indietro di Android: chiude foglio, dettaglio, editor o guida aperti, riporta a Stanotte; da Stanotte riduce l'app
   const App = C.Plugins && C.Plugins.App;
   if (App && App.addListener) App.addListener('backButton', () => { if (window.onAndroidBack && window.onAndroidBack()) return; if (App.minimizeApp) App.minimizeApp(); else if (App.exitApp) App.exitApp(); });
-  function localNotif() { return (C.Plugins && C.Plugins.LocalNotifications) || (C.registerPlugin ? C.registerPlugin('LocalNotifications') : null); }
+  // ritorno in primo piano, anche da un avviso toccato (che porta la sua notte)
+  const resume = () => { if (window.onAppResume) window.onAppResume(); };
+  if (App && App.addListener) App.addListener('resume', resume);
+  const AL = plug('SkyframeAlerts'); if (AL && AL.addListener) AL.addListener('open', resume);
 })();

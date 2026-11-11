@@ -17,21 +17,22 @@ function setPlanEd(ds, fn) {
 const planPin = (id) => setPlanEd(state.res.night.ds, (e) => { e.skip = e.skip.filter((x) => x !== id); if (!e.pin.includes(id)) e.pin.push(id); });
 const planSkip = (id) => setPlanEd(state.res.night.ds, (e) => { e.pin = e.pin.filter((x) => x !== id); if (!e.skip.includes(id)) e.skip.push(id); });
 const planReset = () => setPlanEd(state.res.night.ds, (e) => { e.pin = []; e.skip = []; });
-function tonightPlan() {
+/* noWx: il piano a cielo sereno (per gli avvisi di Android, che le nuvole le guardano all'ultimo) */
+function tonightPlan(noWx) {
   const res = state.res; if (res.night.first < 0) return { blocks: [], mine: false, none: 'dark' };
   const ed = planEd(res.night.ds);
   let cand = res.results.filter((r) => planOk(r) && (inMyList(r.o.id) || ed.pin.includes(r.o.id)) && !ed.skip.includes(r.o.id)), mine = cand.length > 0;
   if (!mine) cand = state.filtered.filter((r) => planOk(r) && !ed.skip.includes(r.o.id)).slice(0, 6);
-  return { ...planNight(res.night, cand, mine, ed.pin), edited: ed.pin.length + ed.skip.length };
+  return { ...planNight(res.night, cand, mine, ed.pin, noWx), edited: ed.pin.length + ed.skip.length };
 }
 /* la stessa cosa per un'altra notte, solo coi tuoi target (serve agli avvisi di domani sera) */
-function planOtherNight(ds) {
+function planOtherNight(ds, noWx) {
   const a = active(), ids = Object.keys(state.projects).filter((id) => inMyList(id) && !isDone(id)); if (!ids.length) return null;
   const C = computePrep(profileConfigs(a), a, ds, Date.now()); if (C.night.first < 0) return null;
   const ed = planEd(ds), cand = [...new Set(ids.concat(ed.pin))].filter((id) => !ed.skip.includes(id)).map((id) => CAT_BY_ID.get(id)).filter(Boolean).map((o) => computeObj(C, o)).filter((r) => r && planOk(r));
-  return { night: C.night, plan: planNight(C.night, cand, true, ed.pin) };
+  return { night: C.night, plan: planNight(C.night, cand, true, ed.pin, noWx) };
 }
-function planNight(n, cand, mine, pins = []) {
+function planNight(n, cand, mine, pins = [], noWx = false) {
   if (n.first < 0) return { blocks: [], mine, none: 'dark' };
   cand = cand.slice().sort((a, b) => b.score - a.score).slice(0, 14);
   if (!cand.length) return { blocks: [], mine, none: 'targets' };
@@ -46,7 +47,7 @@ function planNight(n, cand, mine, pins = []) {
   let cur = -1, len = 0;
   for (let i = n.first; i <= n.last; i++) {
     if (!n.dark[i]) { cur = -1; len = 0; continue; }
-    const f = wxAt(n.t[i]), w = f == null ? 1 : f;
+    const f = noWx ? null : wxAt(n.t[i]), w = f == null ? 1 : f;
     if (w < 0.3) { cur = -1; len = 0; continue; } // coperto: niente
     const free = (k) => T[k].r.use[i] && T[k].got < T[k].need;
     let best = -1, bv = 0; for (let k = 0; k < T.length; k++) if (free(k)) { const v = val(T[k], i); if (v > bv) { bv = v; best = k; } }
@@ -63,7 +64,7 @@ function planNight(n, cand, mine, pins = []) {
   const out = [];
   for (const bl of blocks) { const prev = out[out.length - 1]; if (bl.i1 - bl.i0 + 1 < 4 && prev && prev.i1 === bl.i0 - 1) prev.i1 = bl.i1; else if (prev && prev.k === bl.k && prev.i1 === bl.i0 - 1) prev.i1 = bl.i1; else out.push({ ...bl }); }
   for (const bl of out) {
-    const t = T[bl.k]; let hw = 0, hs = 0; for (let i = bl.i0; i <= bl.i1; i++) { const f = wxAt(n.t[i]); hw += (f == null ? 1 : f) * STEP / 60; hs += STEP / 60; }
+    const t = T[bl.k]; let hw = 0, hs = 0; for (let i = bl.i0; i <= bl.i1; i++) { const f = noWx ? null : wxAt(n.t[i]); hw += (f == null ? 1 : f) * STEP / 60; hs += STEP / 60; }
     Object.assign(bl, { r: t.r, id: t.id, t0: n.t[bl.i0], t1: n.t[bl.i1] + DT, h: hs, hClear: hw, frac: tonightStrat(t.r.e).tonight > 0 ? hw / tonightStrat(t.r.e).tonight : 0, s: tonightStrat(t.r.e) });
   }
   return { blocks: out, mine };

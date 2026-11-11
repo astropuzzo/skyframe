@@ -43,7 +43,6 @@ android {
 repositories {
     flatDir{
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
-        dirs '../../node_modules/@capacitor/background-runner/android/src/main/libs', 'libs' // motore JS degli avvisi in background
     }
 }
 
@@ -53,7 +52,9 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    implementation "androidx.work:work-runtime:2.12.0" // avvisi ad app chiusa (alerts/)
     testImplementation "junit:junit:$junitVersion"
+    testImplementation "org.json:json:20250517" // nelle prove sul computer l'org.json di Android è vuoto
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')

@@ -8,18 +8,6 @@
   "plugins": {
     "SystemBars": {
       "style": "DARK"
-    },
-    "LocalNotifications": {
-      "smallIcon": "ic_stat_skyframe",
-      "iconColor": "#4CCFBC"
-    },
-    "BackgroundRunner": {
-      "label": "io.github.astropuzzo.skyframe.check",
-      "src": "runners/background.js",
-      "event": "check",
-      "repeat": true,
-      "interval": 20,
-      "autoStart": true
     }
   }
 }

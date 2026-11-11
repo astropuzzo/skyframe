@@ -999,4 +999,8 @@ window.I18N.en = {
   "Piano: numero di pose per filtro": "Plan: number of subs per filter",
   "Android: riga della copia automatica allineata in Setup": "Android: automatic backup row aligned in Setup",
   "N.I.N.A.: CSV nel formato di Telescopius, anche per un’inquadratura sola": "N.I.N.A.: CSV in Telescopius format, single framings too",
+  // ---------- 0.31: avvisi nativi su Android ----------
+  "Avvisi della notte": "Night alerts", "accesi, ad app aperta": "on, while the app is open", "Notifiche bloccate": "Notifications blocked",
+  "consentile nelle impostazioni": "allow them in settings", "Batteria": "Battery", "togli le restrizioni a Skyframe": "remove restrictions for Skyframe",
+  "Ultimo controllo del meteo": "Last weather check", "la notte in arrivo, adesso": "the coming night, right now",
 };

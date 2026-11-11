@@ -379,7 +379,11 @@ function wire() {
   wireStrip(); wireEditor(); syncAdv();
   const liveTick = () => { if (state.live && !document.hidden) { Dome.setTime(Date.now()); onTime(); } };
   setInterval(liveTick, 15000); document.addEventListener('visibilitychange', liveTick); // l'ora si mostra al minuto: basta un passo ogni 15 s
-  setInterval(() => { if (state.live && $('#nightDate').value !== defaultNightStr()) { $('#nightDate').value = defaultNightStr(); refresh(); } }, 300000);
+  const rollover = () => { if (state.live && $('#nightDate').value !== defaultNightStr()) { $('#nightDate').value = defaultNightStr(); refresh(); } };
+  setInterval(rollover, 300000);
+  // ritorno in primo piano (i timer di una pagina nascosta rallentano o si fermano): notte, meteo e avvisi si riallineano
+  window.onAppResume = () => { if (document.hidden || !state.res) return; rollover(); refreshWeather(false); alertsOpen(); if (UI.view === 'setup') renderAlertStatus(); };
+  document.addEventListener('visibilitychange', window.onAppResume);
 }
 
 async function boot() {
@@ -395,7 +399,7 @@ async function boot() {
   else applyStore(LS.get('sf.store', null) || { profiles: LS.get('sf.profiles', []), active: LS.get('sf.active', null), locations: LS.get('sf.locs', undefined), activeLoc: LS.get('sf.loc', null) });
   await restoreExtras(state.projects); // oggetti fuori lista salvati: prima del primo calcolo
   const bk = LS.get('sf.bak', null); if (!bk || Date.now() - bk.at > 864e5) backupSoon(storeData()); // almeno una copia al giorno
-  wire(); refresh(true);
+  wire(); refresh(true); alertsOpen();
   window.__bootMs = Math.round(performance.now());
   // guida al primo avvio e novità dopo un aggiornamento: quando il logo è arrivato al suo posto
   Promise.resolve(window.introExit ? introExit() : $('#bootScreen') && $('#bootScreen').remove()).then(() => setTimeout(tourBoot, 250));

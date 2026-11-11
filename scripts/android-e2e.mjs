@@ -3,7 +3,7 @@
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 
-const PKG = 'io.github.astropuzzo.skyframe', LABEL = 'io.github.astropuzzo.skyframe.check';
+const PKG = 'io.github.astropuzzo.skyframe';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const adb = (a) => execSync(`adb ${a}`, { encoding: 'utf8', maxBuffer: 64e6 });
 const out = { checks: {}, notes: [] };
@@ -176,30 +176,58 @@ try {
   out.checks.copia_automatica = await until(`(LS.get('sf.bak', null) || {}).where === 'Documenti/Skyframe/skyframe-backup.json'`, 15000) && /skyframe-backup\.json/.test(docs());
   await ev(`setView('setup'); return 1`); await sleep(1200); await ev(`document.querySelector('[data-export]').scrollIntoView({ block: 'center' }); return 1`); await sleep(800); shot('11-setup-dati');
 
-  log('avvisi'); // avviso programmato (LocalNotifications): la prova di Setup
-  await ev(`LS.set('sf.notify', true); await testNotify(); return 1`);
-  await sleep(12000);
-  const n1 = notifs();
-  out.checks.avviso_programmato = /skyframe/i.test(n1) && /(Stanotte sereno|Prova degli avvisi)/.test(n1);
-  // script in background: una notte finta che parte ora, poi il suo controllo (a app aperta con selftest)
-  log('script in background'); const cfg = `{ on: true, evening: true, change: true, lat: '45.464', lon: '9.190', tz: 60, nights: [{ id: 7, ds: 'e2e', d0: Date.now() + 30 * 60000, d1: Date.now() + 5 * 3600e3, alertAt: Date.now() - 60000, minH: 0, minClear: 0, good: false, appScheduled: false, body: 'prova e2e dallo script in background' }], txt: { title: 'Stasera si scatta: {w}', all: 'sereno tutta la notte', win: 'sereno {a}–{b}', pct: '{p}% del buio sereno', open: 'Si apre: {w}', bad: 'Cambio di programma', badBody: '{p}%' } }`;
-  const BR = `Capacitor.Plugins.CapacitorBackgroundRunner`;
-  out.runner_config = await ev(`try { await ${BR}.dispatchEvent({ label: '${LABEL}', event: 'config', details: ${cfg} }); return 'ok'; } catch (e) { return 'errore: ' + e.message; }`);
-  out.runner_selftest = await ev(`try { return await ${BR}.dispatchEvent({ label: '${LABEL}', event: 'selftest', details: {} }); } catch (e) { return 'errore: ' + e.message; }`);
-  for (let i = 0; i < 15 && !/prova e2e dallo script in background/.test(notifs()); i++) await sleep(1000);
-  out.checks.avviso_da_script = /prova e2e dallo script in background/.test(notifs());
-  out.runner_status = await ev(`try { return await ${BR}.dispatchEvent({ label: '${LABEL}', event: 'status', details: {} }); } catch (e) { return 'errore: ' + e.message; }`);
-  // il lavoro periodico registrato nel sistema (WorkManager)
-  try { out.jobs = adb('shell dumpsys jobscheduler').split('\n').filter((l) => l.includes(PKG)).slice(0, 12); } catch { /* niente */ }
-  try { adb('shell cmd statusbar expand-notifications'); await sleep(2500); shot('09-notifiche', true); adb('shell cmd statusbar collapse'); } catch (e) { out.notes.push('tendina: ' + e.message); }
   out.errori_console = await ev(`return (window.__errs || []).slice(0, 10)`).catch(() => null);
+
+  log('avvisi'); // il motore nativo: prova di Setup, poi una notte finta con una previsione finta (build di debug)
+  const AL = 'Capacitor.Plugins.SkyframeAlerts';
+  const logcat = (re) => { try { return adb('logcat -d -s SkyframeAlerts:D').split('\n').filter((l) => re.test(l)); } catch { return []; } };
+  const notified = async (re, ms) => { for (let t = 0; t < ms; t += 2000) { if (re.test(notifs())) return true; await sleep(2000); } return re.test(notifs()); };
+  out.checks.avvisi_plugin = await ev(`return !!(window.cielo.alerts && ${AL})`);
+  await ev(`LS.set('sf.notify', true); await planNotifications(); return 1`);
+  out.checks.avvisi_ricetta = await until(`RCP.sent && RCP.map.size >= 20`, 60000);
+  out.ricetta = await ev(`const c = JSON.parse(RCP.sent); return { notti: c.nights.length, conPiano: c.nights.filter((n) => n.blocks && n.blocks.length).length, primo: c.nights[0] && { ds: c.nights[0].ds, blocchi: (c.nights[0].blocks || []).length, luna: c.nights[0].moon.length }, modelli: c.models.length }`).catch((e) => String(e));
+  await ev(`await testNotify(); return 1`, 30000);
+  out.checks.avviso_di_prova = await notified(/Stanotte sereno|Prova degli avvisi/, 15000);
+  await ev(`setView('setup'); return 1`); await sleep(1200); await ev(`document.getElementById('stAlerts').scrollIntoView({ block: 'start' }); return 1`); await sleep(1500); shot('12-setup-avvisi');
+  out.stato_avvisi = await ev(`return await ${AL}.status()`).catch((e) => String(e));
+  // da qui l'app non deve più mandare la sua ricetta: si prova con notti finte
+  await ev(`window.planNotifications = async () => {}; window.recipeSend = async () => {}; clearTimeout(RCP.t); RCP.job++; return 1`);
+  const txt = `{ title: 'E2E sera: {w}', all: 'sereno tutta la notte', win: 'sereno {a}–{b}', pct: '{p}% del buio sereno', open: 'E2E si apre: {w}', bad: 'E2E cambio', badBody: '{p}%', test: 'prova', channel: 'Avvisi della notte' }`;
+  const fake = (ds, startMin, extra) => `{ cfg: { v: 1, on: true, at: Date.now(), evening: true, change: true, top: false, lead: 60, minR: 3, minH: 1.5, lat: 45.464, lon: 9.19, models: [], mock: 1, txt: ${txt}, timed: [], ${extra || ''}
+    nights: [{ ds: '${ds}', t0: Date.now() - 6 * 3600e3, d0: Date.now() + ${startMin} * 60000, d1: Date.now() + ${startMin} * 60000 + 5 * 3600e3, tz: 60, ill: 0, moon: [], day: 'E2E', blocks: [{ id: '${ds}', a: Date.now() + ${startMin} * 60000, b: Date.now() + ${startMin} * 60000 + 4 * 3600e3 }] }] } }`;
+  // 1) ad app aperta: l'ora dell'avviso è già passata, arriva subito
+  await ev(`await ${AL}.configure(${fake('E2E-A', 30)}); return 1`, 30000);
+  out.checks.avviso_sera = await notified(/E2E sera: sereno tutta la notte/, 20000) && /E2E-A \d\d:\d\d/.test(notifs());
+  // 2) nuvole che tornano dopo l'avviso: lo stesso avviso diventa «cambio»
+  await ev(`await ${AL}.configure(${fake('E2E-A', 30).replace('mock: 1', 'mock: 0.05')}); await ${AL}.run({}); return 1`, 30000);
+  out.checks.avviso_cambio = await notified(/E2E cambio/, 20000);
+  // 3) ad app chiusa: sveglia fra un minuto e mezzo, poi l'app va in secondo piano e il suo processo viene chiuso
+  await ev(`await ${AL}.configure(${fake('E2E-B', 61.5)}); return 1`, 30000);
+  out.stato_prima = await ev(`return await ${AL}.status()`).catch((e) => String(e));
+  out.checks.sveglia_programmata = !!(out.stato_prima && out.stato_prima.next > Date.now());
+  try { out.jobs = adb('shell dumpsys jobscheduler').split('\n').filter((l) => l.includes(PKG)).slice(0, 12); } catch { /* niente */ }
+  adb('shell input keyevent KEYCODE_HOME'); await sleep(3000);
+  try { adb(`shell am kill ${PKG}`); } catch { /* niente */ }
+  await sleep(2000);
+  let pid = ''; try { pid = adb(`shell pidof ${PKG}`).trim(); } catch { /* nessun processo */ }
+  out.checks.app_chiusa = !pid; log('app chiusa: ' + (!pid));
+  out.checks.avviso_ad_app_chiusa = await notified(/E2E sera: sereno tutta la notte[\s\S]*E2E-B|E2E-B[\s\S]*E2E sera: sereno tutta la notte/, 240000);
+  out.log_sveglia = logcat(/alarm: /).slice(-3);
+  out.checks.sveglia_scattata = out.log_sveglia.length > 0;
+  // 4) il lavoro periodico (WorkManager), forzato dal sistema ad app chiusa
+  try {
+    const m = /JOB #u\d+a\d+\/(\d+)[^\n]*\n?[^\n]*SystemJobService/.exec(adb('shell dumpsys jobscheduler').split(PKG).slice(1).join(PKG)) || /#u\d+a\d+\/(\d+)/.exec((out.jobs || []).join('\n'));
+    if (m) { adb(`shell cmd jobscheduler run -f ${PKG} ${m[1]}`); await sleep(15000); out.log_lavoro = logcat(/work: /).slice(-3); out.checks.lavoro_periodico = out.log_lavoro.length > 0; }
+    else { out.notes.push('lavoro periodico non trovato in jobscheduler'); out.checks.lavoro_periodico = false; }
+  } catch (e) { out.notes.push('lavoro periodico: ' + e.message); out.checks.lavoro_periodico = false; }
+  try { adb('shell cmd statusbar expand-notifications'); await sleep(2500); shot('09-notifiche', true); adb('shell cmd statusbar collapse'); } catch (e) { out.notes.push('tendina: ' + e.message); }
 } catch (e) {
   log('errore: ' + (e && e.stack || e));
 }
 log('fine');
 fs.writeFileSync('e2e/risultati.json', JSON.stringify(out, null, 2));
 const bad = Object.entries(out.checks).filter(([, v]) => !v).map(([k]) => k);
-const summary = `### Skyframe su Android 14 (emulatore)\n\n${Object.entries(out.checks).map(([k, v]) => `- ${v ? '✅' : '❌'} ${k}`).join('\n')}\n\nScript in background: config ${JSON.stringify(out.runner_config)}, selftest ${JSON.stringify(out.runner_selftest)}\n`;
+const summary = `### Skyframe su Android 14 (emulatore)\n\n${Object.entries(out.checks).map(([k, v]) => `- ${v ? '✅' : '❌'} ${k}`).join('\n')}\n\nAvvisi nativi: ricetta ${JSON.stringify(out.ricetta)}, stato ${JSON.stringify(out.stato_avvisi)}\n`;
 if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
 console.log(summary, out.notes.join('\n'));
 clearInterval(keep);
