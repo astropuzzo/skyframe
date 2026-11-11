@@ -199,6 +199,26 @@ try {
     out.checks.orizzonte_sensori = await until(`HZS.el && HZS.evN > 0 && !!HZS.aimNow() && HZS.aimNow().az != null`, 15000);
     out.orizzonte = await ev(`const a = HZS.aimNow(), v = HZS.el.querySelector('video'); return { cam: HZS.cam, eventi: HZS.evN, rel: !!HZS.rel, abs: !!HZS.abs, declinazione: HZS.decl, bussola: HZS.acc, punta: a && { az: a.az == null ? null : Math.round(a.az), alt: Math.round(a.alt), ref: a.ref }, video: [v.videoWidth, v.videoHeight], msg: HZS.el.querySelector('[data-msg]').textContent }`).catch((e) => String(e));
     await sleep(800); shot('15-orizzonte');
+    // Il verso dell'azimut, con un campo magnetico noto e il telefono in piedi: nord dietro il telefono = si guarda a nord,
+    // nord a destra dello schermo = a ovest, a sinistra = a est. La fusione dei sensori di Android ci mette qualche secondo.
+    try {
+      const gap = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
+      const look = async (x, y, z) => {
+        adb('emu sensor set acceleration 0:9.81:0'); adb(`emu sensor set magnetic-field ${x}:${y}:${z}`);
+        let prev = null, cur = null;
+        for (let k = 0; k < 20; k++) {
+          await sleep(2500); cur = await ev(`return HZS.abs ? Math.round(norm360(aimOf(HZS.abs).az + (HZS.decl || 0))) : null`);
+          if (k >= 2 && cur != null && prev != null && gap(cur, prev) < 2) break;
+          prev = cur;
+        }
+        return cur;
+      };
+      const nord = await look(0, -42, -22), ovest = await look(22, -42, 0), est = await look(-22, -42, 0);
+      out.azimut = { nord, ovest, est, altezza: await ev(`return HZS.abs ? Math.round(aimOf(HZS.abs).alt) : null`) };
+      // attesi 4°, 274° e 94°: la direzione più i 3,9° di declinazione di Milano
+      if ([nord, ovest, est].every((v) => v != null) && gap(ovest, est) > 90) out.checks.orizzonte_verso = gap(nord, 4) < 20 && gap(ovest, 274) < 20 && gap(est, 94) < 20;
+      else out.notes.push('il campo magnetico dell’emulatore non si lascia pilotare: verso dell’azimut non provato');
+    } catch (e) { out.notes.push('verso dell’azimut: ' + e.message); }
     // un punto dal pulsante (dove punta l'emulatore), un secondo messo a mano 20° più in là, poi «Fine»
     out.checks.orizzonte_punto = await ev(`HZS.el.querySelector('[data-mark]').click(); return HZS.strokes.length === 1 && HZS.strokes[0].length === 1`);
     await ev(`const p = HZS.strokes[0][0]; HZS.strokes.push([{ az: (p.az + 20) % 360, alt: 15 }]); return 1`);
