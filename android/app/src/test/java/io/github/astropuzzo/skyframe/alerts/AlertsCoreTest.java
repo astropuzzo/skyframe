@@ -259,5 +259,7 @@ public class AlertsCoreTest {
         // ritmo degli scaricamenti
         assertEquals(3 * H, AlertsCore.maxAge(cfg(), NOON));
         assertEquals(25 * M, AlertsCore.maxAge(cfg(), D0 - 2 * H));
+        assertEquals(55 * M, AlertsCore.maxAge(cfg(), D0 + 4 * H));
+        assertEquals(Long.MAX_VALUE, AlertsCore.maxAge(cfg(), NOON + 60 * 24 * H)); // ricetta finita: non si scarica più
     }
 }

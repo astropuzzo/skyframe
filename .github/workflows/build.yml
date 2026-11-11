@@ -100,7 +100,8 @@ jobs:
           # firma con la chiave fissa dei segreti: le nuove versioni si installano sopra le vecchie
           if [ -n "$KS_B64" ]; then echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/skyframe.jks"; export SKYFRAME_KEYSTORE="$RUNNER_TEMP/skyframe.jks"; fi
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          # prima le prove degli avvisi nativi (AlertsCoreTest), poi l'APK
+          ./gradlew testDebugUnitTest assembleRelease --no-daemon
 
       - name: Nome dell'APK
         run: |

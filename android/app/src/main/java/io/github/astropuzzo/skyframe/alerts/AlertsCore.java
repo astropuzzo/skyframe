@@ -372,14 +372,19 @@ final class AlertsCore {
         return new Note(ID_TEST, plain, plain, "", false);
     }
 
-    /* quanto spesso riscaricare le nuvole: fitto da tre ore prima dell'avviso alla fine della notte, rado altrimenti */
+    /* quanto spesso riscaricare le nuvole: ogni mezz'ora da tre ore prima dell'avviso a due ore dopo il buio, ogni ora nel
+       resto della notte, ogni tre ore di giorno. Senza più notti nella ricetta (app chiusa da un mese): mai. */
     static long maxAge(JSONObject cfg, long now) {
         JSONArray nights = cfg == null ? null : cfg.optJSONArray("nights");
         long lead = cfg == null ? 60 * MIN : cfg.optLong("lead", 60) * MIN;
+        boolean ahead = false;
         if (nights != null) for (int k = 0; k < nights.length(); k++) {
             JSONObject n = nights.optJSONObject(k); if (n == null) continue;
-            if (now >= n.optLong("d0") - lead - 3 * HOUR && now < n.optLong("d1") - HOUR) return 25 * MIN;
+            long d0 = n.optLong("d0"), d1 = n.optLong("d1");
+            if (now >= d0 - lead - 3 * HOUR && now < d0 + 2 * HOUR) return 25 * MIN;
+            if (now >= d0 + 2 * HOUR && now < d1 - 2 * HOUR) return 55 * MIN;
+            ahead |= d1 > now;
         }
-        return 3 * HOUR;
+        return ahead ? 3 * HOUR : Long.MAX_VALUE;
     }
 }

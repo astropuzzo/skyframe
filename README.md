@@ -30,7 +30,7 @@ Pianificatore di target per astrofotografia. Usa attrezzatura, filtri, luogo e c
   - **trasparenza** dagli aerosol e dalle polveri desertiche di CAMS (Copernicus), **rischio condensa** (punto di rugiada), raffiche e pioggia;
   - le prossime notti in schede con voto e sereno ora per ora, la notte scelta come una tabella da osservatorio, gli altri tuoi luoghi (dove è sereno stanotte).
   Il calendario delle notti e il piano pesano ogni intervallo sereno previsto per altezza del target, Luna, fondo cielo e trasparenza (con molti aerosol un'ora rende meno); il voto delle notti tiene conto anche della trasparenza.
-- **Piano di stanotte**: i tuoi target messi in fila nelle ore buie e serene, ognuno quando è più alto rispetto al suo percorso, con blocchi di almeno 45 minuti; chi sta per tramontare passa prima e chi ha finito il suo lavoro lascia il posto. Si corregge a mano: togli un target dal piano, o aggiungine uno dal suo dettaglio; a notte iniziata ogni blocco si registra come sessione con un tocco.
+- **Piano di stanotte**: i tuoi target messi in fila nelle ore buie e serene, ognuno quando è più alto rispetto al suo percorso, con blocchi di almeno 45 minuti; chi sta per tramontare passa prima e chi ha finito il suo lavoro lascia il posto. Si corregge a mano: togli un target dal piano, o aggiungine uno dal suo dettaglio; a notte iniziata ogni blocco si registra come sessione con un tocco. Dove un target passa in meridiano dentro il suo blocco c'è l'ora (lì una montatura alla tedesca si ribalta). Il piano si esporta come testo da condividere o come un solo CSV per N.I.N.A. con tutti i target e l'inquadratura consigliata. Il piano di stagione dei tuoi progetti si esporta nel calendario (.ics): un evento per target e per notte.
 - **Avvisi** (da *Setup*, uno per uno):
   - **Stasera si scatta**: prima del buio (30 minuti – 2 ore, a scelta), se la notte arriva al voto che scegli e il piano ha posto per i tuoi target: finestra serena, probabilità, target con gli orari, seeing, rischio condensa e raffiche;
   - **Notte ottima in arrivo**: il giorno prima, per una notte dei prossimi tre giorni senza Luna e serena con buona probabilità, con i target che le assegna il piano di stagione;
@@ -64,12 +64,14 @@ Sull'app Android la mappa all-sky di lightpollutionmap non si scarica da sola: e
 ```bash
 npm install
 npm start          # avvia l'app
+npm test           # prove: ora del luogo, Luna, filtri, calendario, piano di stagione, archivio dei profili, casi del modello
 npm run check      # stampa i piani di ripresa di alcuni scenari di riferimento
 node scripts/calibrate.cjs   # confronta il modello con le foto reali (dati in scripts/raw/, non nel repository)
 npm run smoke      # avvia l'app senza finestra: dettaglio, editor, mappa all-sky su Roma; salva screenshot
 npm run data       # ricostruisce src/data/ dai cataloghi originali (scarica ciò che manca in scripts/raw/)
 npm run dist       # crea i pacchetti per il sistema corrente in dist/
 npm run android:sync   # copia l'app nel progetto Android (android/), poi si compila con Gradle o Android Studio
+# avvisi nativi: android/app/src/main/java/…/alerts; le loro prove con (cd android && ./gradlew testDebugUnitTest)
 # prova su Android vero (emulatore Android 14 su GitHub Actions): workflow «Android e2e», schermate e avvisi negli artifact
 npx electron scripts/icons.cjs   # rigenera tutte le icone (desktop, Android, avvio) da build/icon.svg
 ```

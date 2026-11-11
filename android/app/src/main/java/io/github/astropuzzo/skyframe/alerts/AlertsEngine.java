@@ -73,7 +73,8 @@ public final class AlertsEngine {
             if (cfg == null || !cfg.optBoolean("on")) { setAlarm(ctx, 0); return "spenti"; }
             JSONObject st = json(p, "st"); if (st == null) st = new JSONObject();
             AlertsCore.Wx wx = AlertsCore.Wx.fromJson(st.optJSONObject("wx"));
-            boolean old = wx == null || now - wx.at > AlertsCore.maxAge(cfg, now);
+            long maxAge = AlertsCore.maxAge(cfg, now);
+            boolean old = maxAge != Long.MAX_VALUE && (wx == null || now - wx.at > maxAge);
             if (fetch == 2 || (fetch == 1 && old)) {
                 AlertsCore.Wx fresh = download(ctx, cfg, now, "alarm".equals(why) ? 3500 : 12000);
                 if (fresh != null) { wx = fresh; st.put("wx", fresh.toJson()); st.put("ok", now); }
@@ -123,7 +124,7 @@ public final class AlertsEngine {
             JSONArray models = cfg.optJSONArray("models");
             StringBuilder m = new StringBuilder();
             if (models != null) for (int i = 0; i < models.length(); i++) { if (i > 0) m.append(','); m.append(models.optJSONArray(i).optString(0)); }
-            String url = String.format(Locale.ROOT, "https://api.open-meteo.com/v1/forecast?latitude=%.3f&longitude=%.3f&past_days=1&forecast_days=5&timeformat=unixtime&timezone=GMT"
+            String url = String.format(Locale.ROOT, "https://api.open-meteo.com/v1/forecast?latitude=%.3f&longitude=%.3f&past_days=1&forecast_days=3&timeformat=unixtime&timezone=GMT"
                     + "&hourly=cloud_cover_low,cloud_cover_mid,cloud_cover_high,temperature_2m,dew_point_2m,wind_gusts_10m%s",
                     cfg.optDouble("lat"), cfg.optDouble("lon"), m.length() > 0 ? "&models=" + m : "");
             c = (HttpURLConnection) new URL(url).openConnection();
