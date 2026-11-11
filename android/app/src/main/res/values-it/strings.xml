@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="widget_name">Stanotte</string>
+    <string name="widget_desc">La notte in arrivo con la previsione del momento</string>
+    <string name="widget_setup">Apri Skyframe una volta per riempirlo</string>
+</resources>

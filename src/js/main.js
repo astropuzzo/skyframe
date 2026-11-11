@@ -393,7 +393,7 @@ function wire() {
   };
   setInterval(roll, 60000);
   // ritorno in primo piano (i timer di una pagina nascosta rallentano o si fermano): notte, meteo e avvisi si riallineano
-  window.onAppResume = () => { if (document.hidden || !state.res) return; roll(); refreshWeather(false); alertsOpen(); if (UI.view === 'setup') renderAlertStatus(); };
+  window.onAppResume = () => { if (document.hidden || !state.res) return; roll(); refreshWeather(false); alertsOpen(); alertsSync(); if (UI.view === 'setup') renderAlertStatus(); };
   document.addEventListener('visibilitychange', window.onAppResume);
 }
 
@@ -417,7 +417,7 @@ async function boot() {
     console.error(e); state.profiles = [stripSite(templateProfile())]; state.locs = [templateLoc()]; state.activeId = state.profiles[0].id; state.locId = state.locs[0].id; state.projects = Object.create(null); effMemo = null;
     state.noSave = true; refresh(true); setTimeout(() => toast(tx('Dati salvati non leggibili: importa una copia da Setup')), 2500);
   }
-  alertsOpen();
+  alertsOpen(); alertsSync();
   window.__bootMs = Math.round(performance.now());
   // guida al primo avvio e novità dopo un aggiornamento: quando il logo è arrivato al suo posto
   Promise.resolve(window.introExit ? introExit() : $('#bootScreen') && $('#bootScreen').remove()).then(() => setTimeout(tourBoot, 250));

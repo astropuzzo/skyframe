@@ -4,4 +4,7 @@
     <string name="title_activity_main">Skyframe</string>
     <string name="package_name">io.github.astropuzzo.skyframe</string>
     <string name="custom_url_scheme">io.github.astropuzzo.skyframe</string>
+    <string name="widget_name">Tonight</string>
+    <string name="widget_desc">The coming night with the current forecast</string>
+    <string name="widget_setup">Open Skyframe once to fill this in</string>
 </resources>

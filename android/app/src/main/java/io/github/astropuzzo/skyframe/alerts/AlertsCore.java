@@ -356,6 +356,37 @@ final class AlertsCore {
         for (Iterator<String> it = o.keys(); it.hasNext(); ) { JSONObject v = o.optJSONObject(it.next()); if (v == null || v.optLong(field) < before) it.remove(); }
     }
 
+    /* Il widget della schermata Home: la notte in arrivo in due righe, con la previsione del momento. Se non vale la pena,
+       la seconda riga dice qual è la prossima che vale almeno «discreta». */
+    static String[] summary(JSONObject cfg, Wx wx, long now) {
+        JSONObject txt = cfg == null ? null : cfg.optJSONObject("txt"); if (txt == null) txt = new JSONObject();
+        JSONArray nights = cfg == null ? null : cfg.optJSONArray("nights");
+        int ci = -1;
+        if (nights != null) for (int k = 0; k < nights.length() && ci < 0; k++) { JSONObject n = nights.optJSONObject(k); if (n != null && now < n.optLong("d1") - 30 * MIN) ci = k; }
+        if (ci < 0) return new String[] { "Skyframe", txt.optString("wOpen", "") };
+        JSONObject cur = nights.optJSONObject(ci);
+        long d0 = cur.optLong("d0"), d1 = cur.optLong("d1");
+        String day = d0 - now < 20 * HOUR ? txt.optString("wTonight", cur.optString("day")) : cur.optString("day");
+        Eval e = wx == null ? null : eval(cur, wx, Math.max(now, d0), d1);
+        if (e == null || !e.ok) return new String[] { day, txt.optString("wNoWx", "") };
+        JSONArray rate = txt.optJSONArray("rate");
+        String label = e.dark < 0.2 ? txt.optString("wNoDark", "") : e.r == 1 && e.moonFrac > 0.7 && e.clear >= 0.5 ? txt.optString("wMoon", "") : rate == null ? "" : rate.optString(e.r, "");
+        String title = label.isEmpty() ? day : day + " · " + label, line = when(txt, e, cur.optInt("tz"));
+        if (e.r >= 2) {
+            JSONArray bl = cur.optJSONArray("blocks"); StringBuilder who = new StringBuilder();
+            for (int i = 0; i < e.blocks.size() && i < 2; i++) { String id = bl.optJSONObject((int) e.blocks.get(i)[0]).optString("id"); if (who.indexOf(id) < 0) who.append(who.length() > 0 ? ", " : "").append(id); }
+            if (who.length() > 0) line += " · " + who;
+        } else {
+            for (int k = ci + 1; k < nights.length(); k++) {
+                JSONObject n = nights.optJSONObject(k); if (n == null) continue;
+                Eval x = eval(n, wx, n.optLong("d0"), n.optLong("d1"));
+                if (!x.ok) break; // oltre la previsione
+                if (x.r >= 2) { line = fill(txt.optString("wNext", "{d}"), "d", n.optString("sd", n.optString("day"))); break; }
+            }
+        }
+        return new String[] { title, line };
+    }
+
     /* prova da Setup: la notte in arrivo com'è adesso, senza soglie e senza segnare niente */
     static Note test(JSONObject cfg, Wx wx, long now) {
         JSONObject txt = cfg == null ? null : cfg.optJSONObject("txt"); if (txt == null) txt = new JSONObject();

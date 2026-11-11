@@ -8,7 +8,8 @@
    - «Ultime settimane di visibilità»: un tuo target sta per uscire di stagione e il lavoro non è finito.
    Android: l'app passa al motore nativo (android/…/alerts) la ricetta delle prossime 30 notti (buio, Luna, piano a cielo
    sereno, testi). Il motore riscarica le nuvole da solo ad app chiusa, con una sveglia all'ora dell'avviso, e decide lui:
-   quello che arriva è sempre la previsione del momento. Computer e browser: si programmano qui, ad app aperta. */
+   quello che arriva è sempre la previsione del momento. Lo stesso motore riempie il widget «Stanotte» della schermata
+   Home, anche ad avvisi spenti. Computer e browser: si programmano qui, ad app aperta. */
 const NCFG_DEF = { evening: true, top: true, change: true, season: true, lead: 60, min: 3 };
 const ncfg = () => ({ ...NCFG_DEF, ...LS.get('sf.notifyCfg', {}) });
 function setNcfg(k, v) { LS.set('sf.notifyCfg', { ...ncfg(), [k]: v }); planNotifications(); }
@@ -69,8 +70,9 @@ function seasonAlerts() {
 async function planNotifications() {
   if (!state.res) return;
   const on = notifyOn(), c = ncfg(), nat = nativeAlerts();
-  if (!on) { if (!nat) notifySchedule([]); else if (RCP.sent !== 'off') { RCP.sent = 'off'; nat.configure({ on: false }); } return; }
-  if (c.season || c.top) {
+  // ad avvisi spenti la ricetta serve solo se sulla schermata Home c'è il widget
+  if (!on && !(nat && RCP.widgets)) { if (!nat) notifySchedule([]); else if (RCP.sent !== 'off') { RCP.sent = 'off'; nat.configure({ on: false }); } return; }
+  if (on && (c.season || c.top)) {
     const key = seasonKey(seasonTargets());
     if (!SP.plan || SP.key !== key) {
       if (!planNotifications.waiting) { planNotifications.waiting = true; seasonPlan(() => { planNotifications.waiting = false; planNotifications(); }); }
@@ -124,7 +126,14 @@ async function planNotifications() {
 }
 
 /* ---------- Android: la ricetta delle notti per il motore nativo ---------- */
-const RCP = { key: '', map: new Map(), job: 0, sent: '', sentAt: 0, t: 0 };
+const RCP = { key: '', map: new Map(), job: 0, sent: '', sentAt: 0, t: 0, widgets: 0 };
+/* quanti widget ci sono sulla schermata Home: lo sa solo Android, lo si chiede all'avvio e al ritorno in primo piano */
+async function alertsSync() {
+  const nat = nativeAlerts(); if (!nat) return null;
+  const st = await nat.status(), w = (st && st.widgets) | 0;
+  if (w !== RCP.widgets) { RCP.widgets = w; planNotifications(); }
+  return st;
+}
 /* una notte per il motore: buio, intervalli con la Luna alta, blocchi del piano a cielo sereno */
 function recipeOf(n, plan) {
   if (n.first < 0) return null;
@@ -133,7 +142,7 @@ function recipeOf(n, plan) {
     const up = i <= n.last && n.dark[i] && n.mAlt[i] > 0 && n.moonIll > 0.1;
     if (up && a < 0) a = n.t[i]; else if (!up && a >= 0) { moon.push([a, n.t[i - 1] + DT]); a = -1; }
   }
-  const d0 = n.t[n.first], r = { ds: n.ds, t0: n.t0, d0, d1: n.t[n.last] + DT, tz: tzOff(d0, TZ.id), ill: Math.round(n.moonIll * 1000) / 1000, moon, day: dayName(n.t0) };
+  const d0 = n.t[n.first], r = { ds: n.ds, t0: n.t0, d0, d1: n.t[n.last] + DT, tz: tzOff(d0, TZ.id), ill: Math.round(n.moonIll * 1000) / 1000, moon, day: dayName(n.t0), sd: fmtNight(n.t0, { weekday: 'short', day: 'numeric' }) };
   // senza target tuoi e senza niente di riprendibile non c'è un piano da rispettare: decide il cielo
   if (plan && (plan.mine || plan.blocks.length)) r.blocks = plan.blocks.map((b) => ({ id: b.id, a: b.t0, b: b.t1 }));
   return r;
@@ -145,7 +154,7 @@ function clearPlan(ds) {
 function recipeSoon() { clearTimeout(RCP.t); RCP.t = setTimeout(recipeBuild, 300); }
 /* le notti si calcolano a pezzi (una costa come un ricalcolo dei preferiti) e restano finché non cambia qualcosa */
 function recipeBuild() {
-  if (!nativeAlerts() || !state.res || !notifyOn()) return;
+  if (!nativeAlerts() || !state.res || !(notifyOn() || RCP.widgets)) return;
   const today = defaultNightStr(), ids = Object.keys(state.projects).filter((id) => inMyList(id) && !isDone(id)).sort();
   const key = [hash(JSON.stringify(active())), today, state.res.night.ds === today, ids.map((id) => id + ':' + projProgress(id).toFixed(3)).join(','), JSON.stringify(LS.get('sf.planEd', {})), moonMode()].join('|');
   if (RCP.key !== key) { RCP.key = key; RCP.map = new Map(); }
@@ -160,7 +169,7 @@ function recipeBuild() {
   step();
 }
 async function recipeSend(today) {
-  const nat = nativeAlerts(), c = ncfg(), L = activeLoc().site, now = Date.now(); if (!nat || !notifyOn()) return;
+  const nat = nativeAlerts(), c = ncfg(), L = activeLoc().site, now = Date.now(), on = notifyOn(); if (!nat || !(on || RCP.widgets)) return;
   const nights = []; for (let k = 0; k < BG_N; k++) { const r = RCP.map.get(addDays(today, k)); if (r) nights.push({ ...r }); }
   // giudizio dell'app su stasera e domani: serve se all'ora dell'avviso manca la rete
   if (WX.d && wxOk()) for (let k = 0; k < 2; k++) {
@@ -169,12 +178,15 @@ async function recipeSend(today) {
     if (ev && ev.w) Object.assign(r, { good: ev.good, when: ev.when, body: ev.body, extra: ev.see });
   }
   const cfg = {
-    v: 1, on: true, at: now, evening: c.evening, change: c.change, top: c.top, lead: c.lead, minR: c.min, minH: 1.5,
-    lat: +(+L.lat).toFixed(3), lon: +(+L.lon).toFixed(3), models: WX_MODELS.map((m) => [m[0], m[2]]), nights, timed: seasonAlerts(),
+    v: 1, on, at: now, evening: c.evening, change: c.change, top: c.top, lead: c.lead, minR: c.min, minH: 1.5,
+    lat: +(+L.lat).toFixed(3), lon: +(+L.lon).toFixed(3), models: WX_MODELS.map((m) => [m[0], m[2]]), nights, timed: on ? seasonAlerts() : [],
     txt: {
       title: tx('Stanotte sereno: {w}'), all: tx('sereno tutta la notte'), win: tx('sereno {a}–{b}'), pct: tx('{p}% del buio sereno'), open: tx('Schiarita prevista: {w}'),
       bad: tx('Cambio di programma: nuvole'), badBody: tx('Previsione aggiornata: solo il {p}% del buio è sereno.'), topTitle: tx('{d}: notte ottima'), topBody: tx('Senza Luna, sereno al {p}%'),
       forT: tx('Per {t}'), moon: tx('Luna {p}%'), gust: tx('raffiche {v} km/h'), dew: tx('condensa: riscalda l’ottica'), test: tx('Prova degli avvisi'), channel: tx('Avvisi della notte'),
+      // widget della schermata Home
+      wTonight: tx('Stanotte'), wNext: tx('prossima utile {d}'), wNoWx: tx('meteo non disponibile'), wOpen: tx('Apri Skyframe'), wMoon: tx('Luna'), wNoDark: tx('Senza buio'),
+      rate: ['Coperta', 'Scarsa', 'Discreta', 'Buona', 'Ottima'].map((x) => tx(x)),
     },
   };
   // uguale all'ultima mandata e ancora fresca: non si rimanda

@@ -242,6 +242,40 @@ public class AlertsCoreTest {
     }
 
     @Test
+    public void widget() throws Exception {
+        JSONObject c = cfg();
+        c.getJSONObject("txt").put("wTonight", "Stanotte").put("wNext", "prossima utile {d}").put("wNoWx", "meteo non disponibile").put("wOpen", "Apri Skyframe").put("wMoon", "Luna").put("wNoDark", "Senza buio")
+                .put("rate", new JSONArray().put("Coperta").put("Scarsa").put("Discreta").put("Buona").put("Ottima"));
+        c.getJSONArray("nights").getJSONObject(1).put("sd", "gio 17");
+        // sereno: giudizio, finestra e i primi due target
+        String[] s = AlertsCore.summary(c, wx((h) -> 1), NOON + 2 * H);
+        assertEquals("Stanotte · Ottima", s[0]); assertEquals("sereno tutta la notte · NGC 7000, M 31", s[1]);
+        // stanotte coperta, domani sereno: la prossima notte utile
+        s = AlertsCore.summary(c, wx((h) -> h < 20 ? 0.05 : 1), NOON + 2 * H);
+        assertEquals("Stanotte · Coperta", s[0]); assertEquals("prossima utile gio 17", s[1]);
+        // coperto anche domani: resta la percentuale di stanotte
+        s = AlertsCore.summary(c, wx((h) -> 0.05), NOON + 2 * H);
+        assertEquals("5% del buio sereno", s[1]);
+        // a notte iniziata conta quello che resta; con la Luna alta e il cielo sereno lo dice
+        s = AlertsCore.summary(c, wx((h) -> h >= 12 ? 1 : 0), NOON + 13 * H);
+        assertEquals("Stanotte · Ottima", s[0]);
+        for (int i = 0; i < 2; i++) c.getJSONArray("nights").getJSONObject(i).put("moon", new JSONArray().put(new JSONArray().put(D0).put(D1 + 24 * H)));
+        assertEquals("Stanotte · Discreta", AlertsCore.summary(c, wx((h) -> 1), NOON + 2 * H)[0]);
+        // senza previsione, senza notti, senza ricetta
+        assertEquals("meteo non disponibile", AlertsCore.summary(c, null, NOON + 2 * H)[1]);
+        s = AlertsCore.summary(c, wx((h) -> 1), NOON + 90 * 24 * H);
+        assertEquals("Skyframe", s[0]); assertEquals("Apri Skyframe", s[1]);
+        assertEquals("Skyframe", AlertsCore.summary(null, null, NOON)[0]);
+        // la notte dopo, quando stanotte è finita: col suo giorno
+        assertEquals("Giovedì · Ottima", AlertsCore.summary(c.put("nights", new JSONArray().put(night(NOON + 48 * H, "x"))), wxFrom(NOON + 24 * H), NOON + 25 * H)[0]);
+    }
+
+    /* previsione serena che parte da un altro mezzogiorno */
+    static AlertsCore.Wx wxFrom(long noon) {
+        AlertsCore.Wx w = wx((h) -> 1); w.t0 = (noon - 24 * H) / 1000; w.at = noon; return w;
+    }
+
+    @Test
     public void testiEOrari() throws Exception {
         assertEquals("23:05", AlertsCore.hhmm(NOON + 10 * H + 5 * M, 60));
         assertEquals("16:30", AlertsCore.hhmm(NOON, 270));

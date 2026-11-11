@@ -1,6 +1,8 @@
 package io.github.astropuzzo.skyframe.alerts;
 
 import android.Manifest;
+import android.appwidget.AppWidgetManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
@@ -53,7 +55,8 @@ public class AlertsPlugin extends Plugin {
         AlertsEngine.prefs(ctx).edit().putString("cfg", cfg == null ? "{}" : cfg.toString()).apply();
         new Thread(() -> {
             AlertsEngine.arm(ctx);
-            if (cfg != null && cfg.optBoolean("on")) { AlertsEngine.channel(ctx, cfg); AlertsEngine.run(ctx, "app", 1); }
+            if (cfg != null && cfg.optBoolean("on")) AlertsEngine.channel(ctx, cfg);
+            AlertsEngine.run(ctx, "app", 1); // ad avvisi spenti serve solo al widget, se c'è
             call.resolve();
         }).start();
     }
@@ -83,6 +86,22 @@ public class AlertsPlugin extends Plugin {
         r.put("exact", AlertsEngine.exactAllowed(ctx));
         PowerManager pm = (PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
         r.put("battery", pm != null && pm.isIgnoringBatteryOptimizations(ctx.getPackageName()));
+        r.put("widgets", NightWidget.count(ctx));
+        r.put("canPin", Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && AppWidgetManager.getInstance(ctx).isRequestPinAppWidgetSupported());
+        call.resolve(r);
+    }
+
+    /* chiede alla schermata Home di aggiungere il widget «Stanotte» (Android 8+; conferma chi usa il telefono) */
+    @PluginMethod
+    public void pinWidget(PluginCall call) {
+        Context ctx = getContext();
+        JSObject r = new JSObject();
+        boolean asked = false;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            AppWidgetManager m = AppWidgetManager.getInstance(ctx);
+            if (m.isRequestPinAppWidgetSupported()) asked = m.requestPinAppWidget(new ComponentName(ctx, NightWidget.class), null, null);
+        }
+        r.put("asked", asked);
         call.resolve(r);
     }
 

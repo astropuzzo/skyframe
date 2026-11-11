@@ -52,25 +52,27 @@ public final class AlertsEngine {
         try { String s = p.getString(key, null); return s == null ? null : new JSONObject(s); } catch (Exception e) { return null; }
     }
 
-    /* lavoro periodico e sveglia secondo la ricetta salvata; con gli avvisi spenti si toglie tutto */
+    /* lavoro periodico e sveglia secondo la ricetta salvata; con gli avvisi spenti e nessun widget si toglie tutto */
     static void arm(Context ctx) {
         JSONObject cfg = json(prefs(ctx), "cfg");
         WorkManager wm = WorkManager.getInstance(ctx);
         wm.cancelUniqueWork(OLD_WORK); wm.cancelAllWorkByTag(OLD_WORK); // lo script delle versioni fino alla 0.30
-        if (cfg == null || !cfg.optBoolean("on")) { wm.cancelUniqueWork(WORK); wm.cancelUniqueWork(WORK_NOW); setAlarm(ctx, 0); return; }
+        if (cfg == null || (!cfg.optBoolean("on") && NightWidget.count(ctx) == 0)) { wm.cancelUniqueWork(WORK); wm.cancelUniqueWork(WORK_NOW); setAlarm(ctx, 0); return; }
         Constraints net = new Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build();
         PeriodicWorkRequest req = new PeriodicWorkRequest.Builder(AlertsWorker.class, 30, TimeUnit.MINUTES).setConstraints(net).build();
         wm.enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.KEEP, req);
     }
 
-    /* un controllo. why: "work", "alarm", "app", "boot"; fetch: 0 mai, 1 se la previsione è vecchia, 2 sempre */
+    /* un controllo. why: "work", "alarm", "app", "boot", "widget"; fetch: 0 mai, 1 se la previsione è vecchia, 2 sempre.
+       Con gli avvisi spenti gira lo stesso se sulla schermata Home c'è il widget: AlertsCore non manda niente, il widget si aggiorna. */
     static synchronized String run(Context ctx, String why, int fetch) {
         SharedPreferences p = prefs(ctx);
         long now = System.currentTimeMillis();
         String log;
         try {
             JSONObject cfg = json(p, "cfg");
-            if (cfg == null || !cfg.optBoolean("on")) { setAlarm(ctx, 0); return "spenti"; }
+            int widgets = NightWidget.count(ctx);
+            if (cfg == null || (!cfg.optBoolean("on") && widgets == 0)) { setAlarm(ctx, 0); return "spenti"; }
             JSONObject st = json(p, "st"); if (st == null) st = new JSONObject();
             AlertsCore.Wx wx = AlertsCore.Wx.fromJson(st.optJSONObject("wx"));
             long maxAge = AlertsCore.maxAge(cfg, now);
@@ -90,7 +92,10 @@ public final class AlertsEngine {
             setAlarm(ctx, out.nextAlarm);
             log = out.log;
             st.put("run", now); st.put("why", why); st.put("log", log); st.put("next", out.nextAlarm);
-            p.edit().putString("st", st.toString()).apply();
+            SharedPreferences.Editor ed = p.edit().putString("st", st.toString());
+            if (widgets > 0) { String[] s = AlertsCore.summary(cfg, wx, now); ed.putString("widget", new JSONObject().put("t", s[0]).put("l", s[1]).put("at", now).toString()); }
+            ed.commit(); // il widget rilegge subito
+            if (widgets > 0) NightWidget.refresh(ctx);
         } catch (Exception e) {
             Log.e(TAG, "controllo non riuscito", e);
             log = "errore: " + e;

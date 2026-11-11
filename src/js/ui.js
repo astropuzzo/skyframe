@@ -292,6 +292,7 @@ function renderSetup() {
       <div class="st-item">${ic('globe')}<span class="tx"><b>${tx('Lingua')}</b></span><select class="sel" id="langSel" aria-label="${tx('Lingua')}">${Object.entries(LANGS).map(([k, n]) => `<option value="${k}" ${k === LANG ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
     </div></div>
     <div class="st-sec" id="stAlerts"><h3>${tx('Avvisi')}</h3><div class="st-list">
+      <button type="button" class="st-item" id="stWidget" hidden>${ic('frame')}<span class="tx"><b>${tx('Widget')}</b><small>${tx('la notte sulla schermata Home')}</small></span>${ic('plus')}</button>
       <label class="st-item tap">${ic(on ? 'bell-on' : 'bell')}<span class="tx"><b>${tx('Avvisi')}</b><small>${tx(!on ? 'spenti' : nativeAlerts() ? 'accesi, anche ad app chiusa' : 'accesi, ad app aperta')}</small></span><span class="switch"><input type="checkbox" id="swNotify" ${on ? 'checked' : ''}><i></i></span></label>
       ${on ? [['evening', 'Stanotte sereno', 'prima del buio'], ['top', 'Notte ottima prevista', 'il giorno prima, notte senza Luna e serena'], ['change', 'Il meteo è cambiato', 'se la previsione di stanotte cambia'], ['season', 'Ultime settimane di visibilità', 'un preferito sta per uscire di stagione']].map(([k, t, d]) => `<label class="st-item tap sub"><span class="tx"><b>${tx(t)}</b><small>${tx(d)}</small></span><span class="switch"><input type="checkbox" data-nk="${k}" ${nc[k] ? 'checked' : ''}><i></i></span></label>`).join('') +
         `<div class="st-item wrap sub"><span class="tx"><b>${tx('Quanto prima del buio')}</b></span><div class="seg" id="nLead">${[30, 60, 90, 120].map((m) => `<button type="button" data-v="${m}" aria-pressed="${nc.lead === m}">${fmtDur(m / 60)}</button>`).join('')}</div></div>
@@ -336,9 +337,13 @@ function renderSetup() {
 }
 /* Android: cosa serve al sistema perché gli avvisi arrivino puntuali, e quando il motore ha guardato il meteo l'ultima volta */
 async function renderAlertStatus() {
-  const nat = nativeAlerts(); if (!nat || !$('#stAlertSt')) return;
-  const st = await nat.status(), box = $('#stAlertSt'); if (!st || !box) return;
-  const show = (id, on) => { const e = $(id); if (e) e.hidden = !on; };
+  const nat = nativeAlerts(); if (!nat || !$('#stWidget')) return;
+  const st = await alertsSync(), box = $('#stAlertSt'), show = (id, on) => { const e = $(id); if (e) e.hidden = !on; };
+  if (!st) return;
+  // il widget si aggiunge anche ad avvisi spenti
+  show('#stWidget', !!st.canPin); const wb = $('#stWidget');
+  if (wb) wb.onclick = async () => { const r = await nat.pinWidget(); if (!r || !r.asked) toast(tx('Aggiungilo dai widget della schermata Home')); setTimeout(alertsSync, 4000); };
+  if (!box) return;
   show('#stBlocked', !st.enabled); show('#stExact', !st.exact); show('#stBatt', !st.battery);
   box.hidden = !st.run; if (st.run) box.querySelector('small').textContent = new Date(st.ok || st.run).toLocaleString(LOCALE, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }

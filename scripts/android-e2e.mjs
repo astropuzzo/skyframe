@@ -191,9 +191,16 @@ try {
   await ev(`setView('setup'); renderSetup(); return 1`); await sleep(1200); await ev(`document.getElementById('stAlerts').scrollIntoView({ block: 'start' }); return 1`); await sleep(1500); shot('12-setup-avvisi');
   out.checks.setup_avvisi = await ev(`return !!document.querySelector('#stAlerts [data-test]') && !document.getElementById('stAlertSt').hidden && document.getElementById('stBlocked').hidden`);
   out.stato_avvisi = await ev(`return await ${AL}.status()`).catch((e) => String(e));
+  // widget «Stanotte»: l'app chiede alla schermata Home di aggiungerlo, qui si conferma come farebbe chi usa il telefono
+  const ui = () => { try { adb('shell uiautomator dump /sdcard/ui.xml'); return adb('shell cat /sdcard/ui.xml'); } catch { return ''; } };
+  const tapText = (re) => { const nodes = [...ui().matchAll(/<node [^>]*>/g)].map((m) => m[0]).filter((n) => re.test((/ text="([^"]*)"/.exec(n) || [])[1] || '')); const n = nodes.find((x) => /Button/.test(x)) || nodes[nodes.length - 1]; const b = n && /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(n); if (!b) return false; adb(`shell input tap ${(+b[1] + +b[3]) >> 1} ${(+b[2] + +b[4]) >> 1}`); return true; };
+  out.widget_chiesto = await ev(`return await ${AL}.pinWidget()`).catch((e) => String(e));
+  await sleep(2500); shot('13-widget-conferma');
+  out.widget_conferma = tapText(/^add( to home screen| automatically)?$/i); await sleep(3000);
+  out.checks.widget_aggiunto = await until(`(await ${AL}.status()).widgets > 0`, 15000);
   // da qui l'app non deve più mandare la sua ricetta: si prova con notti finte
   await ev(`window.planNotifications = async () => {}; window.recipeSend = async () => {}; clearTimeout(RCP.t); RCP.job++; return 1`);
-  const txt = `{ title: 'E2E sera: {w}', all: 'sereno tutta la notte', win: 'sereno {a}–{b}', pct: '{p}% del buio sereno', open: 'E2E si apre: {w}', bad: 'E2E cambio', badBody: '{p}%', test: 'prova', channel: 'Avvisi della notte' }`;
+  const txt = `{ title: 'E2E sera: {w}', all: 'sereno tutta la notte', win: 'sereno {a}–{b}', pct: '{p}% del buio sereno', open: 'E2E si apre: {w}', bad: 'E2E cambio', badBody: '{p}%', test: 'prova', channel: 'Avvisi della notte', wTonight: 'E2E stanotte', wNext: 'prossima {d}', wNoWx: 'senza meteo', wOpen: 'apri', wMoon: 'Luna', wNoDark: 'senza buio', rate: ['coperta', 'scarsa', 'discreta', 'buona', 'ottima'] }`;
   const fake = (ds, startMin, extra) => `{ cfg: { v: 1, on: true, at: Date.now(), evening: true, change: true, top: false, lead: 60, minR: 3, minH: 1.5, lat: 45.464, lon: 9.19, models: [], mock: 1, txt: ${txt}, timed: [], ${extra || ''}
     nights: [{ ds: '${ds}', t0: Date.now() - 6 * 3600e3, d0: Date.now() + ${startMin} * 60000, d1: Date.now() + ${startMin} * 60000 + 5 * 3600e3, tz: 60, ill: 0, moon: [], day: 'E2E', blocks: [{ id: '${ds}', a: Date.now() + ${startMin} * 60000, b: Date.now() + ${startMin} * 60000 + 4 * 3600e3 }] }] } }`;
   // 1) ad app aperta: l'ora dell'avviso è già passata, arriva subito
@@ -213,6 +220,10 @@ try {
   let pid = ''; try { pid = adb(`shell pidof ${PKG}`).trim(); } catch { /* nessun processo */ }
   out.checks.app_chiusa = !pid; log('app chiusa: ' + (!pid));
   out.checks.avviso_ad_app_chiusa = await notified(/E2E sera: sereno tutta la notte[\s\S]*E2E-B|E2E-B[\s\S]*E2E sera: sereno tutta la notte/, 240000);
+  // il widget sulla schermata Home, riempito dal motore ad app chiusa (la notte finta è serena: «ottima»)
+  await sleep(1500); shot('14-widget-home', true);
+  const home = ui(); out.widget_testo = (home.match(/text="(E2E stanotte[^"]*)"/) || [])[1] || null;
+  out.checks.widget_sulla_home = /E2E stanotte · ottima/.test(home);
   out.log_sveglia = logcat(/alarm: /).slice(-3);
   out.checks.sveglia_scattata = out.log_sveglia.length > 0;
   // 4) il lavoro periodico (WorkManager), forzato dal sistema ad app chiusa
@@ -229,7 +240,7 @@ try {
 log('fine');
 fs.writeFileSync('e2e/risultati.json', JSON.stringify(out, null, 2));
 const bad = Object.entries(out.checks).filter(([, v]) => !v).map(([k]) => k);
-const summary = `### Skyframe su Android 14 (emulatore)\n\n${Object.entries(out.checks).map(([k, v]) => `- ${v ? '✅' : '❌'} ${k}`).join('\n')}\n\nAvvisi nativi: ricetta ${JSON.stringify(out.ricetta)}, stato ${JSON.stringify(out.stato_avvisi)}\n`;
+const summary = `### Skyframe su Android 14 (emulatore)\n\n${Object.entries(out.checks).map(([k, v]) => `- ${v ? '✅' : '❌'} ${k}`).join('\n')}\n\nAvvisi nativi: ricetta ${JSON.stringify(out.ricetta)}, stato ${JSON.stringify(out.stato_avvisi)}, widget ${JSON.stringify(out.widget_testo)}\n`;
 if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
 console.log(summary, out.notes.join('\n'));
 clearInterval(keep);

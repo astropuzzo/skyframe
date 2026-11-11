@@ -61,6 +61,7 @@
       status: () => plug('SkyframeAlerts').status().catch(() => null),
       openSettings: (which) => plug('SkyframeAlerts').openSettings({ which }).catch(() => {}),
       consumeOpen: () => plug('SkyframeAlerts').consumeOpen(),
+      pinWidget: () => plug('SkyframeAlerts').pinWidget().catch(() => ({ asked: false })),
     },
   };
   const android11 = () => { const m = /Android (\d+)/.exec(navigator.userAgent); return !!m && +m[1] >= 11; };
