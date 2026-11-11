@@ -120,6 +120,13 @@ test('Luna vista dal luogo: sorge col lembo sull’orizzonte, uguale nella stris
     assert.ok(Math.abs(geo - n.mAlt[100] - M.MOON_PAR * Math.cos(geo * Math.PI / 180)) < 1e-4, ds);
   }
   assert.ok(checked >= 4);
+  // contro un almanacco (Roma, novembre 2026, ora locale): entro tre minuti; prima della 0.31 lo scarto era di 5–9 minuti
+  const rome = { ...SITES.Roma, lat: 41.9028, lon: 12.4964, sqm: 21 }, at = (s) => Date.parse(s + ':00+01:00');
+  for (const [ds, rise, set] of [['2026-11-12', '2026-11-13T10:59', '2026-11-12T18:43'], ['2026-11-22', '2026-11-22T14:56', '2026-11-23T05:44'], ['2026-11-25', '2026-11-25T17:08', '2026-11-26T09:32']]) {
+    const n = M.computeNight({ ...p, site: rome }, ds);
+    assert.ok(Math.abs(n.mRise - at(rise)) < 3 * 60000, `${ds}: sorge ${new Date(n.mRise).toISOString()}`);
+    assert.ok(Math.abs(n.mSet - at(set)) < 3 * 60000, `${ds}: tramonta ${new Date(n.mSet).toISOString()}`);
+  }
 });
 
 test('sessione dalle 20:00 alle 04:00: otto ore giuste', () => {
