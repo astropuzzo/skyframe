@@ -188,7 +188,8 @@ try {
   out.ricetta = await ev(`const c = JSON.parse(RCP.sent); return { notti: c.nights.length, conPiano: c.nights.filter((n) => n.blocks && n.blocks.length).length, primo: c.nights[0] && { ds: c.nights[0].ds, blocchi: (c.nights[0].blocks || []).length, luna: c.nights[0].moon.length }, modelli: c.models.length }`).catch((e) => String(e));
   await ev(`await testNotify(); return 1`, 30000);
   out.checks.avviso_di_prova = await notified(/Stanotte sereno|Prova degli avvisi/, 15000);
-  await ev(`setView('setup'); return 1`); await sleep(1200); await ev(`document.getElementById('stAlerts').scrollIntoView({ block: 'start' }); return 1`); await sleep(1500); shot('12-setup-avvisi');
+  await ev(`setView('setup'); renderSetup(); return 1`); await sleep(1200); await ev(`document.getElementById('stAlerts').scrollIntoView({ block: 'start' }); return 1`); await sleep(1500); shot('12-setup-avvisi');
+  out.checks.setup_avvisi = await ev(`return !!document.querySelector('#stAlerts [data-test]') && !document.getElementById('stAlertSt').hidden && document.getElementById('stBlocked').hidden`);
   out.stato_avvisi = await ev(`return await ${AL}.status()`).catch((e) => String(e));
   // da qui l'app non deve più mandare la sua ricetta: si prova con notti finte
   await ev(`window.planNotifications = async () => {}; window.recipeSend = async () => {}; clearTimeout(RCP.t); RCP.job++; return 1`);
@@ -216,8 +217,9 @@ try {
   out.checks.sveglia_scattata = out.log_sveglia.length > 0;
   // 4) il lavoro periodico (WorkManager), forzato dal sistema ad app chiusa
   try {
-    const line = adb('shell dumpsys jobscheduler').split('\n').find((l) => /JOB #/.test(l) && l.includes(PKG + '/androidx.work')), m = line && /#u\d+a\d+\/(\d+)/.exec(line);
-    if (m) { adb(`shell cmd jobscheduler run -f ${PKG} ${m[1]}`); await sleep(15000); out.log_lavoro = logcat(/work: /).slice(-3); out.checks.lavoro_periodico = out.log_lavoro.length > 0; }
+    // Android 14: «JOB androidx.work.systemjobscheduler:u0a192/1: …» (con lo spazio di nomi di WorkManager); prima «JOB #u0a192/1: …»
+    const line = adb('shell dumpsys jobscheduler').split('\n').find((l) => /^\s*JOB /.test(l) && l.includes(PKG + '/androidx.work')), m = line && /JOB (?:#|([\w.]+):)u\d+a\d+\/(\d+):/.exec(line);
+    if (m) { const before = logcat(/work: /).length; adb(`shell cmd jobscheduler run -f ${m[1] ? '-n ' + m[1] + ' ' : ''}${PKG} ${m[2]}`); await sleep(15000); const L = logcat(/work: /); out.log_lavoro = L.slice(-3); out.checks.lavoro_periodico = L.length > before; }
     else { out.notes.push('lavoro periodico non trovato in jobscheduler'); out.checks.lavoro_periodico = false; }
   } catch (e) { out.notes.push('lavoro periodico: ' + e.message); out.checks.lavoro_periodico = false; }
   try { adb('shell cmd statusbar expand-notifications'); await sleep(2500); shot('09-notifiche', true); adb('shell cmd statusbar collapse'); } catch (e) { out.notes.push('tendina: ' + e.message); }

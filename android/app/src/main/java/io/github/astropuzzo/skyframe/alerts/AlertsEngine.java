@@ -75,7 +75,9 @@ public final class AlertsEngine {
             AlertsCore.Wx wx = AlertsCore.Wx.fromJson(st.optJSONObject("wx"));
             long maxAge = AlertsCore.maxAge(cfg, now);
             boolean old = maxAge != Long.MAX_VALUE && (wx == null || now - wx.at > maxAge);
-            if (fetch == 2 || (fetch == 1 && old)) {
+            // prove automatiche: la previsione finta vale subito, anche se in memoria c'è quella vera di un minuto prima
+            boolean mock = cfg.has("mock") && (ctx.getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+            if (fetch == 2 || (fetch == 1 && (old || mock))) {
                 AlertsCore.Wx fresh = download(ctx, cfg, now, "alarm".equals(why) ? 3500 : 12000);
                 if (fresh != null) { wx = fresh; st.put("wx", fresh.toJson()); st.put("ok", now); }
             }
