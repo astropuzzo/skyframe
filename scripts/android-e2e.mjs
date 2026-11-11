@@ -194,7 +194,8 @@ try {
   const notified = async (re, ms) => { for (let t = 0; t < ms; t += 2000) { if (re.test(notifs())) return true; await sleep(2000); } return re.test(notifs()); };
   out.checks.avvisi_plugin = await ev(`return !!(window.cielo.alerts && ${AL})`);
   await ev(`LS.set('sf.notify', true); await planNotifications(); return 1`);
-  out.checks.avvisi_ricetta = await until(`RCP.sent && RCP.map.size >= 20`, 60000);
+  // stasera e domani partono subito, il resto del mese quando è pronto: si aspetta la ricetta intera
+  out.checks.avvisi_ricetta = await until(`RCP.map.size >= 20 && RCP.sent && RCP.sent !== 'off' && JSON.parse(RCP.sent).nights.length >= 20`, 60000);
   out.ricetta = await ev(`const c = JSON.parse(RCP.sent); return { notti: c.nights.length, conPiano: c.nights.filter((n) => n.blocks && n.blocks.length).length, primo: c.nights[0] && { ds: c.nights[0].ds, blocchi: (c.nights[0].blocks || []).length, luna: c.nights[0].moon.length }, modelli: c.models.length }`).catch((e) => String(e));
   await ev(`await testNotify(); return 1`, 30000);
   out.checks.avviso_di_prova = await notified(/Stanotte sereno|Prova degli avvisi/, 15000);
@@ -237,12 +238,27 @@ try {
   out.log_sveglia = logcat(/alarm: /).slice(-3);
   out.prefs_bg = (() => { try { return /&quot;bg&quot;:\d{13}|"bg":\d{13}/.test(adb(`shell run-as ${PKG} cat shared_prefs/sf.alerts.xml`)); } catch { return null; } })();
   out.checks.sveglia_scattata = out.log_sveglia.length > 0;
-  // 4) il lavoro periodico (WorkManager), forzato dal sistema ad app chiusa
+  // 4) il lavoro periodico (WorkManager) ad app chiusa. Fatto partire prima della sua mezz'ora, WorkManager lo rimanda
+  // («executed before schedule»): si porta avanti l'orologio di 31 minuti, poi lo si fa partire dal sistema
   try {
-    // Android 14: «JOB androidx.work.systemjobscheduler:u0a192/1: …» (con lo spazio di nomi di WorkManager); prima «JOB #u0a192/1: …»
-    const line = adb('shell dumpsys jobscheduler').split('\n').find((l) => /^\s*JOB /.test(l) && l.includes(PKG + '/androidx.work')), m = line && /JOB (?:#|([\w.]+):)u\d+a\d+\/(\d+):/.exec(line);
-    if (m) { const before = logcat(/work: /).length; adb(`shell cmd jobscheduler run -f ${m[1] ? '-n ' + m[1] + ' ' : ''}${PKG} ${m[2]}`); await sleep(15000); const L = logcat(/work: /); out.log_lavoro = L.slice(-3); out.checks.lavoro_periodico = L.length > before; }
-    else { out.notes.push('lavoro periodico non trovato in jobscheduler'); out.checks.lavoro_periodico = false; }
+    const wm = (re) => { try { return adb('logcat -d -s WM-WorkerWrapper:D WM-SystemJobService:D').split('\n').filter((l) => re.test(l)); } catch { return []; } };
+    const force = () => {
+      // Android 14: «JOB androidx.work.systemjobscheduler:u0a192/1: …» (con lo spazio di nomi di WorkManager); prima «JOB #u0a192/1: …»
+      const line = adb('shell dumpsys jobscheduler').split('\n').find((l) => /^\s*JOB /.test(l) && l.includes(PKG + '/androidx.work')), m = line && /JOB (?:#|([\w.]+):)u\d+a\d+\/(\d+):/.exec(line);
+      if (m) adb(`shell cmd jobscheduler run -f ${m[1] ? '-n ' + m[1] + ' ' : ''}${PKG} ${m[2]}`);
+      return !!m;
+    };
+    const before = logcat(/work: /).length, started = wm(/onStartJob/).length;
+    try { adb('shell settings put global auto_time 0'); adb(`shell cmd alarm set-time ${Date.now() + 31 * 60000}`); } catch (e) { out.notes.push('orologio non spostato: ' + e.message); }
+    await sleep(5000);
+    if (!force()) { out.notes.push('lavoro periodico non trovato in jobscheduler'); out.checks.lavoro_periodico = false; }
+    else {
+      await sleep(15000);
+      const L = logcat(/work: /); out.log_lavoro = L.slice(-3);
+      out.checks.lavoro_raggiunto = wm(/onStartJob/).length > started; // il sistema arriva al lavoro in un processo nuovo
+      out.checks.lavoro_periodico = L.length > before;                 // e il lavoro gira davvero
+      if (!out.checks.lavoro_periodico) out.log_rimandato = wm(/Delaying execution/).slice(-2);
+    }
   } catch (e) { out.notes.push('lavoro periodico: ' + e.message); out.checks.lavoro_periodico = false; }
   try { adb('shell cmd statusbar expand-notifications'); await sleep(2500); shot('09-notifiche', true); adb('shell cmd statusbar collapse'); } catch (e) { out.notes.push('tendina: ' + e.message); }
 } catch (e) {

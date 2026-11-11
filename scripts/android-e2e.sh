@@ -32,6 +32,9 @@ sleep 1
 adb shell am start -n $PKG/.MainActivity
 wait $REC || true
 adb pull /sdcard/avvio.mp4 e2e/avvio.mp4 || true
+# filmato fatto, animazioni di nuovo spente: col disegno software dell'emulatore l'app andrebbe a 3 fotogrammi al secondo
+# per tutta la prova, e sotto quel carico l'emulatore ogni tanto si blocca (resta acceso ma non risponde più)
+for k in window_animation_scale transition_animation_scale animator_duration_scale; do adb shell settings put global $k 0 || true; done
 # fotogrammi dell'avvio (10 al secondo) da guardare uno per uno
 if [ -s e2e/avvio.mp4 ] && command -v ffmpeg >/dev/null; then mkdir -p e2e/avvio && ffmpeg -loglevel error -i e2e/avvio.mp4 -vf "fps=10,scale=360:-1" e2e/avvio/f%03d.png || true; fi
 sleep 8
