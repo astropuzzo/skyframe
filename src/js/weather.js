@@ -82,7 +82,9 @@ async function loadWeather(force) {
     const h = A.value.hourly, T = h.time, n = T.length, t0 = T[0];
     const at = (res, k) => { // serie di un'altra fonte allineata alle ore delle nuvole
       if (res.status !== 'fulfilled') return null; const hh = res.value.hourly, a = hh[k]; if (!a) return null;
-      const off = Math.round((hh.time[0] - t0) / 3600); return T.map((_, i) => { const j = i - off; return j >= 0 && j < a.length ? a[j] : null; });
+      // nei fusi a mezz'ora (India, Nepal) le ore locali cadono fra due ore UTC: si interpola invece di spostare di 30 minuti
+      const off = (hh.time[0] - t0) / 3600;
+      return T.map((_, i) => { const x = i - off, j = Math.floor(x + 1e-6), u = x - j; if (j < 0 || j >= a.length) return null; const p = a[j], q = j + 1 < a.length ? a[j + 1] : null; return u < 1e-3 || q == null ? p : p == null ? q : p * (1 - u) + q * u; });
     };
     // ensemble: probabilità di sereno e media dei 51 scenari
     let prob = null, ensClear = null;
