@@ -68,7 +68,10 @@ function scanToHorizon(points, old) {
 
 /* ---------- la schermata ---------- */
 const HZS = { el: null, saved: null }; // saved: i punti di una misura chiusa senza «Fine», per riprenderla
-const hzScanAvailable = () => !DESK && 'DeviceOrientationEvent' in window && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && matchMedia('(pointer: coarse)').matches;
+/* nell'app Android c'è sempre; nel browser solo dove lo schermo si tocca (un telefono con un mouse collegato dichiara un
+   puntatore fine: per questo non si guarda quello) */
+const hzScanAvailable = () => !DESK && 'DeviceOrientationEvent' in window && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+  && (!!(window.cielo && window.cielo.platform === 'android') || navigator.maxTouchPoints > 0);
 
 async function hzScanOpen() {
   if (HZS.el || !draft) return;
@@ -106,11 +109,12 @@ async function hzScanOpen() {
   /* ---- sensori ---- */
   const onOri = (e) => {
     if (e.alpha == null || e.beta == null || e.gamma == null) return;
-    const v = aimVec(e.alpha, e.beta, e.gamma); S.evN++;
-    if (e.type !== 'deviceorientationabsolute' && e.absolute !== true) { S.rel = v; return; }
-    S.abs = v;
-    // di quanto la bussola è ruotata rispetto al giroscopio: media nel tempo, lontano dallo zenit dove l'azimut non si legge
-    if (S.rel && Math.abs(v[2]) < 0.9) { const d = (aimOf(v).az - aimOf(S.rel).az) * D2R, k = Math.max(0.003, 1 / ++S.offN); S.offS += (Math.sin(d) - S.offS) * k; S.offC += (Math.cos(d) - S.offC) * k; }
+    const v = aimVec(e.alpha, e.beta, e.gamma), abs = e.type === 'deviceorientationabsolute' || e.absolute === true; S.evN++;
+    if (abs) S.abs = v; else S.rel = v;
+    // Di quanto la bussola è ruotata rispetto al giroscopio: media nel tempo, lontano dallo zenit dove l'azimut non si legge.
+    // Il browser manda un evento solo quando l'orientamento cambia: a telefono fermo ne arrivano pochi, la prima coppia si
+    // prende da qualunque dei due.
+    if (S.rel && S.abs && (abs || S.offN < 3) && Math.abs(S.abs[2]) < 0.9 && Math.abs(S.rel[2]) < 0.9) { const d = (aimOf(S.abs).az - aimOf(S.rel).az) * D2R, k = Math.max(0.003, 1 / ++S.offN); S.offS += (Math.sin(d) - S.offS) * k; S.offC += (Math.cos(d) - S.offC) * k; }
   };
   const src = () => (S.rel ? 'rel' : S.abs ? 'abs' : null);
   /* il puntamento adesso: { az (null senza un riferimento per il nord), alt, ref } */
@@ -119,7 +123,7 @@ async function hzScanOpen() {
     const a = aimOf(S.v), mag = S.decl == null ? 'mag' : 'compass';
     if (S.cal && S.cal.src === s) return { az: norm360(a.az + S.cal.off), alt: a.alt, ref: S.cal.who };
     if (s === 'abs') return { az: norm360(a.az + (S.decl || 0)), alt: a.alt, ref: mag };
-    if (S.abs && S.offN > 20) return { az: norm360(a.az + Math.atan2(S.offS, S.offC) * R2D + (S.decl || 0)), alt: a.alt, ref: mag };
+    if (S.abs && S.offN > 0) return { az: norm360(a.az + Math.atan2(S.offS, S.offC) * R2D + (S.decl || 0)), alt: a.alt, ref: mag };
     return { az: null, alt: a.alt, ref: 'none' };
   };
   const say = (t) => { S.say = t; S.sayAt = Date.now(); };
@@ -206,7 +210,7 @@ async function hzScanOpen() {
     // quanto sbagliava la bussola, dopo l'allineamento: si vede se conviene fidarsene la prossima volta
     let refTxt = '';
     if (a) {
-      if (a.ref === 'sun' || a.ref === 'moon') { const s = S.abs && S.rel && S.offN > 20 ? Math.round(wrap180(Math.atan2(S.offS, S.offC) * R2D + (S.decl || 0) - S.cal.off)) : null; refTxt = tx(a.ref === 'sun' ? 'Allineato al Sole' : 'Allineato alla Luna') + (s == null || S.cal.src !== 'rel' ? '' : ' · ' + tx('bussola {d}°', { d: (s > 0 ? '+' : s < 0 ? '−' : '') + Math.abs(s) })); }
+      if (a.ref === 'sun' || a.ref === 'moon') { const s = S.abs && S.rel && S.offN > 0 ? Math.round(wrap180(Math.atan2(S.offS, S.offC) * R2D + (S.decl || 0) - S.cal.off)) : null; refTxt = tx(a.ref === 'sun' ? 'Allineato al Sole' : 'Allineato alla Luna') + (s == null || S.cal.src !== 'rel' ? '' : ' · ' + tx('bussola {d}°', { d: (s > 0 ? '+' : s < 0 ? '−' : '') + Math.abs(s) })); }
       else if (a.ref !== 'none' || noNorth) refTxt = tx({ compass: 'Bussola', mag: 'Nord magnetico', none: 'Bussola assente' }[a.ref]);
     }
     set('ref', refTxt, (v) => { q('[data-ref]').textContent = v; });

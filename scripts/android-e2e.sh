@@ -46,6 +46,7 @@ kill $LOGCAT $MEM 2>/dev/null || true
 # se l'emulatore è sparito questi comandi resterebbero in attesa fino al limite del job
 timeout 60 adb logcat -d > e2e/logcat-all.txt || true
 [ -s e2e/logcat-all.txt ] || cp e2e/logcat-live.txt e2e/logcat-all.txt 2>/dev/null || true
+[ "$code" -eq 4 ] && touch e2e/emulatore-sparito
 grep -iE "capacitor|skyframe|chromium|console|WM-|AlarmManager" e2e/logcat-all.txt > e2e/logcat.txt || true
 timeout 30 adb shell dumpsys notification --noredact > e2e/notifications.txt || true
 exit $code

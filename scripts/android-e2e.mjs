@@ -94,8 +94,8 @@ try {
     // ogni passo prepara la schermata sotto il faro, senza aprire un editor modificabile
     await ev(`tourGo(Math.min(${k}, TOUR.steps.length - 1)); return 1`);
     await until(`TOUR.el && TOUR.ready && (TOUR.el.querySelector('.tour-card.on .tour-n') || {}).textContent === (TOUR.i + 1) + ' / ' + TOUR.steps.length`, 20000);
-    await sleep(1100); shot(`04-guida-${String(k).padStart(2, '0')}-${name}`);
-    const g = await ev(`const st = TOUR.steps[TOUR.i], els = tourEls(st), z = freeZone(els), r = els.length ? unionRect(els) : null;
+    await sleep(1100);
+    const geo = () => ev(`const st = TOUR.steps[TOUR.i], els = tourEls(st), z = freeZone(els), r = els.length ? unionRect(els) : null;
       const room = z.bottom - z.top, overlap = r ? Math.max(0, Math.min(r.bottom, z.bottom) - Math.max(r.top, z.top)) : 0;
       const pad = 8, x = r ? Math.max(4, r.left - pad) : 0, y = r ? Math.max(z.top - 4, r.top - pad) : 0;
       const box = r ? [x, y, Math.max(0, Math.min(innerWidth - 4, r.right + pad) - x), Math.max(0, Math.min(z.bottom + 12, r.bottom + pad) - y)] : [];
@@ -106,6 +106,9 @@ try {
         textVisible: !!TOUR.el.querySelector('.tour-card h3')?.textContent && +getComputedStyle(TOUR.el.querySelector('.tour-body')).opacity > 0.95,
         tab: document.querySelector('#nav [data-view="' + UI.view + '"]')?.getAttribute('aria-current'),
         drawer: !document.getElementById('drawer').hidden };`);
+    // su un emulatore lento testo e faro arrivano un attimo dopo il contatore: si misura a passo assestato
+    let g = await geo(); for (let n = 0; n < 4 && !(g.target && g.visible && g.holeAligned && g.textVisible); n++) { await sleep(700); g = await geo(); }
+    shot(`04-guida-${String(k).padStart(2, '0')}-${name}`);
     out.tourGeometry.push(g);
     seen.push(g.target && g.visible && g.holeAligned && g.textVisible && g.tab === 'page' && g.view === g.expectedView && (['preferito', 'quanto', 'registra', 'fotovere', 'quando', 'campo'].includes(name) === g.drawer));
   }
@@ -190,9 +193,10 @@ try {
   try {
     await ev(`setView('setup'); openLocEditor(state.locId); return 1`); await sleep(1500);
     out.checks.orizzonte_pulsante = await ev(`return !document.getElementById('hzScan').hidden`);
+    out.puntatore = await ev(`return { grosso: matchMedia('(pointer: coarse)').matches, qualcuno: matchMedia('(any-pointer: coarse)').matches, tocchi: navigator.maxTouchPoints }`).catch(() => null);
     await ev(`document.getElementById('hzScan').click(); return 1`);
     out.checks.orizzonte_fotocamera = await until(`HZS.el && HZS.cam === 'on' && HZS.el.querySelector('video').videoWidth > 0`, 25000);
-    out.checks.orizzonte_sensori = await until(`HZS.el && HZS.evN > 5 && !!HZS.aimNow() && HZS.aimNow().az != null`, 15000);
+    out.checks.orizzonte_sensori = await until(`HZS.el && HZS.evN > 0 && !!HZS.aimNow() && HZS.aimNow().az != null`, 15000);
     out.orizzonte = await ev(`const a = HZS.aimNow(), v = HZS.el.querySelector('video'); return { cam: HZS.cam, eventi: HZS.evN, rel: !!HZS.rel, abs: !!HZS.abs, declinazione: HZS.decl, bussola: HZS.acc, punta: a && { az: a.az == null ? null : Math.round(a.az), alt: Math.round(a.alt), ref: a.ref }, video: [v.videoWidth, v.videoHeight], msg: HZS.el.querySelector('[data-msg]').textContent }`).catch((e) => String(e));
     await sleep(800); shot('15-orizzonte');
     // un punto dal pulsante (dove punta l'emulatore), un secondo messo a mano 20° più in là, poi «Fine»

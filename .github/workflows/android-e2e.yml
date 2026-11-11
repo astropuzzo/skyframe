@@ -45,8 +45,9 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      # L'emulatore di GitHub ogni tanto si spegne a metà prova (anche prima della 0.31): gli si dà più memoria, lo script
-      # esce subito se sparisce, e si riprova una volta da capo.
+      # L'emulatore di GitHub ogni tanto si blocca a metà prova (anche prima della 0.31): gli si dà più memoria, lo script
+      # esce subito se sparisce (lascia e2e/emulatore-sparito) e solo in quel caso si riprova una volta da capo.
+      # L'esito lo dà l'ultimo passo, dai controlli scritti in e2e/risultati.json.
       - name: Prova su Android 14
         id: prova
         continue-on-error: true
@@ -63,7 +64,9 @@ jobs:
           script: bash scripts/android-e2e.sh
 
       - name: Prova su Android 14 (secondo tentativo)
-        if: steps.prova.outcome == 'failure'
+        id: riprova
+        continue-on-error: true
+        if: steps.prova.outcome == 'failure' && hashFiles('e2e/emulatore-sparito') != ''
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -82,3 +85,7 @@ jobs:
           name: android-e2e
           path: e2e/
           if-no-files-found: warn
+
+      - name: Esito
+        if: always()
+        run: node scripts/android-e2e.esito.cjs
