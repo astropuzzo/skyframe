@@ -65,9 +65,12 @@ const dayName = (t0) => { const d = fmtNight(t0, { weekday: 'long' }); return d.
 function seasonAlerts() {
   if (!ncfg().season || !SP.plan || !state.res) return [];
   const C = state.res.C, out = [], w = wall(Date.now()), used = new Set();
+  // i giorni si contano dalla notte mostrata: guardandone una passata l'ora non deve finire prima di stasera, o il motore
+  // di Android darebbe l'avviso per perso
+  const [ty, tm, td] = defaultNightStr().split('-').map(Number), floor = wallMs(ty, tm - 1, td, 18, 0, siteTz(C.active.site));
   for (const tg of SP.plan.targets) {
     if (tg.last < 0 || tg.rem < 0.2) continue;
-    const from = aheadNight(C, Math.max(0, tg.last - 10)).t0 + 6 * 3600e3;
+    const from = Math.max(aheadNight(C, Math.max(0, tg.last - 10)).t0 + 6 * 3600e3, floor);
     let id = 100 + (hash(tg.id) % 800); while (used.has(id)) id = 100 + ((id - 99) % 800); used.add(id); // due target, due avvisi
     out.push({ id, key: tg.id + '|s|' + w.getUTCFullYear() + '-' + w.getUTCMonth(), at: from, title: tx('{t}: ultime settimane', { t: tg.id }), body: tx('Periodo favorevole fino al {d}, manca il {p}%.', { d: fmtDay(aheadNight(C, tg.last).t0), p: Math.round(tg.rem * 100) }) });
   }
@@ -78,11 +81,12 @@ async function planNotifications() {
   if (!state.res) return;
   const on = notifyOn(), c = ncfg(), nat = nativeAlerts();
   syncBackground();
-  // ad avvisi spenti la ricetta serve solo se sulla schermata Home c'è il widget
-  if (!on && !(nat && RCP.widgets)) { if (!nat) notifySchedule([]); else if (RCP.sent !== 'off') { RCP.sent = 'off'; nat.configure({ on: false }); } return; }
+  // ad avvisi spenti la ricetta serve solo se sulla schermata Home c'è il widget. Finché Android non ha detto se c'è
+  // (RCP.widgets null) non si spegne niente: la ricetta spenta gli toglierebbe il testo
+  if (!on && !(nat && RCP.widgets)) { if (!nat) notifySchedule([]); else if (RCP.widgets != null && RCP.sent !== 'off') { RCP.sent = 'off'; nat.configure({ on: false }); } return; }
   if (on && (c.season || c.top)) {
     const key = seasonKey(seasonTargets());
-    if (!SP.plan || SP.key !== key) {
+    if ((!SP.plan || SP.key !== key) && SP.bad !== key) { // piano non riuscito: gli altri avvisi si fanno lo stesso
       if (!planNotifications.waiting) { planNotifications.waiting = true; seasonPlan(() => { planNotifications.waiting = false; planNotifications(); }); }
       if (!nat) return;
     }
@@ -134,11 +138,12 @@ async function planNotifications() {
 }
 
 /* ---------- Android: la ricetta delle notti per il motore nativo ---------- */
-const RCP = { key: '', map: new Map(), job: 0, sent: '', sentAt: 0, t: 0, widgets: 0 };
+const RCP = { key: '', map: new Map(), shown: '', job: 0, sent: '', sentAt: 0, t: 0, widgets: null };
 /* quanti widget ci sono sulla schermata Home: lo sa solo Android, lo si chiede all'avvio e al ritorno in primo piano */
 async function alertsSync() {
   const nat = nativeAlerts(); if (!nat) return null;
-  const st = await nat.status(), w = (st && st.widgets) | 0;
+  let st = null; try { st = await nat.status(); } catch { /* niente */ }
+  const w = (st && st.widgets) | 0;
   if (w !== RCP.widgets) { RCP.widgets = w; planNotifications(); }
   return st;
 }
@@ -163,9 +168,13 @@ function recipeSoon() { clearTimeout(RCP.t); RCP.t = setTimeout(recipeBuild, 300
 /* le notti si calcolano a pezzi (una costa come un ricalcolo dei preferiti) e restano finché non cambia qualcosa */
 function recipeBuild() {
   if (!nativeAlerts() || !state.res || !(notifyOn() || RCP.widgets)) return;
-  const today = defaultNightStr(), ids = Object.keys(state.projects).filter((id) => inMyList(id) && !isDone(id)).sort();
-  const key = [hash(JSON.stringify(active())), today, state.res.night.ds === today, ids.map((id) => id + ':' + projProgress(id).toFixed(3)).join(','), JSON.stringify(LS.get('sf.planEd', {})), moonMode()].join('|');
+  if (JOB.key) { recipeSoon(); return; } // ricalcolo in corso (luogo o profilo appena cambiati): state.res è ancora quello di prima
+  const today = defaultNightStr(), shown = state.res.night.ds, ids = Object.keys(state.projects).filter((id) => inMyList(id) && !isDone(id)).sort();
+  const key = [hash(JSON.stringify(active())), today, ids.map((id) => id + ':' + projProgress(id).toFixed(3)).join(','), JSON.stringify(LS.get('sf.planEd', {})), moonMode()].join('|');
   if (RCP.key !== key) { RCP.key = key; RCP.map = new Map(); }
+  // la notte mostrata prende il piano dello schermo, le altre un calcolo a parte: cambiando notte si rifanno solo quelle due
+  else if (RCP.shown !== shown) { RCP.map.delete(RCP.shown); RCP.map.delete(shown); }
+  RCP.shown = shown;
   const job = ++RCP.job; let k = 0;
   const step = () => {
     if (job !== RCP.job) return;
@@ -193,7 +202,7 @@ async function recipeSend(today) {
       bad: tx('Cambio di programma: nuvole'), badBody: tx('Previsione aggiornata: solo il {p}% del buio è sereno.'), topTitle: tx('{d}: notte ottima'), topBody: tx('Senza Luna, sereno al {p}%'),
       forT: tx('Per {t}'), moon: tx('Luna {p}%'), gust: tx('raffiche {v} km/h'), dew: tx('condensa: riscalda l’ottica'), test: tx('Prova degli avvisi'), channel: tx('Avvisi della notte'),
       // widget della schermata Home
-      wTonight: tx('Stanotte'), wNext: tx('prossima utile {d}'), wNoWx: tx('meteo non disponibile'), wOpen: tx('Apri Skyframe'), wMoon: tx('Luna'), wNoDark: tx('Senza buio'),
+      wTonight: tx('Stanotte'), wNext: tx('prossima utile {d}'), wNoWx: tx('meteo non disponibile'), wMoon: tx('Luna'), wNoDark: tx('Senza buio'),
       rate: ['Coperta', 'Scarsa', 'Discreta', 'Buona', 'Ottima'].map((x) => tx(x)),
     },
   };

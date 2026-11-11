@@ -161,6 +161,7 @@ function renderProjects() {
   const job = ++pvJob;
   seasonPlan((P) => {
     if (job !== pvJob || !$('#pvSeason')) return;
+    if (!P) { $('#pvSeason').innerHTML = ''; return; }
     $('#pvSeason').innerHTML = monthHTML(P) + seasonHTML(P);
     for (const t of P.targets) {
       const x = el.querySelector(`[data-nx="${CSS.escape(t.id)}"]`); if (!x) continue; const nx = t.nights[0];

@@ -72,9 +72,10 @@ function createWindow() {
     return { action: 'deny' };
   });
   // si resta sulla pagina dell'app: un file lasciato cadere sulla finestra non la sostituisce
-  const appUrl = require('url').pathToFileURL(path.join(__dirname, 'src', 'index.html')).href;
+  // il cambio lingua ricarica la pagina: vale anche l'indirizzo com'è adesso, se è scritto diverso da quello calcolato qui
+  const appUrl = require('url').pathToFileURL(path.join(__dirname, 'src', 'index.html')).href, page = (u) => String(u).split(/[?#]/)[0];
   win.webContents.on('will-navigate', (e, url) => {
-    if (url.split(/[?#]/)[0] === appUrl) return;
+    if (page(url) === appUrl || page(url) === page(win.webContents.getURL())) return;
     e.preventDefault();
     if (/^https:\/\//.test(url)) shell.openExternal(url);
   });

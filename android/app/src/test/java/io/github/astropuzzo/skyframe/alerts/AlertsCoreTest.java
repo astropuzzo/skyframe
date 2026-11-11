@@ -244,7 +244,7 @@ public class AlertsCoreTest {
     @Test
     public void widget() throws Exception {
         JSONObject c = cfg();
-        c.getJSONObject("txt").put("wTonight", "Stanotte").put("wNext", "prossima utile {d}").put("wNoWx", "meteo non disponibile").put("wOpen", "Apri Skyframe").put("wMoon", "Luna").put("wNoDark", "Senza buio")
+        c.getJSONObject("txt").put("wTonight", "Stanotte").put("wNext", "prossima utile {d}").put("wNoWx", "meteo non disponibile").put("wMoon", "Luna").put("wNoDark", "Senza buio")
                 .put("rate", new JSONArray().put("Coperta").put("Scarsa").put("Discreta").put("Buona").put("Ottima"));
         c.getJSONArray("nights").getJSONObject(1).put("sd", "gio 17");
         // sereno: giudizio, finestra e i primi due target
@@ -263,11 +263,34 @@ public class AlertsCoreTest {
         assertEquals("Stanotte · Discreta", AlertsCore.summary(c, wx((h) -> 1), NOON + 2 * H)[0]);
         // senza previsione, senza notti, senza ricetta
         assertEquals("meteo non disponibile", AlertsCore.summary(c, null, NOON + 2 * H)[1]);
-        s = AlertsCore.summary(c, wx((h) -> 1), NOON + 90 * 24 * H);
-        assertEquals("Skyframe", s[0]); assertEquals("Apri Skyframe", s[1]);
-        assertEquals("Skyframe", AlertsCore.summary(null, null, NOON)[0]);
+        assertNull(AlertsCore.summary(c, wx((h) -> 1), NOON + 90 * 24 * H));
+        assertNull(AlertsCore.summary(null, null, NOON));
+        assertNull(AlertsCore.summary(new JSONObject().put("on", false), null, NOON));
+        // «M 3» dopo «M 31» resta: il secondo nome non è un pezzo del primo
+        JSONObject m = cfg().put("txt", c.getJSONObject("txt"));
+        JSONArray mb = m.getJSONArray("nights").getJSONObject(0).getJSONArray("blocks");
+        mb.getJSONObject(0).put("id", "M 31"); mb.getJSONObject(1).put("id", "M 3");
+        assertEquals("sereno tutta la notte · M 31, M 3", AlertsCore.summary(m, wx((h) -> 1), NOON + 2 * H)[1]);
         // la notte dopo, quando stanotte è finita: col suo giorno
         assertEquals("Giovedì · Ottima", AlertsCore.summary(c.put("nights", new JSONArray().put(night(NOON + 48 * H, "x"))), wxFrom(NOON + 24 * H), NOON + 25 * H)[0]);
+    }
+
+    @Test
+    public void luogoCambiato() throws Exception {
+        JSONObject c = cfg().put("lat", 45.464).put("lon", 9.19), other = cfg().put("lat", 41.9).put("lon", 12.5), st = new JSONObject();
+        AlertsCore.Wx w = wx((h) -> 1); w.site = AlertsCore.site(c);
+        AlertsCore.Wx back = AlertsCore.Wx.fromJson(w.toJson());
+        assertNotNull(AlertsCore.forSite(back, c));
+        assertNull(AlertsCore.forSite(back, other));
+        assertNull(AlertsCore.forSite(wx((h) -> 1), c)); // salvata senza luogo
+        // avviso di sereno in un luogo, poi si passa a un luogo coperto: non è un «cambio di programma»
+        assertEquals(1, AlertsCore.decide(c, st, w, D0 - 30 * M, NONE).post.size());
+        assertTrue(AlertsCore.decide(other, st, wx((h) -> 0.05), D0 - 20 * M, NONE).post.isEmpty());
+        assertEquals("b", st.getJSONObject("nights").getJSONObject("2026-12-16").getString("p"));
+        // stesso luogo: le nuvole che tornano si dicono
+        JSONObject st2 = new JSONObject();
+        AlertsCore.decide(c, st2, w, D0 - 30 * M, NONE);
+        assertEquals(1, AlertsCore.decide(c, st2, wx((h) -> 0.05), D0 - 20 * M, NONE).post.size());
     }
 
     /* previsione serena che parte da un altro mezzogiorno */

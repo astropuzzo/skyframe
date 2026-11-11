@@ -8,7 +8,7 @@
    Ne esce, per ogni target, quando finisci e con quante notti; per ogni notte, chi riprendere.
    Il calcolo delle notti (nightRec, già in cache per i calendari) va a pezzi per non bloccare l'interfaccia. */
 const SEASON_DAYS = 90;
-const SP = { key: '', plan: null, job: 0, pend: '', wait: [] };
+const SP = { key: '', plan: null, job: 0, pend: '', wait: [], bad: '' };
 /* ore di buio di una notte, pesate per il meteo */
 function nightCapacity(C, k) {
   const nk = aheadNight(C, k), wx = C.wx; let h = 0;
@@ -20,20 +20,26 @@ function seasonTargets() {
 }
 const seasonKey = (list) => [state.computeKey, moonMode(), WX.d && WX.d.key === wxKey(activeLoc().site) ? WX.d.at : 0, ...list.map((r) => r.o.id + ':' + projProgress(r.o.id).toFixed(6))].join('|');
 /* il piano, a pezzi; done(plan) quando è pronto. Chi lo chiede mentre è in calcolo si mette in fila (SP.wait); se nel
-   frattempo cambia qualcosa il calcolo riparte e la fila passa a quello nuovo: nessuno resta ad aspettare */
+   frattempo cambia qualcosa il calcolo riparte e la fila passa a quello nuovo: nessuno resta ad aspettare. Se il calcolo
+   non riesce la fila riceve null e con gli stessi dati non si riprova (SP.bad) */
 function seasonPlan(done) {
   const list = seasonTargets(), key = seasonKey(list);
   if (SP.key === key && SP.plan) { done(SP.plan); return; }
+  if (SP.bad === key) { done(null); return; }
   SP.wait.push(done); if (SP.pend === key) return;
   SP.pend = key;
   const job = ++SP.job, C = state.res.C, mode = moonMode(), dark = mode === 'dark';
   let k = 0;
   const step = () => {
-    if (job !== SP.job) return; const t0 = performance.now();
-    while (k < SEASON_DAYS && performance.now() - t0 < 12) { for (const r of list) nightRec(C, r, r.e, k, dark); k++; }
-    if (k < SEASON_DAYS) { setTimeout(step, 0); return; }
-    SP.key = key; SP.plan = buildSeason(C, list, mode); SP.pend = '';
-    const w = SP.wait; SP.wait = []; w.forEach((f) => f(SP.plan));
+    if (job !== SP.job) return; const t0 = performance.now(); let plan = null;
+    try {
+      while (k < SEASON_DAYS && performance.now() - t0 < 12) { for (const r of list) nightRec(C, r, r.e, k, dark); k++; }
+      if (k < SEASON_DAYS) { setTimeout(step, 0); return; }
+      plan = buildSeason(C, list, mode);
+    } catch (e) { console.error(e); SP.bad = key; }
+    if (plan) { SP.key = key; SP.plan = plan; }
+    SP.pend = '';
+    const w = SP.wait; SP.wait = []; w.forEach((f) => f(plan));
   };
   step();
 }

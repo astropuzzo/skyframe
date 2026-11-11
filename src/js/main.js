@@ -415,7 +415,8 @@ async function boot() {
   wire();
   try { refresh(true); } catch (e) { // dati salvati che il calcolo non regge: si parte dall'esempio senza toccarli
     console.error(e); state.profiles = [stripSite(templateProfile())]; state.locs = [templateLoc()]; state.activeId = state.profiles[0].id; state.locId = state.locs[0].id; state.projects = Object.create(null); effMemo = null;
-    state.noSave = true; refresh(true); setTimeout(() => toast(tx('Dati salvati non leggibili: importa una copia da Setup')), 2500);
+    state.noSave = true; try { refresh(true); } catch (e2) { console.error(e2); } // comunque si esce dalla schermata d'avvio
+    setTimeout(() => toast(tx('Dati salvati non leggibili: importa una copia da Setup')), 2500);
   }
   alertsOpen(); alertsSync();
   window.__bootMs = Math.round(performance.now());

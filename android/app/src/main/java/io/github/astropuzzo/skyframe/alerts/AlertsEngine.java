@@ -74,7 +74,7 @@ public final class AlertsEngine {
             int widgets = NightWidget.count(ctx);
             if (cfg == null || (!cfg.optBoolean("on") && widgets == 0)) { setAlarm(ctx, 0); return "spenti"; }
             JSONObject st = json(p, "st"); if (st == null) st = new JSONObject();
-            AlertsCore.Wx wx = AlertsCore.Wx.fromJson(st.optJSONObject("wx"));
+            AlertsCore.Wx wx = AlertsCore.forSite(AlertsCore.Wx.fromJson(st.optJSONObject("wx")), cfg);
             long maxAge = AlertsCore.maxAge(cfg, now);
             boolean old = maxAge != Long.MAX_VALUE && (wx == null || now - wx.at > maxAge);
             // prove automatiche: la previsione finta vale subito, anche se in memoria c'è quella vera di un minuto prima
@@ -95,7 +95,12 @@ public final class AlertsEngine {
             st.put("run", now); st.put("why", why); st.put("log", log); st.put("next", out.nextAlarm);
             if (!"app".equals(why)) st.put("bg", now); // l'ultimo controllo fatto senza l'app: in Setup si vede se il telefono li lascia girare
             SharedPreferences.Editor ed = p.edit().putString("st", st.toString());
-            if (widgets > 0) { String[] s = AlertsCore.summary(cfg, wx, now); ed.putString("widget", new JSONObject().put("t", s[0]).put("l", s[1]).put("at", now).toString()); }
+            if (widgets > 0) {
+                String[] s = AlertsCore.summary(cfg, wx, now);
+                // ricetta senza notti (avvisi spenti, o app chiusa da un mese): resta l'invito ad aprirla
+                if (s == null) s = new String[] { ctx.getString(R.string.app_name), ctx.getString(R.string.widget_setup) };
+                ed.putString("widget", new JSONObject().put("t", s[0]).put("l", s[1]).put("at", now).toString());
+            }
             ed.commit(); // il widget rilegge subito
             if (widgets > 0) NightWidget.refresh(ctx);
         } catch (Exception e) {
@@ -113,7 +118,7 @@ public final class AlertsEngine {
             JSONObject cfg = json(p, "cfg"), st = json(p, "st");
             long now = System.currentTimeMillis();
             AlertsCore.Wx wx = cfg == null ? null : download(ctx, cfg, now, 8000);
-            if (wx == null && st != null) wx = AlertsCore.Wx.fromJson(st.optJSONObject("wx"));
+            if (wx == null && st != null) wx = AlertsCore.forSite(AlertsCore.Wx.fromJson(st.optJSONObject("wx")), cfg);
             AlertsCore.Note n = AlertsCore.test(cfg, wx, now);
             show(ctx, cfg, n);
             return n.title;
@@ -126,6 +131,7 @@ public final class AlertsEngine {
             double f = cfg.optDouble("mock", 1); int n = 144; AlertsCore.Wx w = new AlertsCore.Wx();
             w.at = now; w.t0 = (now / 3600000L - 24) * 3600; w.clear = new double[n]; w.low = new double[n]; w.dew = new double[n]; w.gust = new double[n];
             for (int i = 0; i < n; i++) { w.clear[i] = f; w.low[i] = f; w.dew[i] = Double.NaN; w.gust[i] = Double.NaN; }
+            w.site = AlertsCore.site(cfg);
             return w;
         }
         HttpURLConnection c = null;
@@ -141,7 +147,9 @@ public final class AlertsEngine {
             if (c.getResponseCode() != 200) return null;
             ByteArrayOutputStream buf = new ByteArrayOutputStream();
             try (InputStream in = c.getInputStream()) { byte[] b = new byte[8192]; for (int k; (k = in.read(b)) > 0; ) buf.write(b, 0, k); }
-            return AlertsCore.Wx.parse(new JSONObject(buf.toString("UTF-8")), models, now);
+            AlertsCore.Wx w = AlertsCore.Wx.parse(new JSONObject(buf.toString("UTF-8")), models, now);
+            if (w != null) w.site = AlertsCore.site(cfg);
+            return w;
         } catch (Exception e) {
             Log.w(TAG, "meteo non scaricato: " + e);
             return null;

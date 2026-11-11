@@ -24,6 +24,7 @@ final class AlertsCore {
         long at, t0;          // scaricata (ms), prima ora (s UTC)
         double[] clear, low;  // media pesata dei modelli, modello più pessimista
         double[] dew, gust;   // temperatura meno punto di rugiada (°C), raffiche (km/h)
+        String site = "";     // il luogo per cui è stata scaricata, come lo scrive site(cfg)
 
         int n() { return clear.length; }
 
@@ -97,7 +98,7 @@ final class AlertsCore {
 
         JSONObject toJson() throws JSONException {
             JSONObject o = new JSONObject();
-            o.put("at", at); o.put("t0", t0);
+            o.put("at", at); o.put("t0", t0); o.put("site", site);
             o.put("clear", arr(clear, 100)); o.put("low", arr(low, 100)); o.put("dew", arr(dew, 10)); o.put("gust", arr(gust, 1));
             return o;
         }
@@ -107,7 +108,7 @@ final class AlertsCore {
             int n = o.optJSONArray("clear").length();
             if (n < 2) return null;
             Wx w = new Wx();
-            w.at = o.optLong("at"); w.t0 = o.optLong("t0");
+            w.at = o.optLong("at"); w.t0 = o.optLong("t0"); w.site = o.optString("site", "");
             w.clear = series(o, "clear", n); w.low = series(o, "low", n); w.dew = series(o, "dew", n); w.gust = series(o, "gust", n);
             if (w.low == null) w.low = w.clear.clone();
             if (w.dew == null) w.dew = nan(n);
@@ -123,6 +124,13 @@ final class AlertsCore {
             return out;
         }
     }
+
+    /* il luogo della ricetta: una previsione scaricata per un altro posto non vale, anche se è fresca */
+    static String site(JSONObject cfg) {
+        return cfg == null ? "" : String.format(java.util.Locale.ROOT, "%.3f,%.3f", cfg.optDouble("lat"), cfg.optDouble("lon"));
+    }
+
+    static Wx forSite(Wx wx, JSONObject cfg) { return wx != null && wx.site.equals(site(cfg)) ? wx : null; }
 
     /* ---------- una notte (o quel che ne resta) contro la previsione ---------- */
     static final class Eval {
@@ -255,6 +263,10 @@ final class AlertsCore {
         if (cfg == null || !cfg.optBoolean("on")) { out.log = "spenti"; return out; }
         JSONObject txt = cfg.optJSONObject("txt"); if (txt == null) txt = new JSONObject();
         JSONArray nights = cfg.optJSONArray("nights"); if (nights == null) nights = new JSONArray();
+        // luogo cambiato: quello che si è detto delle notti valeva per l'altro, e passare a un posto coperto non è un «cambio»
+        String site = site(cfg);
+        if (!site.equals(st.optString("site", site))) st.remove("nights");
+        st.put("site", site);
         JSONObject sn = child(st, "nights"), sent = child(st, "sent");
         long lead = cfg.optLong("lead", 60) * MIN;
         int minR = cfg.optInt("minR", 3);
@@ -357,13 +369,13 @@ final class AlertsCore {
     }
 
     /* Il widget della schermata Home: la notte in arrivo in due righe, con la previsione del momento. Se non vale la pena,
-       la seconda riga dice qual è la prossima che vale almeno «discreta». */
+       la seconda riga dice qual è la prossima che vale almeno «discreta». null: nella ricetta non ci sono notti. */
     static String[] summary(JSONObject cfg, Wx wx, long now) {
         JSONObject txt = cfg == null ? null : cfg.optJSONObject("txt"); if (txt == null) txt = new JSONObject();
         JSONArray nights = cfg == null ? null : cfg.optJSONArray("nights");
         int ci = -1;
         if (nights != null) for (int k = 0; k < nights.length() && ci < 0; k++) { JSONObject n = nights.optJSONObject(k); if (n != null && now < n.optLong("d1") - 30 * MIN) ci = k; }
-        if (ci < 0) return new String[] { "Skyframe", txt.optString("wOpen", "") };
+        if (ci < 0) return null;
         JSONObject cur = nights.optJSONObject(ci);
         long d0 = cur.optLong("d0"), d1 = cur.optLong("d1");
         String day = d0 - now < 20 * HOUR ? txt.optString("wTonight", cur.optString("day")) : cur.optString("day");
@@ -373,8 +385,8 @@ final class AlertsCore {
         String label = e.dark < 0.2 ? txt.optString("wNoDark", "") : e.r == 1 && e.moonFrac > 0.7 && e.clear >= 0.5 ? txt.optString("wMoon", "") : rate == null ? "" : rate.optString(e.r, "");
         String title = label.isEmpty() ? day : day + " · " + label, line = when(txt, e, cur.optInt("tz"));
         if (e.r >= 2) {
-            JSONArray bl = cur.optJSONArray("blocks"); StringBuilder who = new StringBuilder();
-            for (int i = 0; i < e.blocks.size() && i < 2; i++) { String id = bl.optJSONObject((int) e.blocks.get(i)[0]).optString("id"); if (who.indexOf(id) < 0) who.append(who.length() > 0 ? ", " : "").append(id); }
+            JSONArray bl = cur.optJSONArray("blocks"); StringBuilder who = new StringBuilder(); String prev = "";
+            for (int i = 0; i < e.blocks.size() && i < 2; i++) { String id = bl.optJSONObject((int) e.blocks.get(i)[0]).optString("id"); if (!id.equals(prev)) who.append(who.length() > 0 ? ", " : "").append(id); prev = id; }
             if (who.length() > 0) line += " · " + who;
         } else {
             for (int k = ci + 1; k < nights.length(); k++) {
