@@ -11,6 +11,10 @@ function renderFacts() {
   let moonS; if (n.moonUpFrac < 0.02 || n.moonIll < 0.03) moonS = n.moonIll < 0.03 ? tx('Luna nuova') : tx('sotto l’orizzonte col buio'); else { const p2 = []; if (n.mRise) p2.push(tx('sorge {t}', { t: fmtT(n.mRise) })); if (n.mSet) p2.push(tx('tramonta {t}', { t: fmtT(n.mSet) })); moonS = tx('alta per il {p}% del buio', { p: Math.round(n.moonUpFrac * 100) }) + (p2.length ? ' · ' + p2.join(', ') : ''); }
   const win = state.windows && state.windows[0];
   const nextDark = win ? (win.from <= n.t0 + 43200000 ? tx('adesso, fino al {d}', { d: fmtDay(win.to) }) : `${fmtDay(win.from)} – ${fmtDay(win.to)}`) : tx('oltre 6 settimane');
+  // stanotte non vale la pena (coperta, senza buio, scarsa): la prossima notte che vale almeno «discreta»
+  let next = null;
+  if (n.ds === defaultNightStr() && q.r <= 1) { const L = nightsAhead(), ref = Math.max(...L.map((x) => x.samples.length / 6)); for (let k = 1; k < L.length && !next; k++) { const qq = rateNight(L[k].samples, 1 / 6, L[k].ill, ref); if (qq.r >= 2) next = { x: L[k], q: qq }; } }
+  const covered = !!w && w.clear < 0.15;
   // la frase: prima il meteo (se c'è la previsione), poi la Luna
   const moonUp = n.moonIll >= 0.1 && n.moonUpFrac > 0.3, big = n.moonIll >= 0.6 && n.moonUpFrac > 0.5;
   let sub;
@@ -24,17 +28,18 @@ function renderFacts() {
   const title = n.ds === defaultNightStr() ? tx('Stanotte') : fmtNight(n.t0, { weekday: 'long', day: 'numeric', month: 'long' });
   const wxV = w ? (w.clear >= 0.85 ? tx('Sereno') : w.clear < 0.15 ? tx('Coperto') : w.win && w.winH >= 1 ? `${fmtT(w.win[0])}–${fmtT(w.win[1])}` : tx('Variabile')) : WX.busy ? '…' : '—';
   const sl = w && seeLvl(w.see), tl = w && traLvl(w.aod);
-  const wxS = w ? [tx('{p}% del buio sereno', { p: Math.round(w.clear * 100) }), w.prob != null ? tx('probabilità {p}%', { p: Math.round(w.prob * 100) }) : '', sl ? tx('seeing {s}', { s: tx(sl.t).toLowerCase() }) : '', tl ? tx('trasparenza {s}', { s: tx(tl.t).toLowerCase() }) : '', wxStale()].filter(Boolean).join(' · ') : WX.busy ? tx('previsioni in caricamento') : WX.err ? tx('senza connessione: si assume cielo sereno') : tx('oltre l’orizzonte delle previsioni (si assume cielo sereno)');
-  const warn = w ? [w.dew != null && w.dew <= 2 ? ic('drop') + tx('rischio di condensa: riscalda l’ottica') : '', w.gust != null && w.gust >= 30 ? ic('wind') + tx('raffiche fino a {v} km/h', { v: w.gust }) : '', w.dust != null && w.dust >= 60 ? ic('cloud') + tx('polvere del deserto') : ''].filter(Boolean) : [];
+  const wxS = w ? [tx('{p}% del buio sereno', { p: Math.round(w.clear * 100) }), w.prob != null ? tx('probabilità {p}%', { p: Math.round(w.prob * 100) }) : '', sl && !covered ? tx('seeing {s}', { s: tx(sl.t).toLowerCase() }) : '', tl && !covered ? tx('trasparenza {s}', { s: tx(tl.t).toLowerCase() }) : '', wxStale()].filter(Boolean).join(' · ') : WX.busy ? tx('previsioni in caricamento') : WX.err ? tx('senza connessione: si assume cielo sereno') : tx('oltre l’orizzonte delle previsioni (si assume cielo sereno)');
+  const warn = w && !covered ? [w.dew != null && w.dew <= 2 ? ic('drop') + tx('rischio di condensa: riscalda l’ottica') : '', w.gust != null && w.gust >= 30 ? ic('wind') + tx('raffiche fino a {v} km/h', { v: w.gust }) : '', w.dust != null && w.dust >= 60 ? ic('cloud') + tx('polvere del deserto') : ''].filter(Boolean) : [];
   $('#facts').innerHTML = `<div class="vd-top"><div><h2>${esc(title.charAt(0).toUpperCase() + title.slice(1))}</h2><div class="sub">${esc(sub)}</div></div><span class="rate r${q.r}" title="${tx('Voto: ore buie, serene, senza Luna')}"><i></i>${tx(q.label)}</span></div>
     <div class="vd-stats">
       <div class="fact"><div class="lbl">${ic('night')}${tx('Buio')}</div><div class="v num">${dark}</div><div class="s">${fmtDur(n.darkH)} · ${tx('sole sotto {d}°', { d: n.thr })}</div></div>
       <div class="fact"><div class="lbl">${ic('moon')}${tx('Luna')}</div><div class="v">${moonSvg(n.moonIll, n.waxing)}<span class="num">${Math.round(n.moonIll * 100)}%</span></div><div class="s">${moonS}</div></div>
       <button type="button" class="fact go" data-go="sky" title="${tx('Apri le previsioni ora per ora')}"><div class="lbl">${ic('cloud')}${tx('Meteo')}${ic('chev-r', 'go-i')}</div><div class="v">${wxV}</div><div class="s">${wxS}</div>${warn.map((x) => `<div class="s warn">${x}</div>`).join('')}</button>
       <div class="fact"><div class="lbl">${ic('lights')}${tx('Cielo')}</div><div class="v num">SQM ${it(sqm, 2)} <small>± ${it(skySource(p.site).sigma, 1)}</small></div><div class="s">${tx(SKY_SRC[skySource(p.site).k])} · Bortle ≈ ${sqmToBortle(sqm)}</div></div>
+      ${next ? `<button type="button" class="fact wide go" data-night="${next.x.t0}"><div class="lbl">${ic('night')}${tx('Prossima notte utile')}${ic('chev-r', 'go-i')}</div><div class="v">${esc(fmtDayLong(next.x.t0))} · ${tx(next.q.label)}</div>${next.q.known ? '' : `<div class="s">${tx('meteo non ancora previsto')}</div>`}</button>` : ''}
       <div class="fact wide"><div class="lbl">${ic('cal')}${tx('Prossime notti senza Luna')}</div><div class="v">${nextDark}</div></div>
     </div>`;
-  $('#facts').onclick = (e) => { if (e.target.closest('[data-go="sky"]')) setView('sky'); };
+  $('#facts').onclick = (e) => { const nx = e.target.closest('[data-night]'); if (nx) goNight(+nx.dataset.night); else if (e.target.closest('[data-go="sky"]')) setView('sky'); };
 }
 function renderSetups() {
   const el = $('#setups'); const cfgs = state.cfgs;
@@ -551,7 +556,7 @@ function renderDetail() {
   const prog = projProgress(o.id), mc = b ? shootCalendar(state.res.C, r, e, false) : null, md = tx(MODE_TXT[moonMode()][0]).toLowerCase();
   const summary = !b ? `<span class="strat">${tx('Nessun filtro del profilo adatto a {t}.', { t: tx(TYPES_PL[o.type]).toLowerCase() })}</span>`
     : mc && mc.complete ? `<b>${tx('integrazione raggiunta')}</b>`
-    : mc && mc.done ? `<b>≈ ${fmtH(mc.hours)}</b> ${tx('in')} <b>${nNights(mc.sessions)}</b>, ${endTxt(mc)} <span class="strat">· ${md} · ${tx('senza Luna {h}', { h: fmtH(needNow(r, e)) })}</span>`
+    : mc && mc.done ? `<b>≈ ${fmtH(calH(mc, needNow(r, e)))}</b> ${tx('in')} <b>${nNights(mc.sessions)}</b>, ${endTxt(mc)} <span class="strat">· ${md} · ${tx('senza Luna {h}', { h: fmtH(needNow(r, e)) })}</span>`
     : `<b>≈ ${fmtH(needNow(r, e))}</b> ${tx('di integrazione senza Luna')} · <b>${tx('oltre un anno')}</b>`;
   const scoreTip = `${tx('Punteggio')} ${e.score}/100 · ${tx('Inquadratura')} ${Math.round(e.fill.score * 100)} · ${tx('Visibilità')} ${Math.round(r.vis * 100)} · ${tx('Impegno (notti necessarie)')} ${Math.round(e.effort * 100)} · ${tx('Interesse fotografico')} ${Math.round(interestOf(o) * 100)}`;
 
@@ -658,6 +663,9 @@ function renderLocCmp() {
 }
 const periodCache = new Map();
 const fmtDayLong = (t) => fmtNight(t, { weekday: 'short', day: 'numeric', month: 'long' });
+/* date lontane (il periodo favorevole dell'anno prossimo): con l'anno, se non è quello della notte scelta */
+const otherYear = (t) => wall(t).getUTCFullYear() !== wall(state.res.night.t0).getUTCFullYear();
+const fmtDayY = (t) => fmtNight(t, { weekday: 'short', day: 'numeric', month: 'long', ...(otherYear(t) ? { year: 'numeric' } : {}) });
 function renderPeriod(r) {
   const el = $('#period'); if (!el || state.sel !== r.o.id) return;
   const p = active(), ds = state.res.night.ds, key = [r.o.id, siteKey(p.site), ds, p.session.minAlt, p.session.sunThr, JSON.stringify(p.horizon)].join('|');
@@ -668,14 +676,14 @@ function renderPeriod(r) {
     msg = tx('<b>Periodo favorevole</b> fino al {to} · stanotte {now} (max {max})', { now: fmtDur(bp.now), max: fmtDur(bp.max), to: fmtDayLong(bp.to) });
     if (bp.dark) { msg += ' ' + tx('Prima notte senza Luna: <b>{d}</b> ({h}).', { d: fmtDayLong(bp.dark), h: fmtDur(bp.darkH) }); go = bp.dark; }
   } else {
-    msg = tx('<b>Periodo favorevole</b> dal {from} al {to} · max {peak} verso il {pk} · stanotte {now}', { now: bp.now > 0.05 ? tx('{d} utili', { d: fmtDur(bp.now) }) : tx('non è sopra l’orizzonte con il buio'), from: fmtDayLong(bp.from), to: fmtDayLong(bp.to), peak: fmtDur(bp.peakH), pk: fmtDayLong(bp.peak) });
+    msg = tx('<b>Periodo favorevole</b> dal {from} al {to} · max {peak} verso il {pk} · stanotte {now}', { now: bp.now > 0.05 ? tx('{d} utili', { d: fmtDur(bp.now) }) : tx('non è sopra l’orizzonte con il buio'), from: fmtDayY(bp.from), to: fmtDayLong(bp.to), peak: fmtDur(bp.peakH), pk: fmtDayLong(bp.peak) });
     if (bp.dark) { msg += ' ' + tx('Prima notte senza Luna nel periodo favorevole: <b>{d}</b>.', { d: fmtDayLong(bp.dark) }); go = bp.dark; }
   }
   el.dataset.state = bp.none ? 'none' : bp.inNow ? 'now' : 'later';
   const chip = $('#periodChip');
   if (chip) {
     chip.className = 'hc ' + (bp.none ? 'bad' : bp.inNow ? 'ok' : 'warn');
-    chip.textContent = bp.none ? tx('Da questo luogo non è mai sopra l’orizzonte con il buio') : bp.inNow ? tx('Periodo favorevole, fino al {d}', { d: fmtDay(bp.to) }) : tx('Periodo favorevole dal {d}', { d: fmtDay(bp.from) });
+    chip.textContent = bp.none ? tx('Da questo luogo non è mai sopra l’orizzonte con il buio') : bp.inNow ? tx('Periodo favorevole, fino al {d}', { d: fmtDay(bp.to) }) : tx('Periodo favorevole dal {d}', { d: fmtNight(bp.from, { day: 'numeric', month: 'short', ...(otherYear(bp.from) ? { year: 'numeric' } : {}) }) });
     chip.title = tx('Apri la scheda Quando'); chip.onclick = () => setDTab('quando');
   }
   el.innerHTML = `<span class="lbl">${tx('Periodo giusto')}</span><span class="pt">${msg}</span>${go ? `<button class="btn sm" id="periodGo">${tx('Apri quella notte')}</button>` : ''}`;

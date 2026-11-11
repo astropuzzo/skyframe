@@ -65,7 +65,7 @@ function projHTML(r, e, b) {
   const id = r.o.id, p = state.projects[id], fav = isFav(id), done = isDone(id), prog = projProgress(id), hd = projHoursDone(id);
   const need = b ? hoursOf(b) : Infinity, rem = isFinite(need) ? need * (1 - prog) : null;
   const status = done ? `<span class="pst done">${ic('check')}${tx('fatto')}</span>` : hd > 0 ? `<span class="pst wip">${tx('in corso')}</span>` : fav ? `<span class="pst fav">${ic('star-f')}${tx('preferito')}</span>` : '';
-  const sess = p && (p.sessions || []).length ? `<ul class="sess">${p.sessions.map((s) => `<li><span class="d">${fmtDate(s.date)}<small>${esc(s.locName || '')}</small></span><span class="s">${esc(s.stratLabel || '')}</span><b class="num">${fmtH(+s.h)}</b><em class="num">${s.frac ? '+' + Math.round(s.frac * 100) + '%' : ''}</em><button type="button" class="icon-btn" data-del="${s.ts}" aria-label="${tx('Elimina la sessione')}" title="${tx('Elimina la sessione')}">${ic('trash', 'sm')}</button></li>`).join('')}</ul>` : '';
+  const sess = p && (p.sessions || []).length ? `<ul class="sess">${p.sessions.map((s) => `<li><span class="d">${fmtDate(s.date)}<small>${esc(s.locName || '')}</small></span><span class="s">${esc(s.stratLabel || '')}</span><b class="num">${fmtH(+s.h)}</b><em class="num">${s.frac ? '+' + Math.round(s.frac * 100) + '%' : ''}</em><button type="button" class="icon-btn" data-del="${esc(s.ts)}" aria-label="${tx('Elimina la sessione')}" title="${tx('Elimina la sessione')}">${ic('trash', 'sm')}</button></li>`).join('')}</ul>` : '';
   const bar = hd > 0 || done ? `<div class="pbar big"><b style="width:${Math.round(prog * 100)}%"></b></div>
     <div class="pnum">${done ? tx('Segnato come fatto') : tx('{p}% · {h} fatte', { p: Math.round(prog * 100), h: fmtH(hd) })}${!done && rem != null ? ' · ' + (prog >= 1 ? tx('integrazione raggiunta') : tx('mancano ≈ {h} qui', { h: fmtH(rem) })) : ''}</div>` : `<div class="pnum">${tx('Nessuna sessione')}</div>`;
   const today = $('#nightDate').value || defaultNightStr();
@@ -145,11 +145,8 @@ function renderProjects() {
     return;
   }
   const sec = (t, sub, list) => list.length ? `<div class="pv-sec"><h3>${t}</h3><small>${sub}</small></div><div class="pv-grid">${list.map(projCard).join('')}</div>` : '';
-  el.innerHTML = head + `<div class="pv-stats">
-      <div class="pv-stat"><b class="num" data-to="${wip.length}">${wip.length}</b><span>${tx('in corso')}</span></div>
-      <div class="pv-stat"><b class="num" data-to="${favs.length}">${favs.length}</b><span>${tx('preferiti non ancora iniziati')}</span></div>
-      <div class="pv-stat"><b class="num" data-to="${done.length}">${done.length}</b><span>${tx('completati')}</span></div>
-      <div class="pv-stat"><b class="num" data-to="${hours}" data-fmt="hh">${hours > 0 ? fmtH(hours) : '0 h'}</b><span>${nights ? tx('di posa in {n}', { n: nNights(nights) }) : tx('di posa registrate')}</span></div></div>
+  const stat = (n, label, extra = '') => (n > 0 ? `<div class="pv-stat"><b class="num" data-to="${n}"${extra}>${extra ? fmtH(n) : n}</b><span>${label}</span></div>` : '');
+  el.innerHTML = head + `<div class="pv-stats">${stat(wip.length, tx('in corso'))}${stat(favs.length, tx('preferiti non ancora iniziati'))}${stat(done.length, tx('completati'))}${stat(hours, nights ? tx('di posa in {n}', { n: nNights(nights) }) : tx('di posa registrate'), ' data-fmt="hh"')}</div>
     <div id="pvSeason">${wip.length + favs.length ? `<div class="card sk-wait"><div class="spin"></div><p>${tx('Calcolo del piano di stagione…')}</p></div>` : ''}</div>` +
     sec(tx('In corso'), tx('fatte e mancanti'), wip) + sec(tx('Preferiti'), tx('da iniziare'), favs) + yearHTML(seasonTargets()) + sec(tx('Fatti'), '', done);
   el.onclick = (e) => {

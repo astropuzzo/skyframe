@@ -951,7 +951,7 @@ button.fact:hover { background: var(--card-2); }
 .sc-row[aria-pressed="true"] { background: var(--card-2); border-color: var(--line-3); }
 .sc-row.loc { cursor: default; }
 .sc-row.loc:first-child { margin-top: 4px; border-top: 1px dashed var(--line-2); border-radius: 0 0 12px 12px; }
-.sc-h { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.sc-h { display: flex; align-items: center; gap: 10px; min-width: 0; width: 100%; }
 .sc-h > .ic { color: var(--sii); }
 .sc-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .sc-t b { font-weight: 600; font-size: 14.5px; }
@@ -1003,7 +1003,7 @@ button.fact:hover { background: var(--card-2); }
 
 /* ============================ piano di stagione, calendario, stagioni ============================ */
 #v-projects .card { margin-bottom: 14px; }
-.tt { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; background: #03050A; box-shadow: 0 0 0 1.5px var(--tc, var(--line-3)); flex: none; }
+.tt { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; background: #03050A; background: color-mix(in srgb, var(--tc, #3A4558) 30%, #03050A); box-shadow: 0 0 0 1.5px var(--tc, var(--line-3)); flex: none; }
 .ss-sum { margin: -2px 2px 12px; font-size: 13.5px; color: var(--ink-2); line-height: 1.5; }
 .ss-sum b { color: var(--ink); }
 .ss-ax .sc-ax { margin: 0 0 4px; padding: 0 8px; }
@@ -1130,3 +1130,4 @@ button.fact:hover { background: var(--card-2); }
   /* il riquadro del meteo della notte e il voto */
   html.motion .rate { animation: cellIn .5s var(--ease) .15s both; }
 
+.pv-stats:empty { display: none; }

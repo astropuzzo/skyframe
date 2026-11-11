@@ -49,20 +49,23 @@ function scenDays(list) {
   for (const cal of list) if (cal && cal.done) { const x = cal.nights.find((q) => q.t0 === cal.done); if (x) D = Math.max(D, x.k + 3); }
   return Math.min(SC_DAYS_MAX, D);
 }
-/* ore di posa che mancano col cielo senza Luna: dal calendario "solo senza Luna" se si chiude, se no lungo il percorso di stanotte */
+/* ore di posa che mancano col cielo senza Luna: lo stesso numero della lista, del piano e di Setup */
 function needNow(r, e) {
-  const b = e.best; if (!b) return null; const prog = projProgress(r.o.id); if (prog >= 1) return 0;
-  const d = shootCalendar(state.res.C, r, e, false, 'dark'); return d && d.done ? d.hours : hoursOf(b) * (1 - prog);
+  const b = e.best; if (!b) return null; const prog = projProgress(r.o.id); return prog >= 1 ? 0 : hoursOf(b) * (1 - prog);
 }
+/* Le ore di un calendario cambiano di poco da notte a notte (altezza, trasparenza prevista): entro il 7% da quelle senza
+   Luna si mostra lo stesso numero, così nella scheda non compaiono 3,9 h e 4,0 h per la stessa cosa. */
+const calSame = (c, ref) => !!(c && c.done && isFinite(c.hours) && ref > 0 && Math.abs(c.hours / ref - 1) < 0.07);
+const calH = (c, ref) => (calSame(c, ref) ? ref : c.hours);
 function scenHTML(r, e) {
   const b = e.best; if (!b) return '';
-  const cals = scenCals(r, e), mode = moonMode(), D = scenDays(Object.values(cals)), prog = projProgress(r.o.id);
+  const cals = scenCals(r, e), mode = moonMode(), D = scenDays(Object.values(cals)), prog = projProgress(r.o.id), ref = needNow(r, e);
   const rows = MOON_MODES.map((m) => {
     const c = cals[m], [t, sub] = MODE_TXT[m];
-    return `<button type="button" class="sc-row" data-mode="${m}" aria-pressed="${m === mode}"><span class="sc-h"><span class="radio${m === mode ? ' on' : ''}"></span><span class="sc-t"><b>${tx(t)}</b><small>${tx(sub)}</small></span><span class="sc-v"><b class="num">${c && isFinite(c.hours) && c.done ? fmtH(c.hours) : c && c.complete ? '—' : '—'}</b><small>${nightsTxt2(c)}${c && !c.complete ? ' · ' + endTxt(c) : ''}</small></span></span>${dayStrip(c, D)}</button>`;
+    return `<button type="button" class="sc-row" data-mode="${m}" aria-pressed="${m === mode}"><span class="sc-h"><span class="radio${m === mode ? ' on' : ''}"></span><span class="sc-t"><b>${tx(t)}</b><small>${tx(sub)}</small></span><span class="sc-v">${calSame(c, ref) ? '' : `<b class="num">${c && isFinite(c.hours) && c.done ? fmtH(c.hours) : '—'}</b>`}<small>${nightsTxt2(c)}${c && !c.complete ? ' · ' + endTxt(c) : ''}</small></span></span>${dayStrip(c, D)}</button>`;
   }).join('');
   return `<div class="scen" id="scen" data-d="${D}">
-    <div class="sc-top"><div class="sc-need"><span>${tx(prog > 0 && prog < 1 ? 'Integrazione mancante' : 'Integrazione necessaria')}</span><b class="num" data-to="${needNow(r, e)}" data-fmt="h">≈ ${fmtH(needNow(r, e))}</b><small>${tx('senza Luna, da {l}', { l: esc(activeLoc().site.name) })}</small></div></div>
+    <div class="sc-top"><div class="sc-need"><span>${tx(prog > 0 && prog < 1 ? 'Integrazione mancante' : 'Integrazione necessaria')}</span><b class="num" data-to="${ref}" data-fmt="h">≈ ${fmtH(ref)}</b><small>${tx('senza Luna, da {l}', { l: esc(activeLoc().site.name) })}</small></div></div>
     ${dayAxis(state.res.C, D)}
     <div class="sc-rows">${rows}<div id="scLocs"></div></div>
     <div class="sc-leg"><span><i class="use"></i>${tx('notte di ripresa')}</span><span><i class="skip"></i>${tx('saltata per la Luna')}</span><span><i class="cloud"></i>${tx('nuvole previste')}</span><span><i class="no"></i>${tx('non si vede')}</span></div>
@@ -123,15 +126,15 @@ function targetCalHTML(r, e) {
   }
   const seg = `<div class="seg" role="radiogroup">${MOON_MODES.map((m) => `<button type="button" data-mode="${m}" aria-pressed="${m === mode}">${tx(MODE_TXT[m][0])}</button>`).join('')}</div>`;
   return `<div class="sec first"><h3>${tx('Le notti di {t}', { t: esc(r.o.id) })} <small>${tx('tocca per aprire')}</small></h3>${seg}
-    <p class="calsum">${calSay(cal)}</p>
+    <p class="calsum">${calSay(cal, needNow(r, e))}</p>
     <div class="tcal">${head}${cells}</div>
     <div class="sc-leg"><span><i class="use"></i>${tx('notte utilizzata · più piena, più integrazione raccolta')}</span><span><i class="skip"></i>${tx('saltata per la Luna')}</span><span>${ic('cloud')}${tx('nuvole previste')}</span><span>${ic('check')}${tx('ultima notte')}</span></div></div>`;
 }
-function calSay(cal) {
+function calSay(cal, ref) {
   if (cal.complete) return tx('Completato: l’integrazione stimata è stata raccolta.');
   let t = cal.start > 0 ? tx('Già fatto: {p}%.', { p: Math.round(cal.start * 100) }) + ' ' : '';
   if (!cal.done) t += tx('In un anno: {p}% dell’integrazione. Richiede più stagioni.', { p: Math.round(cal.prog * 100) });
-  else t += tx('<b>{h}</b> in <b>{n}</b>: fine prevista <b>{d}</b>.', { h: fmtH(cal.hours), n: nNights(cal.sessions), d: dsOf(cal.done) === defaultNightStr() ? tx('stanotte') : fmtDayLong(cal.done) });
+  else t += tx('<b>{h}</b> in <b>{n}</b>: fine prevista <b>{d}</b>.', { h: fmtH(calH(cal, ref)), n: nNights(cal.sessions), d: dsOf(cal.done) === defaultNightStr() ? tx('stanotte') : fmtDayLong(cal.done) });
   if (cal.cloudy) t += ' ' + tx('Salto {n}: nuvole.', { n: nNights(cal.cloudy) });
   if (cal.skipped) t += ' ' + tx('Escluse {n}: Luna troppo luminosa.', { n: nNights(cal.skipped) });
   return t;

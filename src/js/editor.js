@@ -30,17 +30,17 @@ function renderOptics() {
   const list = draft.optics;
   F('optics').innerHTML = list.map((o, i) => {
     const kind = opticKind(o), pres = presetsFor(o);
-    const accs = (o.accessories || []).map((a, j) => { const fl = o.fl * (+a.fac || 1); return `<div class="acc"><input data-k="aname" data-j="${j}" value="${esc(a.name)}" aria-label="${tx('Nome accessorio')}"><input data-k="afac" data-j="${j}" type="number" step="0.01" min="0.3" max="4" value="${a.fac}" aria-label="${tx('Fattore')}"><span class="res">${Math.round(fl)} mm · f/${it(fl / o.ap, 1)}</span><button class="btn sm ghost" data-act="adel" data-j="${j}" type="button">${tx('Togli')}</button></div>`; }).join('');
+    const accs = (o.accessories || []).map((a, j) => { const fl = o.fl * (+a.fac || 1); return `<div class="acc"><input data-k="aname" data-j="${j}" value="${esc(a.name)}" aria-label="${tx('Nome accessorio')}"><input data-k="afac" data-j="${j}" type="number" step="0.01" min="0.3" max="4" value="${esc(a.fac)}" aria-label="${tx('Fattore')}"><span class="res">${Math.round(fl)} mm · f/${it(fl / o.ap, 1)}</span><button class="btn sm ghost" data-act="adel" data-j="${j}" type="button">${tx('Togli')}</button></div>`; }).join('');
     return `<div class="optic" data-oi="${i}">
       <div class="optic-head"><span class="lbl">${tx('Telescopio {n}', { n: i + 1 })}</span><span class="kind">${tx(KIND_LABEL[kind])}</span>${list.length > 1 ? `<button class="btn sm ghost" data-act="odel" type="button">${tx('Togli telescopio')}</button>` : ''}</div>
       <div class="grid">
         <label class="field w2"><span>${tx('Modello')}</span><select data-k="preset">${OPTIC_OPTIONS}</select></label>
         <label class="field w2"><span>${tx('Nome')}</span><input data-k="name" value="${esc(o.name)}" maxlength="60"></label>
-        <label class="field"><span>${tx('Apertura (mm)')}</span><input data-k="ap" type="number" min="10" step="1" value="${o.ap}"></label>
-        <label class="field"><span>${tx('Focale nativa (mm)')}</span><input data-k="fl" type="number" min="10" step="1" value="${o.fl}"></label>
-        <label class="field"><span>${tx('Ostruzione centrale (% del diametro)')}</span><input data-k="obs" type="number" min="0" max="60" step="1" value="${o.obs || 0}"></label>
+        <label class="field"><span>${tx('Apertura (mm)')}</span><input data-k="ap" type="number" min="10" step="1" value="${esc(o.ap)}"></label>
+        <label class="field"><span>${tx('Focale nativa (mm)')}</span><input data-k="fl" type="number" min="10" step="1" value="${esc(o.fl)}"></label>
+        <label class="field"><span>${tx('Ostruzione centrale (% del diametro)')}</span><input data-k="obs" type="number" min="0" max="60" step="1" value="${esc(o.obs || 0)}"></label>
         <div class="field"><span>${tx('Nativo')}</span><div class="res">${Math.round(o.fl)} mm · f/${it(o.fl / o.ap, 1)}</div></div>
-        <label class="field w2" title="${tx('Posa massima in banda larga senza stelle sature.')}"><span>${tx('Posa singola massima in banda larga (s)')}</span><input data-k="subMax" type="number" min="5" max="1800" step="5" value="${+o.subMax > 0 ? o.subMax : ''}" placeholder="${tx('automatica')}"></label>
+        <label class="field w2" title="${tx('Posa massima in banda larga senza stelle sature.')}"><span>${tx('Posa singola massima in banda larga (s)')}</span><input data-k="subMax" type="number" min="5" max="1800" step="5" value="${+o.subMax > 0 ? esc(o.subMax) : ''}" placeholder="${tx('automatica')}"></label>
       </div>
       <label class="chk"><input type="checkbox" data-k="native" ${o.useNative !== false ? 'checked' : ''}> ${tx('Considera anche questo telescopio senza accessori')}</label>
       <div class="accs">${accs || `<p class="hint" style="margin:0">${tx('Nessun accessorio: si usa la focale nativa.')}</p>`}</div>

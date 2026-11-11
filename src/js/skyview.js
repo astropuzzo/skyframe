@@ -37,7 +37,8 @@ function skyNightCard(x, k) {
 function skyGrid(x) {
   const H = nightHours(x), s = active().site;
   const col = (h, fn) => H.map((q) => { const w = wxHour(q.t + 1800e3); return `<span class="c${q.dark ? ' dk' : ''}"${fn(w, q)}</span>`; }).join('');
-  const row = (label, sub, fn) => `<span class="rl"><b>${label}</b>${sub ? `<small>${sub}</small>` : ''}</span>${col(null, fn)}`;
+  // una riga senza nemmeno un valore (niente pioggia, Luna sotto l'orizzonte) non si mostra
+  const row = (label, sub, fn) => { const c = col(null, fn); return />[^<]+<\/span>|<i class="dot"/.test(c) ? `<span class="rl"><b>${label}</b>${sub ? `<small>${sub}</small>` : ''}</span>${c}` : ''; };
   const hh = H.map((q) => `<span class="c hd${q.dark ? ' dk' : ''}">${pad2(hourOf(q.t))}</span>`).join('');
   const txt = (v) => (v == null ? '' : v);
   const rows = [
@@ -54,7 +55,7 @@ function skyGrid(x) {
     row(tx('Raffiche'), 'km/h', (w) => (w && w.gust != null ? ` style="${w.gust >= 25 ? `color:${LVL_COL[w.gust >= 40 ? 4 : 2]}` : ''}">${w.gust}` : '>')),
     row(tx('Pioggia'), '%', (w) => (w && w.pp != null ? ` style="${w.pp >= 30 ? 'color:var(--warn)' : ''}">${w.pp >= 5 ? w.pp : ''}` : '>')),
     row(tx('Luna'), tx('altezza'), (w, q) => (q.moon != null ? ` style="color:#E9E4D4">${Math.round(q.moon)}°` : '>')),
-  ].map((r) => `<div class="hr">${r}</div>`).join('');
+  ].filter(Boolean).map((r) => `<div class="hr">${r}</div>`).join('');
   return `<div class="hg" style="--n:${H.length}"><div class="hr head"><span class="rl"></span>${hh}</div>${rows}</div>`;
 }
 /* i modelli uno sopra l'altro: una riga per modello, ora per ora */
