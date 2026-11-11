@@ -16,6 +16,13 @@ function setNcfg(k, v) { LS.set('sf.notifyCfg', { ...ncfg(), [k]: v }); planNoti
 const notifyOn = () => !!LS.get('sf.notify', false);
 const nativeAlerts = () => (window.cielo && window.cielo.alerts) || null;
 const nbridge = { timers: [] };
+/* Computer: avvisi a finestra chiusa. Chiudendo la finestra Skyframe resta nella barra di sistema (main.js) e continua
+   ad aggiornare meteo e avvisi; vale solo con gli avvisi accesi. */
+const bgOn = () => DESK && !!(window.cielo && window.cielo.background) && notifyOn() && !!LS.get('sf.bg', false);
+async function syncBackground() {
+  if (!DESK || !(window.cielo && window.cielo.background)) return false;
+  try { return await window.cielo.background(bgOn(), { open: tx('Apri Skyframe'), quit: tx('Esci') }); } catch { return false; }
+}
 async function notifyPermission() {
   if (window.cielo && window.cielo.notifyPermission) return window.cielo.notifyPermission();
   if (!('Notification' in window)) return false;
@@ -70,6 +77,7 @@ function seasonAlerts() {
 async function planNotifications() {
   if (!state.res) return;
   const on = notifyOn(), c = ncfg(), nat = nativeAlerts();
+  syncBackground();
   // ad avvisi spenti la ricetta serve solo se sulla schermata Home c'è il widget
   if (!on && !(nat && RCP.widgets)) { if (!nat) notifySchedule([]); else if (RCP.sent !== 'off') { RCP.sent = 'off'; nat.configure({ on: false }); } return; }
   if (on && (c.season || c.top)) {

@@ -1,5 +1,5 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, shell, dialog, Menu, clipboard, session } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, Menu, clipboard, session, Tray, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
 const { lookup: lpLookup } = require('./src/js/lpatlas');
@@ -17,8 +17,24 @@ else if (process.env.SKYFRAME_SMOKE) { // lo smoke test lavora su una copia dei 
 // una finestra sola: due finestre salverebbero ognuna il suo stato sopra quello dell'altra
 const FIRST = !!(process.env.SKYFRAME_SMOKE || process.env.SKYFRAME_EVAL || process.env.SKYFRAME_LPM_TEST) || app.requestSingleInstanceLock();
 if (!FIRST) app.quit();
-else app.on('second-instance', () => { const w = BrowserWindow.getAllWindows()[0]; if (w) { if (w.isMinimized()) w.restore(); w.show(); w.focus(); } });
+else app.on('second-instance', () => showWindow());
 const dataFile = () => path.join(app.getPath('userData'), 'profili.json');
+/* Avvisi a finestra chiusa (si sceglie in Setup): chiudendo la finestra l'app resta nella barra di sistema e continua ad
+   aggiornare meteo e avvisi. Dall'icona si riapre o si esce davvero. Dove la barra di sistema non c'è, la finestra si
+   chiude come sempre. */
+const BG = { on: false, tray: null, quitting: false, txt: { open: 'Apri Skyframe', quit: 'Esci' } };
+const showWindow = () => { const w = BrowserWindow.getAllWindows()[0]; if (w) { if (w.isMinimized()) w.restore(); w.show(); w.focus(); } };
+function trayOn() {
+  if (BG.tray) return true;
+  try {
+    BG.tray = new Tray(nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png')).resize({ width: 18, height: 18 }));
+    BG.tray.setToolTip('Skyframe'); BG.tray.on('click', showWindow);
+    BG.tray.setContextMenu(Menu.buildFromTemplate([{ label: BG.txt.open, click: showWindow }, { type: 'separator' }, { label: BG.txt.quit, click: () => { BG.quitting = true; app.quit(); } }]));
+    return true;
+  } catch (e) { BG.tray = null; return false; }
+}
+function trayOff() { if (BG.tray) { BG.tray.destroy(); BG.tray = null; } }
+app.on('before-quit', () => { BG.quitting = true; });
 /* profili salvati con il nome precedente dell'app */
 async function migrateOldProfiles() {
   try { await fs.access(dataFile()); return; } catch { /* non c'è ancora: si cerca il vecchio */ }
@@ -44,6 +60,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      backgroundThrottling: false, // a finestra nascosta i timer di meteo e avvisi devono continuare
       offscreen: !!(process.env.SKYFRAME_SMOKE || process.env.SKYFRAME_EVAL), // lo smoke test cattura la pagina senza bisogno di un desktop visibile
     },
   });
@@ -63,6 +80,7 @@ function createWindow() {
   });
 
   win.once('ready-to-show', () => win.show());
+  win.on('close', (e) => { if (BG.on && BG.tray && !BG.quitting) { e.preventDefault(); win.hide(); } });
   win.loadFile(path.join(__dirname, 'src', 'index.html'));
   updater.start(win);
   if (process.env.SKYFRAME_SMOKE) smokeTest(win, process.env.SKYFRAME_SMOKE);
@@ -274,6 +292,13 @@ ipcMain.handle('clipboard:write', (_e, text) => {
   return true;
 });
 
+ipcMain.handle('app:background', (_e, on, txt) => {
+  BG.on = !!on;
+  if (txt && typeof txt === 'object') BG.txt = { open: String(txt.open || BG.txt.open).slice(0, 40), quit: String(txt.quit || BG.txt.quit).slice(0, 40) };
+  if (BG.on) trayOn(); else trayOff();
+  return BG.on && !!BG.tray;
+});
+
 const profileStore = createStore(dataFile);
 ipcMain.handle('profiles:load', () => profileStore.load());
 ipcMain.handle('profiles:save', (_e, data) => profileStore.save(data));
@@ -337,7 +362,7 @@ app.whenReady().then(async () => {
   // cache delle tile di lightpollutionmap lasciata dalle versioni precedenti: si svuota a app già aperta
   setTimeout(() => session.fromPartition('persist:lightpollutionmap').clearCache().catch(() => {}), 15000);
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) createWindow(); else showWindow();
   });
 });
 

@@ -293,10 +293,11 @@ function renderSetup() {
     </div></div>
     <div class="st-sec" id="stAlerts"><h3>${tx('Avvisi')}</h3><div class="st-list">
       <button type="button" class="st-item" id="stWidget" hidden>${ic('frame')}<span class="tx"><b>${tx('Widget')}</b><small>${tx('la notte sulla schermata Home')}</small></span>${ic('plus')}</button>
-      <label class="st-item tap">${ic(on ? 'bell-on' : 'bell')}<span class="tx"><b>${tx('Avvisi')}</b><small>${tx(!on ? 'spenti' : nativeAlerts() ? 'accesi, anche ad app chiusa' : 'accesi, ad app aperta')}</small></span><span class="switch"><input type="checkbox" id="swNotify" ${on ? 'checked' : ''}><i></i></span></label>
+      <label class="st-item tap">${ic(on ? 'bell-on' : 'bell')}<span class="tx"><b>${tx('Avvisi')}</b><small>${tx(!on ? 'spenti' : nativeAlerts() ? 'accesi, anche ad app chiusa' : bgOn() ? 'accesi, anche a finestra chiusa' : 'accesi, ad app aperta')}</small></span><span class="switch"><input type="checkbox" id="swNotify" ${on ? 'checked' : ''}><i></i></span></label>
       ${on ? [['evening', 'Stanotte sereno', 'prima del buio'], ['top', 'Notte ottima prevista', 'il giorno prima, notte senza Luna e serena'], ['change', 'Il meteo è cambiato', 'se la previsione di stanotte cambia'], ['season', 'Ultime settimane di visibilità', 'un preferito sta per uscire di stagione']].map(([k, t, d]) => `<label class="st-item tap sub"><span class="tx"><b>${tx(t)}</b><small>${tx(d)}</small></span><span class="switch"><input type="checkbox" data-nk="${k}" ${nc[k] ? 'checked' : ''}><i></i></span></label>`).join('') +
         `<div class="st-item wrap sub"><span class="tx"><b>${tx('Quanto prima del buio')}</b></span><div class="seg" id="nLead">${[30, 60, 90, 120].map((m) => `<button type="button" data-v="${m}" aria-pressed="${nc.lead === m}">${fmtDur(m / 60)}</button>`).join('')}</div></div>
         <div class="st-item wrap sub"><span class="tx"><b>${tx('Da quale notte')}</b><small>${tx('voto minimo')}</small></span><div class="seg" id="nMin">${[[2, 'Discreta'], [3, 'Buona'], [4, 'Ottima']].map(([v, t]) => `<button type="button" data-v="${v}" aria-pressed="${nc.min === v}">${tx(t)}</button>`).join('')}</div></div>
+        ${DESK && window.cielo.background ? `<label class="st-item tap sub"><span class="tx"><b>${tx('A finestra chiusa')}</b><small>${tx('Skyframe resta nella barra di sistema')}</small></span><span class="switch"><input type="checkbox" id="swBg" ${LS.get('sf.bg', false) ? 'checked' : ''}><i></i></span></label>` : ''}
         <button type="button" class="st-item sub" id="stBlocked" data-aset="notify" hidden><span class="tx"><b>${tx('Notifiche bloccate')}</b><small>${tx('consentile nelle impostazioni')}</small></span>${ic('chev-r')}</button>
         <button type="button" class="st-item sub" id="stExact" data-aset="exact" hidden><span class="tx"><b>${tx('Orario preciso')}</b><small>${tx('consenti «sveglie e promemoria»')}</small></span>${ic('chev-r')}</button>
         <button type="button" class="st-item sub" id="stBatt" data-aset="battery" hidden><span class="tx"><b>${tx('Batteria')}</b><small>${tx('togli le restrizioni a Skyframe')}</small></span>${ic('chev-r')}</button>
@@ -332,6 +333,7 @@ function renderSetup() {
   $('#moonSeg').onclick = (e) => { const m = e.target.closest('[data-mode]'); if (m) setMoonMode(m.dataset.mode); };
   $('#motionSeg').onclick = (e) => { const m = e.target.closest('[data-v]'); if (m) { setMotionPref(m.dataset.v); renderSetup(); } };
   $('#swNotify').onchange = () => toggleNotify();
+  if ($('#swBg')) $('#swBg').onchange = async (e) => { LS.set('sf.bg', e.target.checked); const ok = await syncBackground(); if (e.target.checked && !ok) { LS.set('sf.bg', false); toast(tx('Barra di sistema non disponibile')); } renderSetup(); };
   $('#swRed').onchange = (e) => setRed(e.target.checked);
   $('#langSel').onchange = (e) => setLang(e.target.value);
 }
