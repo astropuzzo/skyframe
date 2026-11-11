@@ -216,7 +216,7 @@ try {
   out.checks.sveglia_scattata = out.log_sveglia.length > 0;
   // 4) il lavoro periodico (WorkManager), forzato dal sistema ad app chiusa
   try {
-    const m = /JOB #u\d+a\d+\/(\d+)[^\n]*\n?[^\n]*SystemJobService/.exec(adb('shell dumpsys jobscheduler').split(PKG).slice(1).join(PKG)) || /#u\d+a\d+\/(\d+)/.exec((out.jobs || []).join('\n'));
+    const line = adb('shell dumpsys jobscheduler').split('\n').find((l) => /JOB #/.test(l) && l.includes(PKG + '/androidx.work')), m = line && /#u\d+a\d+\/(\d+)/.exec(line);
     if (m) { adb(`shell cmd jobscheduler run -f ${PKG} ${m[1]}`); await sleep(15000); out.log_lavoro = logcat(/work: /).slice(-3); out.checks.lavoro_periodico = out.log_lavoro.length > 0; }
     else { out.notes.push('lavoro periodico non trovato in jobscheduler'); out.checks.lavoro_periodico = false; }
   } catch (e) { out.notes.push('lavoro periodico: ' + e.message); out.checks.lavoro_periodico = false; }

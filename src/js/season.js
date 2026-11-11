@@ -2,12 +2,13 @@
 /* ============================ piano di stagione ============================
    Tutti i tuoi target (preferiti e progetti non finiti) nelle prossime notti insieme, come faresti tu: ogni notte ha le
    sue ore di buio (serene, dove c'è la previsione) e le si dà ai target che quella notte rendono di più rispetto alla loro
-   notte migliore del mese, con una spinta a chi sta per uscire di stagione e a chi è già in corso. Un target prende al
-   massimo le sue ore utili di quella notte e solo quello che gli manca; le notti si dividono quando più target le vogliono.
+   notte migliore del mese (lo stesso mese del calendario del target), con una spinta a chi sta per uscire di stagione e a
+   chi è già in corso. Un target prende solo quello che gli manca, nei suoi passi di 20 minuti ancora liberi a partire
+   dai più alti: due target non riprendono mai nello stesso momento, e la notte si divide quando più target la vogliono.
    Ne esce, per ogni target, quando finisci e con quante notti; per ogni notte, chi riprendere.
    Il calcolo delle notti (nightRec, già in cache per i calendari) va a pezzi per non bloccare l'interfaccia. */
 const SEASON_DAYS = 90;
-const SP = { key: '', plan: null, job: 0 };
+const SP = { key: '', plan: null, job: 0, pend: '', wait: [] };
 /* ore di buio di una notte, pesate per il meteo */
 function nightCapacity(C, k) {
   const nk = aheadNight(C, k), wx = C.wx; let h = 0;
@@ -18,17 +19,21 @@ function seasonTargets() {
   return Object.keys(state.projects).filter((id) => inMyList(id) && !isDone(id)).map((id) => state.byId.get(id)).filter((r) => r && r.e.best && isFinite(hoursOf(r.e.best)));
 }
 const seasonKey = (list) => [state.computeKey, moonMode(), WX.d && WX.d.key === wxKey(activeLoc().site) ? WX.d.at : 0, ...list.map((r) => r.o.id + ':' + projProgress(r.o.id).toFixed(6))].join('|');
-/* il piano, a pezzi; done(plan) quando è pronto */
+/* il piano, a pezzi; done(plan) quando è pronto. Chi lo chiede mentre è in calcolo si mette in fila (SP.wait); se nel
+   frattempo cambia qualcosa il calcolo riparte e la fila passa a quello nuovo: nessuno resta ad aspettare */
 function seasonPlan(done) {
   const list = seasonTargets(), key = seasonKey(list);
   if (SP.key === key && SP.plan) { done(SP.plan); return; }
+  SP.wait.push(done); if (SP.pend === key) return;
+  SP.pend = key;
   const job = ++SP.job, C = state.res.C, mode = moonMode(), dark = mode === 'dark';
   let k = 0;
   const step = () => {
     if (job !== SP.job) return; const t0 = performance.now();
     while (k < SEASON_DAYS && performance.now() - t0 < 12) { for (const r of list) nightRec(C, r, r.e, k, dark); k++; }
     if (k < SEASON_DAYS) { setTimeout(step, 0); return; }
-    SP.key = key; SP.plan = buildSeason(C, list, mode); if (job === SP.job) done(SP.plan);
+    SP.key = key; SP.plan = buildSeason(C, list, mode); SP.pend = '';
+    const w = SP.wait; SP.wait = []; w.forEach((f) => f(SP.plan));
   };
   step();
 }
@@ -36,14 +41,14 @@ function buildSeason(C, list, mode) {
   const dark = mode === 'dark', skipK = mode === 'all' ? Infinity : CAL_SKIP, D = SEASON_DAYS;
   const T = list.map((r) => {
     const recs = [...Array(D)].map((_, k) => nightRec(C, r, r.e, k, dark));
-    // la sua notte migliore nei 30 giorni attorno (per giudicare quanto rende una notte) e quando finisce la stagione
-    const best = recs.map((x, k) => Math.min(...recs.slice(Math.max(0, k - 15), k + 15).map((q) => q.T)));
+    // la sua notte migliore nel blocco di 30 giorni, lo stesso di shootCalendar (stesse notti saltate), e quando finisce la stagione
+    const best = recs.map((x, k) => { const b0 = Math.floor(k / CAL_BLOCK) * CAL_BLOCK; return Math.min(...recs.slice(b0, b0 + CAL_BLOCK).map((q) => q.T)); });
     let last = -1; recs.forEach((x, k) => { if (x.hGeo >= 1 && isFinite(x.T)) last = k; });
     return { r, id: r.o.id, recs, best, last, rem: 1 - projProgress(r.o.id), prio: hasSessions(r.o.id) ? 1.2 : 1, nights: [], hours: 0, done: null };
   });
   const nights = [];
   for (let k = 0; k < D; k++) {
-    let cap = nightCapacity(C, k); const alloc = [];
+    const alloc = [], taken = new Float32Array(CAL_N), slotH = CAL_STEP / 60;
     const cand = T.filter((t) => t.rem > 1e-6).map((t) => {
       const x = t.recs[k]; if (!(x.h >= CAL_MIN_H) || !isFinite(x.T)) return null;
       const eff = t.best[k] / x.T; if (1 / eff > skipK) return null;
@@ -51,9 +56,12 @@ function buildSeason(C, list, mode) {
       return { t, x, v: eff * urg * t.prio };
     }).filter(Boolean).sort((a, b) => b.v - a.v);
     for (const c of cand) {
-      if (cap < CAL_MIN_H) break;
-      const need = c.t.rem * c.x.T, a = Math.min(c.x.h, need, cap); if (a < CAL_MIN_H && a < need) continue;
-      cap -= a; const f = a / c.x.T; c.t.rem = Math.max(0, c.t.rem - f); c.t.hours += a; c.t.nights.push({ k, a, f });
+      const { sl, sa } = c.x, need = c.t.rem * c.x.T, free = []; let avail = 0;
+      for (let i = 0; i < CAL_N; i++) { const h = sl[i] * (1 - taken[i]) * slotH; if (h > 1e-6) { free.push(i); avail += h; } }
+      const a = Math.min(avail, need); if (a < CAL_MIN_H && a < need) continue;
+      free.sort((p, q) => sa[q] - sa[p]);
+      let left = a; for (const i of free) { if (left <= 1e-9) break; const h = sl[i] * (1 - taken[i]) * slotH, u = Math.min(h, left); taken[i] += (1 - taken[i]) * (u / h); left -= u; }
+      const f = a / c.x.T; c.t.rem = Math.max(0, c.t.rem - f); c.t.hours += a; c.t.nights.push({ k, a, f });
       if (c.t.rem <= 1e-6) c.t.done = k;
       alloc.push({ id: c.t.id, a, f, fin: c.t.rem <= 1e-6 });
     }
@@ -62,6 +70,21 @@ function buildSeason(C, list, mode) {
   const targets = T.map((t) => ({ id: t.id, r: t.r, nights: t.nights, hours: t.hours, done: t.done, rem: t.rem, last: t.last })).sort((a, b) => (a.done == null ? 1e9 : a.done) - (b.done == null ? 1e9 : b.done) || a.rem - b.rem);
   const end = targets.every((t) => t.done != null) ? Math.max(...targets.map((t) => t.done)) : null;
   return { targets, nights, D, mode, end, used: nights.filter((n) => n.alloc.length).length, hours: targets.reduce((a, t) => a + t.hours, 0) };
+}
+
+/* Il piano come file di calendario (iCalendar, RFC 5545): un evento per target e per notte, lungo quanto il target resta
+   utile quella notte, con le ore assegnate nel titolo. Orari in UTC, li converte il calendario. */
+function seasonIcs(P, C) {
+  const z = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, ''), txt = (s) => String(s).replace(/([\\;,])/g, '\\$1').replace(/\n/g, '\\n');
+  const byId = new Map(P.targets.map((t) => [t.id, t])), L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Skyframe//IT', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'], stamp = z(Date.now());
+  for (const n of P.nights) for (const a of n.alloc) {
+    const t = byId.get(a.id), x = nightRec(C, t.r, t.r.e, n.k, P.mode === 'dark'); let i0 = -1, i1 = -1;
+    for (let i = 0; i < CAL_N; i++) if (x.sl[i] > 0) { if (i0 < 0) i0 = i; i1 = i; }
+    if (i0 < 0) continue;
+    L.push('BEGIN:VEVENT', `UID:${z(n.t0)}-${hash(a.id)}@skyframe`, `DTSTAMP:${stamp}`, `DTSTART:${z(n.t0 + i0 * CAL_STEP * 60000)}`, `DTEND:${z(n.t0 + (i1 + 1) * CAL_STEP * 60000)}`,
+      `SUMMARY:${txt(`${a.id} · ${fmtH(a.a)}`)}`, `DESCRIPTION:${txt(tx('raccoglie il {p}% dell’integrazione', { p: Math.max(1, Math.round(a.f * 100)) }) + (a.fin ? ' · ' + tx('ultima notte') : ''))}`, 'TRANSP:TRANSPARENT', 'END:VEVENT');
+  }
+  return L.concat('END:VCALENDAR').join('\r\n') + '\r\n';
 }
 
 /* ---------- disegno ---------- */
@@ -77,7 +100,7 @@ function seasonHTML(P) {
     return `<button type="button" class="ss-row" data-id="${esc(t.id)}"><span class="ss-h">${tThumb(t.r.o)}<span class="ss-t"><b>${esc(t.id)}</b><small>${esc(t.r.o.nick || tx(TYPES[t.r.o.type]))}</small></span><span class="ss-v"><b class="num">${fmtH(t.hours)}</b><small>${t.nights.length ? nNights(t.nights.length) + ' · ' : ''}${when}</small></span></span><span class="sc-tl" style="--d:${D}">${cells}</span></button>`;
   }).join('');
   const endTxt2 = P.end != null ? tx('Tutti completati entro il {d}', { d: fmtDayLong(aheadNight(C, P.end).t0) }) : tx('Non tutti completabili entro {n} giorni', { n: P.D });
-  return `<div class="card season-card"><div class="card-h"><h3>${tx('Piano di stagione')}</h3><small>${tx('{m}', { m: tx(MODE_TXT[P.mode][0]).toLowerCase() })}</small></div>
+  return `<div class="card season-card"><div class="card-h"><h3>${tx('Piano di stagione')}</h3><small>${tx('{m}', { m: tx(MODE_TXT[P.mode][0]).toLowerCase() })}</small><span class="acts"><button type="button" class="icon-btn" data-ics title="${tx('Esporta nel calendario')}" aria-label="${tx('Esporta nel calendario')}">${ic('download')}</button></span></div>
     <p class="ss-sum"><b>${endTxt2}</b>: ${tx('{h} in {n}.', { h: fmtH(P.hours), n: nNights(P.used) })}</p>
     <div class="ss-ax">${dayAxis(C, D)}</div><div class="ss-rows">${rows}</div></div>`;
 }

@@ -17,12 +17,13 @@ function setPlanEd(ds, fn) {
 const planPin = (id) => setPlanEd(state.res.night.ds, (e) => { e.skip = e.skip.filter((x) => x !== id); if (!e.pin.includes(id)) e.pin.push(id); });
 const planSkip = (id) => setPlanEd(state.res.night.ds, (e) => { e.pin = e.pin.filter((x) => x !== id); if (!e.skip.includes(id)) e.skip.push(id); });
 const planReset = () => setPlanEd(state.res.night.ds, (e) => { e.pin = []; e.skip = []; });
-/* noWx: il piano a cielo sereno (per gli avvisi di Android, che le nuvole le guardano all'ultimo) */
-function tonightPlan(noWx) {
+/* noWx: il piano a cielo sereno (per gli avvisi di Android, che le nuvole le guardano all'ultimo); plain: senza i tuoi
+   target si prendono i migliori della notte e non quelli che la lista sta mostrando (filtri, ricerca) */
+function tonightPlan(noWx, plain) {
   const res = state.res; if (res.night.first < 0) return { blocks: [], mine: false, none: 'dark' };
   const ed = planEd(res.night.ds);
   let cand = res.results.filter((r) => planOk(r) && (inMyList(r.o.id) || ed.pin.includes(r.o.id)) && !ed.skip.includes(r.o.id)), mine = cand.length > 0;
-  if (!mine) cand = state.filtered.filter((r) => planOk(r) && !ed.skip.includes(r.o.id)).slice(0, 6);
+  if (!mine) cand = (plain ? res.results.slice().sort((a, b) => b.score - a.score) : state.filtered).filter((r) => planOk(r) && !ed.skip.includes(r.o.id)).slice(0, 6);
   return { ...planNight(res.night, cand, mine, ed.pin, noWx), edited: ed.pin.length + ed.skip.length };
 }
 /* la stessa cosa per un'altra notte, solo coi tuoi target (serve agli avvisi di domani sera) */
@@ -69,6 +70,40 @@ function planNight(n, cand, mine, pins = [], noWx = false) {
   }
   return { blocks: out, mine };
 }
+/* il piano come testo, da mandare a chi riprende con te o da tenere negli appunti */
+function planText() {
+  const n = state.res.night, P = tonightPlan(), day = fmtNight(n.t0, { weekday: 'long', day: 'numeric', month: 'long' });
+  const rows = P.blocks.map((b) => `${fmtT(b.t0)}–${fmtT(b.t1)}  ${b.id}${b.r.o.nick ? ' (' + b.r.o.nick + ')' : ''} · ${b.s.label} · ${fmtH(b.hClear)}${b.r.transit > b.t0 && b.r.transit < b.t1 ? ' · ' + tx('meridiano {t}', { t: fmtT(b.r.transit) }) : ''}`);
+  return [`${activeLoc().site.name} · ${day}`, n.first >= 0 ? tx('Buio {a}–{b}', { a: fmtT(n.t[n.first]), b: fmtT(n.t[n.last] + DT) }) + ' · ' + tx('Luna {p}%', { p: Math.round(n.moonIll * 100) }) : '', ...rows, 'Skyframe'].filter(Boolean).join('\n');
+}
+async function sharePlan() {
+  const text = planText();
+  if (window.cielo && window.cielo.shareText) { await window.cielo.shareText(tx('Il piano della notte'), text); return; }
+  if (navigator.share) try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+  copyText(text);
+}
+/* N.I.N.A.: tutti i target del piano in un solo CSV (formato Telescopius, come dal dettaglio), nell'ordine della notte e
+   con l'inquadratura consigliata; i mosaici con i loro pannelli */
+function ninaPlanCsv(blocks) {
+  const seen = new Set(), rows = []; let head = '';
+  for (const b of blocks) {
+    if (seen.has(b.id)) continue; seen.add(b.id);
+    const e = b.r.e, g = e.cfg.geom, fr = framingFor(b.r.o, b.r.field, g);
+    const L = ninaCsv(b.id, mosaicPanes(b.r.o, g, e.fill.nx, e.fill.ny, fr.free ? 90 : fr.pa, [fr.dx, fr.dy]), g, tx('Pannello')).trim().split('\n');
+    head = L[0]; rows.push(...L.slice(1));
+  }
+  return rows.length ? [head, ...rows].join('\n') + '\n' : '';
+}
+function openPlanExport() {
+  const item = (k, t, d) => `<button type="button" class="st-item" data-x="${k}"><span class="tx"><b>${tx(t)}</b><small>${tx(d)}</small></span>${ic('chev-r')}</button>`;
+  openSheet({
+    title: tx('Esporta il piano'), body: `<div class="st-list">${item('text', 'Testo', 'orari, target e filtri')}${item('nina', 'CSV per N.I.N.A.', 'tutti i target con l’inquadratura consigliata')}</div>`,
+    onMount: (el, close) => el.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-x]'); if (!b) return; close();
+      if (b.dataset.x === 'text') sharePlan(); else saveText(`skyframe-piano-${state.res.night.ds}-nina.csv`, ninaPlanCsv(tonightPlan().blocks));
+    }),
+  });
+}
 /* a notte iniziata, ogni blocco del piano si registra come sessione con un tocco (ore serene del blocco; si corregge
    nel dettaglio del target) */
 const loggedOn = (id, ds) => !!(state.projects[id] && (state.projects[id].sessions || []).some((q) => q.date === ds));
@@ -89,9 +124,11 @@ function renderTonight() {
   const n = state.res.night, P = tonightPlan(), wn = wxNight(n);
   const on = notifyOn(), today = n.ds === defaultNightStr();
   const bell = `<button type="button" class="icon-btn tn-bell" id="notifyBtn" aria-pressed="${on}" title="${tx(on ? 'Avviso attivo: un’ora prima del buio, se la previsione è serena' : 'Avvisami se la notte è serena')}" aria-label="${tx('Avvisi')}">${ic(on ? 'bell-on' : 'bell')}</button>`;
-  const head = `<div class="card-h"><h3>${tx('Il piano della notte')}</h3><span class="acts">${bell}</span></div>`;
+  const share = P.blocks.length ? `<button type="button" class="icon-btn" id="planShare" title="${tx('Esporta il piano')}" aria-label="${tx('Esporta il piano')}">${ic('upload')}</button>` : '';
+  const head = `<div class="card-h"><h3>${tx('Il piano della notte')}</h3><span class="acts">${share}${bell}</span></div>`;
   const wire = () => { el.onclick = (ev) => {
     if (ev.target.closest('#notifyBtn')) { toggleNotify(); return; }
+    if (ev.target.closest('#planShare')) { openPlanExport(); return; }
     const lg = ev.target.closest('[data-log]'); if (lg) { logFromPlan(lg.dataset.log); return; }
     const k = ev.target.closest('[data-skip]'); if (k) { planSkip(k.dataset.skip); toast(tx('{t} tolto dal piano', { t: k.dataset.skip })); return; }
     if (ev.target.closest('[data-reset]')) { planReset(); return; }
@@ -108,7 +145,7 @@ function renderTonight() {
   for (let ms = h0 + 3600000; ms < n.t[i1]; ms += 3600000) { if (hourOf(ms) % 2) continue; ticks.push(`<span style="left:${X(ms)}%">${pad2(hourOf(ms))}</span>`); }
   const wtxt = wn ? (wn.clear >= 0.85 ? tx('Previsto sereno') : wn.clear < 0.15 ? tx('Previsto coperto') : wn.win && wn.winH >= 1 ? tx('Sereno solo {a}–{b}', { a: fmtT(wn.win[0]), b: fmtT(wn.win[1]) }) : tx('Nuvolosità variabile · {p}% del buio sereno', { p: Math.round(wn.clear * 100) })) : '';
   el.innerHTML = head + `<div class="tn-g"><div class="tn-track">${track}</div><div class="tn-ax">${ticks.join('')}</div></div>
-    <ol class="tn-l">${P.blocks.map((b) => `<li><button type="button" class="tn-row" data-id="${esc(b.id)}"><i style="background:${TYPE_COLOR[b.r.o.type]}"></i><span class="nm"><span class="l1"><b>${esc(b.id)}</b>${b.r.o.nick ? `<small>${esc(b.r.o.nick)}</small>` : ''}</span><span class="tm num">${fmtT(b.t0)}–${fmtT(b.t1)}<span class="fs">${esc(b.s.short)}${b.r.e.moonBest ? ' ' + ic('moon', 'sm') : ''}</span></span></span><span class="hh num">${fmtH(b.hClear)}${b.frac > 0.005 ? `<b>+${Math.round(Math.min(1, b.frac) * 100)}% ${tx('del lavoro')}</b>` : ''}</span></button>${logBtn(n, b)}<button type="button" class="icon-btn tn-x" data-skip="${esc(b.id)}" title="${tx('Togli dal piano')}" aria-label="${tx('Togli {t} dal piano', { t: b.id })}">${ic('x', 'sm')}</button></li>`).join('')}</ol>
+    <ol class="tn-l">${P.blocks.map((b) => `<li><button type="button" class="tn-row" data-id="${esc(b.id)}"><i style="background:${TYPE_COLOR[b.r.o.type]}"></i><span class="nm"><span class="l1"><b>${esc(b.id)}</b>${b.r.o.nick ? `<small>${esc(b.r.o.nick)}</small>` : ''}</span><span class="tm num">${fmtT(b.t0)}–${fmtT(b.t1)}<span class="fs">${esc(b.s.short)}${b.r.e.moonBest ? ' ' + ic('moon', 'sm') : ''}${b.r.transit > b.t0 + 10 * 60000 && b.r.transit < b.t1 - 10 * 60000 ? `<span class="mer">${tx('meridiano {t}', { t: fmtT(b.r.transit) })}</span>` : ''}</span></span></span><span class="hh num">${fmtH(b.hClear)}${b.frac > 0.005 ? `<b>+${Math.round(Math.min(1, b.frac) * 100)}% ${tx('del lavoro')}</b>` : ''}</span></button>${logBtn(n, b)}<button type="button" class="icon-btn tn-x" data-skip="${esc(b.id)}" title="${tx('Togli dal piano')}" aria-label="${tx('Togli {t} dal piano', { t: b.id })}">${ic('x', 'sm')}</button></li>`).join('')}</ol>
     ${P.edited ? `<div class="note">${tx('Modificato da te')} · <button type="button" class="link" data-reset>${tx('ripristina')}</button></div>` : ''}
     ${wtxt ? `<div class="note">${esc(wtxt)}${WX.d ? ' · ' + tx('meteo Open-Meteo') : ''}</div>` : ''}`;
   wire();

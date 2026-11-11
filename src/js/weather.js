@@ -65,6 +65,7 @@ async function loadWeather(force) {
   if (!force && WX.d && WX.d.key === key && Date.now() - WX.d.at < WX_TTL) return false;
   const c = wxCache()[key];
   if (!force && c && Date.now() - c.at < WX_TTL) { WX.d = c; return true; }
+  if (!force && WX.failKey === key && Date.now() - WX.failAt < 3 * 60e3) return false; // appena fallito: si aspetta
   if (WX.busy) return false; WX.busy = true;
   try {
     const cc = 'cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high';
@@ -123,8 +124,14 @@ async function loadWeather(force) {
       parts: { models: Object.keys(models).length, ens: E.status === 'fulfilled', see: C.status === 'fulfilled', aq: Q.status === 'fulfilled', ground: B.status === 'fulfilled' },
     };
     if (wxKey(activeLoc().site) !== key) return false;
-    WX.d = next; WX.err = false; wxCachePut(next); return true;
-  } catch (e) { if (wxKey(activeLoc().site) === key) WX.err = true; return false; }
+    WX.d = next; WX.err = false; WX.failKey = ''; wxCachePut(next); return true;
+  } catch (e) {
+    if (wxKey(activeLoc().site) !== key) return false;
+    WX.err = true; WX.failKey = key; WX.failAt = Date.now();
+    // senza rete: meglio la previsione salvata (fino a due giorni fa) che nessuna
+    if (!WX.d || WX.d.key !== key) { const o = wxCache()[key]; if (o && Date.now() - o.at < 48 * 3600e3) { WX.d = o; return true; } }
+    return false;
+  }
   finally {
     WX.busy = false;
     if (wxKey(activeLoc().site) !== key) queueMicrotask(() => refreshWeather(false));
@@ -132,6 +139,8 @@ async function loadWeather(force) {
 }
 /* ---------- lettura ---------- */
 const wxOk = () => WX.d && WX.d.key === wxKey(activeLoc().site);
+/* previsione vecchia (non si è riusciti a riscaricarla): da quanto */
+const wxStale = () => (wxOk() && Date.now() - WX.d.at > 2 * WX_TTL ? tx('previsione di {h} fa', { h: fmtDur((Date.now() - WX.d.at) / 3600e3) }) : '');
 function wxAt(ms) {
   if (!wxOk()) return null; const d = WX.d, x = (ms / 1000 - d.t0) / 3600;
   if (!(x >= 0) || x > d.n - 1) return null;
@@ -168,7 +177,7 @@ function applyWeather() {
   if (C.ahead) C.ahead.cache.clear();
 }
 function weatherChanged() { applyWeather(); renderFacts(); drawStrip(); renderNightBar(); renderTonight(); renderList(); renderTopList(); if (UI.view === 'sky') renderSky(); if (state.sel && !$('#drawer').hidden) { const sc = $('#drawer').scrollTop; renderDetail(); $('#drawer').scrollTop = sc; } }
-async function refreshWeather(force) { const got = await loadWeather(force); if (syncSiteTz()) { /* rifatto tutto */ } else if (got) weatherChanged(); else if (force && UI.view === 'sky') renderSky(); planNotifications(); }
+async function refreshWeather(force) { const got = await loadWeather(force); if (syncSiteTz()) { /* rifatto tutto */ } else if (got) weatherChanged(); else if (force || WX.err) { renderFacts(); if (UI.view === 'sky') renderSky(); } planNotifications(); }
 /* il fuso del luogo arriva con il meteo: se è nuovo o diverso, notti e orari si rifanno */
 function syncSiteTz() {
   const l = activeLoc(), tz = wxOk() && WX.d.tz; if (!tz || l.site.tz === tz) return false;
@@ -204,13 +213,13 @@ function wxSpan(ts, stepMin) {
 /* altri luoghi salvati: solo le nuvole (miglior modello), per dire dove è sereno stanotte e per i loro calendari */
 function wxAtFor(site) {
   const d = WX.other.get(wxKey(site)); if (!d) return null;
-  return (ms) => { const x = (ms / 1000 - d.t0) / 3600; if (!(x >= 0) || x > d.clear.length - 1) return null; const i = Math.floor(x), u = x - i, a = d.clear[i], b = i + 1 < d.clear.length ? d.clear[i + 1] : a; return a * (1 - u) + b * u; };
+  return (ms) => { const x = (ms / 1000 - d.t0) / 3600; if (!(x >= 0) || x > d.clear.length - 1) return null; const i = Math.floor(x), u = x - i, a = d.clear[i], b = i + 1 < d.clear.length ? d.clear[i + 1] : null; return a == null ? b : b == null ? a : a * (1 - u) + b * u; };
 }
 async function loadWeatherLite(site) {
   const key = wxKey(site), c = WX.other.get(key); if (c && Date.now() - c.at < WX_TTL) return c;
   try {
     const j = await wxGet(`https://api.open-meteo.com/v1/forecast?${wxQ(site, 8)}&hourly=cloud_cover_low,cloud_cover_mid,cloud_cover_high`), h = j.hourly;
-    const d = { key, at: Date.now(), t0: h.time[0], clear: h.time.map((_, i) => clearFrac(h.cloud_cover_low[i], h.cloud_cover_mid[i], h.cloud_cover_high[i])) };
+    const d = { key, at: Date.now(), t0: h.time[0], clear: h.time.map((_, i) => (h.cloud_cover_low[i] == null ? null : clearFrac(h.cloud_cover_low[i], h.cloud_cover_mid[i], h.cloud_cover_high[i]))) };
     WX.other.set(key, d); return d;
   } catch { return null; }
 }

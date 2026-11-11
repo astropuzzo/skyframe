@@ -17,7 +17,7 @@ function nightHours(x) {
   const d0 = x.samples.length ? x.samples[0].ms : x.t0 + 8 * 3600e3, d1 = x.samples.length ? x.samples[x.samples.length - 1].ms : x.t0 + 16 * 3600e3;
   const h0 = hourFloor(d0 - 2 * 3600e3);
   for (let t = h0; t <= d1 + 2 * 3600e3; t += 3600e3) {
-    const J = jd(t), lst = lstDeg(t, lon), mo = moonPos(J), ma = altaz(mo.ra, mo.dec, lst, sL, cL)[0];
+    const J = jd(t), lst = lstDeg(t, lon), mo = moonPos(J), ma = moonTopo(altaz(mo.ra, mo.dec, lst, sL, cL)[0]);
     out.push({ t, dark: x.samples.some((s) => Math.abs(s.ms - t - 1800e3) <= 1800e3), moon: ma > 0 ? ma : null });
   }
   return out;
@@ -84,7 +84,7 @@ async function skyOther(box) {
 function renderSky() {
   const el = $('#skyView'); if (!el || !state.res) return;
   const s = activeLoc().site;
-  const head = `<div class="view-h tight"><h2>${tx('Cielo')}</h2><span class="grow"></span><button type="button" class="icon-btn" data-refresh title="${tx('Aggiorna le previsioni')}" aria-label="${tx('Aggiorna le previsioni')}">${ic('refresh')}</button></div><p class="view-sub">${esc(s.name)}${wxOk() ? ' · ' + tx('aggiornato alle {t}', { t: fmtT(WX.d.at) }) : ''}</p>`;
+  const head = `<div class="view-h tight"><h2>${tx('Cielo')}</h2><span class="grow"></span><button type="button" class="icon-btn" data-refresh title="${tx('Aggiorna le previsioni')}" aria-label="${tx('Aggiorna le previsioni')}">${ic('refresh')}</button></div><p class="view-sub">${esc(s.name)}${wxOk() ? ' · ' + (wxStale() || tx('aggiornato alle {t}', { t: fmtT(WX.d.at) })) : ''}</p>`;
   if (!wxOk()) {
     el.innerHTML = head + `<div class="card sk-wait">${WX.busy || !WX.err ? `<div class="spin"></div><p>${tx('Scarico le previsioni…')}</p>` : `<p>${tx('Previsioni non disponibili: nessuna connessione.')}</p><button type="button" class="btn" data-refresh>${ic('refresh')}${tx('Riprova')}</button>`}</div>`;
     el.onclick = (e) => { if (e.target.closest('[data-refresh]')) refreshWeather(true); };

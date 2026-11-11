@@ -1,4 +1,5 @@
-// Prove di base (npm test): ora del luogo, migrazione dei dati salvati, archivio dei profili sul computer.
+// Prove di base (npm test): ora del luogo, Luna, filtri, calendario e piano di stagione, migrazione dei dati salvati,
+// archivio dei profili sul computer.
 process.env.TZ = 'Europe/Rome'; // il dispositivo delle prove è in Italia, come quello di chi ha scritto l'app
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -12,8 +13,10 @@ const file = (p) => fs.readFileSync(path.join(root, 'src', p), 'utf8');
 const ctx = { window: {}, console, Date, Math, Map, Set, Intl, JSON, Float32Array, Float64Array, Uint8Array, performance };
 vm.createContext(ctx);
 for (const name of ['filters', 'dso', 'sky', 'quality', 'real']) vm.runInContext(file(`data/${name}.js`), ctx);
-vm.runInContext("const LANG='it',LOCALE='it-IT',txName=(s)=>s,tx=(s,p)=>p?s.replace(/[{](\\w+)[}]/g,(_,k)=>p[k]??_):s;" + file('js/astro.js') + '\n' + file('js/model.js') +
-  '\n;this.M={siteTz,tzOff,wall,wallMs,dsOf,TZ,setDisplayTz,defaultNightStr,computeNight,moonCalendar,templateProfile,migrateProfile,migrateLoc,locsFromProfiles,moonFlux,unit,mosaicPanes,ninaCsv};', ctx);
+// nel piano di stagione il lavoro già fatto e i progetti in corso vengono dall'app: qui nessuno
+vm.runInContext("const LANG='it',LOCALE='it-IT',txName=(s)=>s,tx=(s,p)=>p?s.replace(/[{](\\w+)[}]/g,(_,k)=>p[k]??_):s,projProgress=()=>0,hasSessions=()=>false;" + file('js/astro.js') + '\n' + file('js/model.js') + '\n' + file('js/nights.js') + '\n' + file('js/season.js') +
+  '\n;this.M={siteTz,tzOff,wall,wallMs,dsOf,TZ,setDisplayTz,defaultNightStr,computeNight,moonCalendar,templateProfile,migrateProfile,migrateLoc,locsFromProfiles,moonFlux,unit,mosaicPanes,ninaCsv,' +
+  'channelSpec,qeRel,airmass,profileConfigs,computePrep,computeObj,hoursOf,nightRec,shootCalendar,aheadNight,buildSeason,seasonIcs,nightSamples,moonPos,altaz,lstDeg,jd,CAT_BY_ID,MOON_RISE,MOON_PAR,STEP,CAL_N,CAL_STEP};', ctx);
 const M = ctx.M;
 
 const SITES = {
@@ -98,6 +101,100 @@ test('Luna: Krisciunas & Schaefer 1991', () => {
   assert.equal(M.moonFlux({ mAlt: [-1], mIll: [1], mV: [M.unit(0, 0)], kV: 0.2 }, 0, M.unit(0, 0), 45)[0], 0);
 });
 
+test('Luna vista dal luogo: sorge col lembo sull’orizzonte, uguale nella striscia e nella notte', () => {
+  const p = M.templateProfile(); p.site = { ...SITES.Roma, sqm: 21 }; p.session.sunThr = -18;
+  let checked = 0;
+  for (const ds of ['2026-10-02', '2026-10-20', '2026-11-28', '2027-01-15']) {
+    const n = M.computeNight(p, ds);
+    for (const ev of [n.mRise, n.mSet]) {
+      if (ev == null) continue;
+      const i = Math.floor((ev - n.t0) / (M.STEP * 60000)), u = (ev - n.t[i]) / (M.STEP * 60000);
+      assert.ok(Math.abs(n.mAlt[i] * (1 - u) + n.mAlt[i + 1] * u - M.MOON_RISE) < 0.01, ds); checked++;
+    }
+    // la striscia delle notti (passi di 10 minuti) e la notte scelta (5 minuti) vedono la stessa Luna
+    const s = M.nightSamples(p, n.t0).samples;
+    assert.ok(s.length > 30, ds);
+    for (const x of s) { const i = Math.round((x.ms - n.t0) / (M.STEP * 60000)); assert.equal(x.mu, n.mAlt[i] > 0, ds + ' ' + new Date(x.ms).toISOString()); }
+    // parallasse: all'orizzonte la Luna sta 0,95° più in basso del conto dal centro della Terra, allo zenit uguale
+    const lat = SITES.Roma.lat * Math.PI / 180, mo = M.moonPos(M.jd(n.t[100])), geo = M.altaz(mo.ra, mo.dec, n.lst[100], Math.sin(lat), Math.cos(lat))[0];
+    assert.ok(Math.abs(geo - n.mAlt[100] - M.MOON_PAR * Math.cos(geo * Math.PI / 180)) < 1e-4, ds);
+  }
+  assert.ok(checked >= 4);
+});
+
+test('sessione dalle 20:00 alle 04:00: otto ore giuste', () => {
+  const p = M.templateProfile(); p.site = { ...SITES.Roma, sqm: 21 }; p.session.sunThr = -18; p.session.from = '20:00'; p.session.to = '04:00';
+  assert.equal(M.computeNight(p, '2026-12-15').darkH, 8);
+  let h = 0; const a = M.aheadNight(M.computePrep(M.profileConfigs(p), p, '2026-12-15', 0), 3); for (let i = 0; i < M.CAL_N; i++) h += a.dark[i] * M.CAL_STEP / 60;
+  assert.ok(Math.abs(h - 8) < 1e-9, String(h));
+});
+
+test('filtri: l’integrale segue i bordi veri della banda', () => {
+  const I = (lo, hi) => M.channelSpec({ bands: [[lo, hi, 1]] }, 'mono', ['Ha'], {}).I;
+  const near = (a, b, e, m) => assert.ok(Math.abs(a / b - 1) < e, `${m}: ${a} invece di ${b}`);
+  near(I(654.55, 658.05), 35 * M.qeRel(656.3), 0.01, '3,5 nm');
+  near(I(654.55, 658.05) / I(654.05, 658.55), 3.5 / 4.5, 0.01, '3,5 nm contro 4,5 nm');
+  near(I(400, 700) / I(400, 550), 2, 0.25, 'banda larga'); // 300 nm contro 150, col sensore meno sensibile nel rosso
+  near(M.channelSpec({ bands: [[500, 501, 0.9]] }, 'mono', ['OIII'], {}).I, 9 * M.qeRel(500.5), 1e-9, 'un nanometro');
+});
+
+test('target che stanotte non si riprende: tempo al passaggio in meridiano', () => {
+  const p = M.templateProfile(); p.site = { lat: 45, lon: 9, sqm: 19 }; p.horizon = []; p.session.minAlt = 20;
+  const C = M.computePrep(M.profileConfigs(p), p, '2026-07-10', 0), r = M.computeObj(C, M.CAT_BY_ID.get('M 42'));
+  assert.equal(r.usableH, 0);
+  assert.ok(Math.abs(r.T.X - M.airmass(90 - Math.abs(45 - r.pr.dec))) < 1e-6 && r.T.X < 1.7, `massa d’aria ${r.T.X}`); // a 20° sarebbe 2,9
+  assert.ok(isFinite(M.hoursOf(r.e.best)));
+  // passaggio in meridiano: l'azimut attraversa il sud e l'altezza è la massima
+  const w = M.computeObj(M.computePrep(M.profileConfigs(p), p, '2026-12-15', 0), M.CAT_BY_ID.get('M 42')), n = M.computeNight(p, '2026-12-15');
+  const i = Math.floor((w.transit - n.t0) / (M.STEP * 60000));
+  assert.ok(w.az[i] <= 180 && w.az[i + 1] >= 180 && Math.abs(w.alt[i] - (90 - Math.abs(45 - w.pr.dec))) < 0.05, `meridiano a ${new Date(w.transit).toISOString()}`);
+  // emisfero sud: Orione passa a nord, e la Polare non si calcola nemmeno
+  const s = M.templateProfile(); s.site = { ...SITES.Namibia, sqm: 21.5 }; s.horizon = [];
+  const Cs = M.computePrep(M.profileConfigs(s), s, '2026-07-10', 0), rs = M.computeObj(Cs, M.CAT_BY_ID.get('M 42'));
+  assert.ok(rs && rs.T.X < 1.2);
+  assert.equal(M.computeObj(Cs, { ...M.CAT_BY_ID.get('M 42'), dec: 89 }), null);
+});
+
+test('calendario: le ore utili non superano mai quelle sopra l’orizzonte', () => {
+  const p = M.templateProfile(); p.site = { lat: 45, lon: 9, sqm: 19 }; p.horizon = [];
+  const C = M.computePrep(M.profileConfigs(p), p, '2026-10-10', 0), r = M.computeObj(C, M.CAT_BY_ID.get('NGC 7000'));
+  const dry = [0, 1, 5, 12].map((k) => ({ ...M.nightRec(C, r, r.e, k, false) }));
+  // notti limpide (trasparenza al massimo) e mezze coperte: cambiano le ore di posa che servono, non le ore di cielo
+  const C2 = M.computePrep(M.profileConfigs(p), p, '2026-10-10', 0), r2 = M.computeObj(C2, M.CAT_BY_ID.get('NGC 7000'));
+  C2.wx = () => 0.5; C2.trans = () => 1.15;
+  [0, 1, 5, 12].forEach((k, j) => {
+    const x = M.nightRec(C2, r2, r2.e, k, false);
+    assert.ok(x.h <= x.hGeo + 1e-9 && Math.abs(x.h - 0.5 * x.hGeo) < 0.01, `notte ${k}: ${x.h} h utili su ${x.hGeo}`);
+    assert.ok(x.T < dry[j].T, `notte ${k}: con più trasparenza servono meno ore`);
+    assert.ok(Math.abs(x.h / x.T - 0.5 * 1.15 * dry[j].h / dry[j].T) < 0.02 * x.h / x.T, `notte ${k}: lavoro della notte`);
+    let sum = 0; for (let i = 0; i < M.CAL_N; i++) sum += x.sl[i] * M.CAL_STEP / 60;
+    assert.ok(Math.abs(sum - x.h) < 0.1, `notte ${k}: passi ${sum} h, ore utili ${x.h}`);
+  });
+});
+
+test('piano di stagione: due target nello stesso punto del cielo si dividono la notte', () => {
+  const p = M.templateProfile(); p.site = { lat: 45, lon: 9, sqm: 19 }; p.horizon = [];
+  const C = M.computePrep(M.profileConfigs(p), p, '2026-10-10', 0), o = M.CAT_BY_ID.get('IC 1396'), r = M.computeObj(C, o), twin = { ...r, o: { ...o, id: 'gemello' } };
+  for (const mode of ['smart', 'all', 'dark']) {
+    const P = M.buildSeason(C, [r, twin], mode);
+    let shared = 0;
+    P.nights.forEach((n, k) => {
+      const h = M.nightRec(C, r, r.e, k, mode === 'dark').h, tot = n.alloc.reduce((a, x) => a + x.a, 0);
+      assert.ok(tot <= h + 1e-6, `${mode}, notte ${k}: ${tot} h assegnate su ${h} disponibili`);
+      if (n.alloc.length > 1) shared++;
+    });
+    assert.ok(P.hours > 1, mode);
+    // lo stesso piano come file di calendario: un evento per assegnazione, dentro la sua notte, righe con CRLF
+    const ics = M.seasonIcs(P, C), ev = ics.split('BEGIN:VEVENT').slice(1), utc = (s) => Date.parse(s.replace(/(\d{4})(\d\d)(\d\d)T(\d\d)(\d\d)(\d\d)Z/, '$1-$2-$3T$4:$5:$6Z'));
+    assert.equal(ev.length, P.nights.reduce((a, n) => a + n.alloc.length, 0), mode);
+    assert.ok(ics.startsWith('BEGIN:VCALENDAR\r\n') && ics.endsWith('END:VCALENDAR\r\n') && !/[^\r]\n/.test(ics), mode);
+    for (const e of ev.slice(0, 20)) { const a = utc(/DTSTART:(\S+)/.exec(e)[1]), b = utc(/DTEND:(\S+)/.exec(e)[1]); assert.ok(b > a && b - a <= 16 * 3600e3 && /SUMMARY:(IC 1396|gemello) · /.test(e), e); }
+    // un target solo: finisce la stessa notte del suo calendario
+    const one = M.buildSeason(C, [r], mode), cal = M.shootCalendar(C, r, r.e, false, mode);
+    if (one.targets[0].done != null || cal.done) assert.equal(M.aheadNight(C, one.targets[0].done).t0, cal.done, mode);
+  }
+});
+
 test('pannelli per N.I.N.A.: centro e PA come nell’anteprima', () => {
   const o = { ra: 10.68, dec: 41.27 }, g = { W: 150, H: 100 }, near = (a, b, e, m) => assert.ok(Math.abs(a - b) < e, `${m}: ${a} invece di ${b}`);
   const dRa = (p) => (((p.ra - o.ra + 540) % 360) - 180) * Math.cos(o.dec * Math.PI / 180) * 60; // primi verso est
@@ -137,6 +234,16 @@ test('CSV per N.I.N.A. nel formato di Telescopius', () => {
   assert.equal(m[1], 'M 42  Orione Pannello 1, 21hr 00\' 00.0", -0º 18\' 00", 12.35, 134.60, 89.96, 10%, 1, 1');
   assert.equal(m[2], 'M 42  Orione Pannello 2, 0hr 00\' 00.0", -46º 00\' 00", 0.00, 134.60, 89.96, 10%, 1, 2');
   near(dms(m[1].split(',')[2]), -0.3, 1e-9, 'Dec negativa');
+});
+
+test('profili importati incompleti: l’app parte lo stesso', () => {
+  const p = M.migrateProfile({ camera: { type: 'osc' }, optics: [{ ap: 80 }, null, { name: 7, fl: -3 }] });
+  assert.equal(p.optics.length, 2);
+  assert.ok(p.optics.every((o) => typeof o.name === 'string' && o.ap > 0 && o.fl > 0 && o.id && Array.isArray(o.accessories)));
+  assert.ok(p.id && p.name && p.camera.w > 0 && p.camera.pix > 0 && p.session && Array.isArray(p.filters.owned));
+  p.site = { lat: 45, lon: 9, sqm: 19 }; p.horizon = [];
+  const C = M.computePrep(M.profileConfigs(p), p, '2026-10-10', 0);
+  assert.ok(M.computeObj(C, M.CAT_BY_ID.get('NGC 7000')).e.best);
 });
 
 test('profili delle versioni vecchie', () => {
@@ -184,5 +291,11 @@ test('archivio dei profili: copie di sicurezza e file illeggibile', async () => 
     // passaggio a un formato nuovo: si tiene il file com'era
     await st.save({ version: 2, profiles: [] }); await st.save(data(6));
     assert.ok(fs.existsSync(path.join(dir, 'profili-v2-backup.json')));
+    // file che non si apre (qui una cartella al suo posto, come un file occupato): non è rovinato, non si tocca e non si scrive
+    const dir2 = path.join(dir, 'occupato'), f2 = path.join(dir2, 'profili.json'); fs.mkdirSync(f2, { recursive: true });
+    const st2 = createStore(() => f2), got = await st2.load();
+    assert.deepEqual(got, { blocked: true });
+    await assert.rejects(st2.save(data(7)));
+    assert.ok(fs.statSync(f2).isDirectory() && fs.readdirSync(dir2).length === 1);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

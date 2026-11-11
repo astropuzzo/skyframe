@@ -17,7 +17,9 @@ const it = (x, d = 1) => (LANG === 'it' ? Number(x).toFixed(d).replace('.', ',')
    Notti, orari e date si contano nell'ora civile del luogo. Il fuso viene dal luogo (site.tz, nome IANA dato da
    Open-Meteo); se manca si usa quello del dispositivo quando la longitudine è compatibile (entro 3 ore), altrimenti il
    fuso teorico della longitudine (15° per ora). null = fuso del dispositivo. */
-const DEV_TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || null; } catch (e) { return null; } })();
+const DEV = { tz: null, at: -Infinity };
+/* fuso del dispositivo, riletto ogni minuto: può cambiare ad app aperta (un viaggio, le impostazioni) */
+function devTz() { const now = Date.now(); if (!(Math.abs(now - DEV.at) < 60000)) { DEV.at = now; try { DEV.tz = Intl.DateTimeFormat().resolvedOptions().timeZone || null; } catch (e) { DEV.tz = null; } } return DEV.tz; }
 const TZ_OFF = new Map();
 /* minuti a est di UTC nell'istante ms */
 function tzOff(ms, tz) {
@@ -36,7 +38,7 @@ function tzOff(ms, tz) {
 }
 function siteTz(site) {
   if (!site) return null;
-  if (site.tz) return site.tz === DEV_TZ ? null : site.tz;
+  if (site.tz) return site.tz === devTz() ? null : site.tz;
   const lon = +site.lon; if (!isFinite(lon)) return null;
   const h = clamp(Math.round(lon / 15), -12, 14);
   return Math.abs(h - tzOff(Date.now(), null) / 60) <= 3 ? null : h === 0 ? 'Etc/GMT' : `Etc/GMT${h > 0 ? '-' : '+'}${Math.abs(h)}`;
@@ -106,6 +108,12 @@ function moonPos(J) {
 }
 function moonIllum(J) { const s = sunPos(J), m = moonPos(J); const el = Math.acos(clamp(Math.cos(m.lat * D2R) * Math.cos((m.lon - s.lon) * D2R), -1, 1)); return { k: (1 - Math.cos(el)) / 2, waxing: norm360(m.lon - s.lon) < 180 }; }
 const unit = (ra, dec) => { const r = ra * D2R, d = dec * D2R; return [Math.cos(d) * Math.cos(r), Math.cos(d) * Math.sin(r), Math.sin(d)]; };
+/* La Luna è vicina (60,27 raggi terrestri in media): vista dal luogo sta più bassa che dal centro della Terra, fino a
+   0,95°. moonTopo corregge l'altezza; moonTopoV dà la direzione vista dal luogo, per la distanza dai target.
+   MOON_RISE: altezza del centro quando il lembo superiore tocca l'orizzonte (rifrazione 34′, semidiametro 15,5′). */
+const MOON_PAR = 0.9507, MOON_RISE = -0.833;
+const moonTopo = (h) => h - MOON_PAR * Math.cos(h * D2R);
+function moonTopoV(v, lst, sL, cL) { const l = lst * D2R, k = 1 / 60.27, x = v[0] - k * cL * Math.cos(l), y = v[1] - k * cL * Math.sin(l), z = v[2] - k * sL, n = Math.hypot(x, y, z); return [x / n, y / n, z / n]; }
 const airmass = (h) => 1 / (Math.sin(Math.max(h, 1) * D2R) + 0.50572 * Math.pow(Math.max(h, 1) + 6.07995, -1.6364));
 
 /* colore approssimato di una stella dall'indice B−V */

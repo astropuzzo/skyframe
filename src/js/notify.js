@@ -56,11 +56,12 @@ const dayName = (t0) => { const d = fmtNight(t0, { weekday: 'long' }); return d.
 /* ultime settimane di un target: una volta al mese, dalle 18 del giorno in cui gli restano dieci notti */
 function seasonAlerts() {
   if (!ncfg().season || !SP.plan || !state.res) return [];
-  const C = state.res.C, out = [], w = wall(Date.now());
+  const C = state.res.C, out = [], w = wall(Date.now()), used = new Set();
   for (const tg of SP.plan.targets) {
     if (tg.last < 0 || tg.rem < 0.2) continue;
     const from = aheadNight(C, Math.max(0, tg.last - 10)).t0 + 6 * 3600e3;
-    out.push({ id: 100 + (hash(tg.id) % 800), key: tg.id + '|s|' + w.getUTCFullYear() + '-' + w.getUTCMonth(), at: from, title: tx('{t}: ultime settimane', { t: tg.id }), body: tx('Periodo favorevole fino al {d}, manca il {p}%.', { d: fmtDay(aheadNight(C, tg.last).t0), p: Math.round(tg.rem * 100) }) });
+    let id = 100 + (hash(tg.id) % 800); while (used.has(id)) id = 100 + ((id - 99) % 800); used.add(id); // due target, due avvisi
+    out.push({ id, key: tg.id + '|s|' + w.getUTCFullYear() + '-' + w.getUTCMonth(), at: from, title: tx('{t}: ultime settimane', { t: tg.id }), body: tx('Periodo favorevole fino al {d}, manca il {p}%.', { d: fmtDay(aheadNight(C, tg.last).t0), p: Math.round(tg.rem * 100) }) });
   }
   return out;
 }
@@ -72,10 +73,7 @@ async function planNotifications() {
   if (c.season || c.top) {
     const key = seasonKey(seasonTargets());
     if (!SP.plan || SP.key !== key) {
-      if (planNotifications.waiting !== key) {
-        planNotifications.waiting = key;
-        seasonPlan(() => { if (planNotifications.waiting === key) { planNotifications.waiting = ''; planNotifications(); } });
-      }
+      if (!planNotifications.waiting) { planNotifications.waiting = true; seasonPlan(() => { planNotifications.waiting = false; planNotifications(); }); }
       if (!nat) return;
     }
   }
@@ -87,21 +85,25 @@ async function planNotifications() {
   // stasera e domani sera
   const nights = [];
   for (let k = 0; k < 2; k++) {
-    const ds = addDays(today, k), P = ds === state.res.night.ds ? { night: state.res.night, plan: tonightPlan() } : planOtherNight(ds);
+    const ds = addDays(today, k), P = ds === state.res.night.ds ? { night: state.res.night, plan: tonightPlan(false, true) } : planOtherNight(ds);
     const ev = P ? evalNight(P.night, P.plan) : null; if (ev) nights.push({ k, ds, ev });
   }
   for (const x of nights) {
     const at = x.ev.d0 - lead;
     if (c.evening && x.ev.good && at > now) out.push({ id: 1 + x.k, at, title: x.ev.title, body: x.ev.body });
   }
-  // il meteo è cambiato: stanotte si apre, o si chiude dopo l'avviso
+  // il meteo è cambiato: stanotte si apre, o si chiude dopo l'avviso. Si confrontano solo due previsioni diverse dello
+  // stesso luogo: cambiare profilo, luogo o finire un target non è un cambio di meteo
   const t = nights.find((x) => x.k === 0);
-  if (t && c.change && now > t.ev.d0 - 6 * 3600e3 && now < t.ev.d1 - 2 * 3600e3) {
-    const prev = LS.get('sf.nstate', {})[t.ds];
-    if (prev && !prev.good && t.ev.good && !sent[t.ds + 'o']) { out.push({ id: 41, at: now + 2000, title: tx('Schiarita prevista: {w}', { w: t.ev.when }), body: t.ev.body }); sentMark(t.ds + 'o'); }
-    else if (prev && prev.good && !t.ev.good && t.ev.w && (sent[t.ds + 'e'] || now > t.ev.d0 - lead) && !sent[t.ds + 'b']) { out.push({ id: 51, at: now + 2000, title: tx('Cambio di programma: nuvole'), body: tx('Previsione aggiornata: solo il {p}% del buio è sereno.', { p: Math.round(t.ev.w.clear * 100) }) }); sentMark(t.ds + 'b'); }
-    LS.set('sf.nstate', { [t.ds]: { good: t.ev.good } });
-    if (t.ev.good && now > t.ev.d0 - lead) sentMark(t.ds + 'e');
+  if (t && c.change && wxOk() && t.ev.w && now > t.ev.d0 - 6 * 3600e3 && now < t.ev.d1 - 2 * 3600e3) {
+    const sk = siteKey(activeLoc().site) + '|' + t.ds, prev = LS.get('sf.nstate', {})[sk], w = t.ev.w;
+    const clear = w.clear * t.ev.n.darkH >= 1.5 && w.clear >= (c.min >= 4 ? 0.7 : c.min >= 3 ? 0.5 : 0.3);
+    if (prev && prev.at !== WX.d.at) {
+      if (!prev.clear && clear && t.ev.good && !sent[sk + 'o']) { out.push({ id: 41, at: now + 2000, title: tx('Schiarita prevista: {w}', { w: t.ev.when }), body: t.ev.body }); sentMark(sk + 'o'); }
+      else if (prev.clear && !clear && (sent[sk + 'e'] || now > t.ev.d0 - lead) && !sent[sk + 'b']) { out.push({ id: 51, at: now + 2000, title: tx('Cambio di programma: nuvole'), body: tx('Previsione aggiornata: solo il {p}% del buio è sereno.', { p: Math.round(w.clear * 100) }) }); sentMark(sk + 'b'); }
+    }
+    LS.set('sf.nstate', { [sk]: { clear, at: WX.d.at } });
+    if (t.ev.good && now > t.ev.d0 - lead) sentMark(sk + 'e');
   }
   // notti ottime nei prossimi tre giorni: il giorno prima alle 12:30 (o subito, se è già passato)
   if (c.top) {
@@ -132,11 +134,12 @@ function recipeOf(n, plan) {
     if (up && a < 0) a = n.t[i]; else if (!up && a >= 0) { moon.push([a, n.t[i - 1] + DT]); a = -1; }
   }
   const d0 = n.t[n.first], r = { ds: n.ds, t0: n.t0, d0, d1: n.t[n.last] + DT, tz: tzOff(d0, TZ.id), ill: Math.round(n.moonIll * 1000) / 1000, moon, day: dayName(n.t0) };
-  if (plan) r.blocks = plan.blocks.map((b) => ({ id: b.id, a: b.t0, b: b.t1 }));
+  // senza target tuoi e senza niente di riprendibile non c'è un piano da rispettare: decide il cielo
+  if (plan && (plan.mine || plan.blocks.length)) r.blocks = plan.blocks.map((b) => ({ id: b.id, a: b.t0, b: b.t1 }));
   return r;
 }
 function clearPlan(ds) {
-  if (ds === state.res.night.ds) return { night: state.res.night, plan: tonightPlan(true) };
+  if (ds === state.res.night.ds) return { night: state.res.night, plan: tonightPlan(true, true) };
   return planOtherNight(ds, true) || { night: computeNight(active(), ds), plan: null };
 }
 function recipeSoon() { clearTimeout(RCP.t); RCP.t = setTimeout(recipeBuild, 300); }
@@ -144,8 +147,7 @@ function recipeSoon() { clearTimeout(RCP.t); RCP.t = setTimeout(recipeBuild, 300
 function recipeBuild() {
   if (!nativeAlerts() || !state.res || !notifyOn()) return;
   const today = defaultNightStr(), ids = Object.keys(state.projects).filter((id) => inMyList(id) && !isDone(id)).sort();
-  const top = state.res.night.ds === today && !ids.length ? state.filtered.slice(0, 6).map((r) => r.o.id).join(',') : '';
-  const key = [hash(JSON.stringify(active())), today, state.res.night.ds === today, ids.map((id) => id + ':' + projProgress(id).toFixed(3)).join(','), JSON.stringify(LS.get('sf.planEd', {})), moonMode(), top].join('|');
+  const key = [hash(JSON.stringify(active())), today, state.res.night.ds === today, ids.map((id) => id + ':' + projProgress(id).toFixed(3)).join(','), JSON.stringify(LS.get('sf.planEd', {})), moonMode()].join('|');
   if (RCP.key !== key) { RCP.key = key; RCP.map = new Map(); }
   const job = ++RCP.job; let k = 0;
   const step = () => {
@@ -163,7 +165,7 @@ async function recipeSend(today) {
   // giudizio dell'app su stasera e domani: serve se all'ora dell'avviso manca la rete
   if (WX.d && wxOk()) for (let k = 0; k < 2; k++) {
     const ds = addDays(today, k), r = nights.find((x) => x.ds === ds); if (!r) continue;
-    const P = ds === state.res.night.ds ? { night: state.res.night, plan: tonightPlan() } : planOtherNight(ds), ev = P ? evalNight(P.night, P.plan) : null;
+    const P = ds === state.res.night.ds ? { night: state.res.night, plan: tonightPlan(false, true) } : planOtherNight(ds), ev = P ? evalNight(P.night, P.plan) : null;
     if (ev && ev.w) Object.assign(r, { good: ev.good, when: ev.when, body: ev.body, extra: ev.see });
   }
   const cfg = {

@@ -14,6 +14,10 @@ else if (process.env.SKYFRAME_SMOKE) { // lo smoke test lavora su una copia dei 
   fsS.mkdirSync(dir, { recursive: true }); try { fsS.copyFileSync(src, path.join(dir, 'profili.json')); } catch { /* nessun profilo: si parte dall'esempio */ }
   app.setPath('userData', dir);
 }
+// una finestra sola: due finestre salverebbero ognuna il suo stato sopra quello dell'altra
+const FIRST = !!(process.env.SKYFRAME_SMOKE || process.env.SKYFRAME_EVAL || process.env.SKYFRAME_LPM_TEST) || app.requestSingleInstanceLock();
+if (!FIRST) app.quit();
+else app.on('second-instance', () => { const w = BrowserWindow.getAllWindows()[0]; if (w) { if (w.isMinimized()) w.restore(); w.show(); w.focus(); } });
 const dataFile = () => path.join(app.getPath('userData'), 'profili.json');
 /* profili salvati con il nome precedente dell'app */
 async function migrateOldProfiles() {
@@ -50,11 +54,12 @@ function createWindow() {
     if (/^https:\/\//.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
+  // si resta sulla pagina dell'app: un file lasciato cadere sulla finestra non la sostituisce
+  const appUrl = require('url').pathToFileURL(path.join(__dirname, 'src', 'index.html')).href;
   win.webContents.on('will-navigate', (e, url) => {
-    if (!url.startsWith('file://')) {
-      e.preventDefault();
-      if (/^https:\/\//.test(url)) shell.openExternal(url);
-    }
+    if (url.split(/[?#]/)[0] === appUrl) return;
+    e.preventDefault();
+    if (/^https:\/\//.test(url)) shell.openExternal(url);
   });
 
   win.once('ready-to-show', () => win.show());
@@ -310,6 +315,7 @@ ipcMain.handle('profiles:import', async (e) => {
 });
 
 app.whenReady().then(async () => {
+  if (!FIRST) return;
   // prova dell'automazione all-sky: SKYFRAME_LPM_TEST="lat,lon" salva le immagini nella cartella temporanea
   if (process.env.SKYFRAME_LPM_TEST) {
     const [la, lo] = process.env.SKYFRAME_LPM_TEST.split(',').map(Number), t0 = Date.now();

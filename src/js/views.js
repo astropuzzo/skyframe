@@ -24,7 +24,7 @@ function renderFacts() {
   const title = n.ds === defaultNightStr() ? tx('Stanotte') : fmtNight(n.t0, { weekday: 'long', day: 'numeric', month: 'long' });
   const wxV = w ? (w.clear >= 0.85 ? tx('Sereno') : w.clear < 0.15 ? tx('Coperto') : w.win && w.winH >= 1 ? `${fmtT(w.win[0])}–${fmtT(w.win[1])}` : tx('Variabile')) : WX.busy ? '…' : '—';
   const sl = w && seeLvl(w.see), tl = w && traLvl(w.aod);
-  const wxS = w ? [tx('{p}% del buio sereno', { p: Math.round(w.clear * 100) }), w.prob != null ? tx('probabilità {p}%', { p: Math.round(w.prob * 100) }) : '', sl ? tx('seeing {s}', { s: tx(sl.t).toLowerCase() }) : '', tl ? tx('trasparenza {s}', { s: tx(tl.t).toLowerCase() }) : ''].filter(Boolean).join(' · ') : WX.busy ? tx('previsioni in caricamento') : WX.err ? tx('senza connessione: si assume cielo sereno') : tx('oltre l’orizzonte delle previsioni (si assume cielo sereno)');
+  const wxS = w ? [tx('{p}% del buio sereno', { p: Math.round(w.clear * 100) }), w.prob != null ? tx('probabilità {p}%', { p: Math.round(w.prob * 100) }) : '', sl ? tx('seeing {s}', { s: tx(sl.t).toLowerCase() }) : '', tl ? tx('trasparenza {s}', { s: tx(tl.t).toLowerCase() }) : '', wxStale()].filter(Boolean).join(' · ') : WX.busy ? tx('previsioni in caricamento') : WX.err ? tx('senza connessione: si assume cielo sereno') : tx('oltre l’orizzonte delle previsioni (si assume cielo sereno)');
   const warn = w ? [w.dew != null && w.dew <= 2 ? ic('drop') + tx('rischio di condensa: riscalda l’ottica') : '', w.gust != null && w.gust >= 30 ? ic('wind') + tx('raffiche fino a {v} km/h', { v: w.gust }) : '', w.dust != null && w.dust >= 60 ? ic('cloud') + tx('polvere del deserto') : ''].filter(Boolean) : [];
   $('#facts').innerHTML = `<div class="vd-top"><div><h2>${esc(title.charAt(0).toUpperCase() + title.slice(1))}</h2><div class="sub">${esc(sub)}</div></div><span class="rate r${q.r}" title="${tx('Voto: ore buie, serene, senza Luna')}"><i></i>${tx(q.label)}</span></div>
     <div class="vd-stats">
@@ -405,7 +405,7 @@ function commonsPhotos(o) {
     // prima le foto degli astrofili, poi quelle degli osservatori; niente doppioni (stessa foto in jpg e png)
     const seen = new Set();
     return out.sort((a, b) => a.pro - b.pro).filter((x) => { const k = x.title.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 16);
-  })().catch(() => []);
+  })().catch(() => { photoCache.delete(o.id); return []; });
   photoCache.set(o.id, job); return job;
 }
 
@@ -459,10 +459,10 @@ function wireGallery(r, e) {
     const img = $('#gImg'); if (!img || !img.src || img.classList.contains('wait')) return;
     const lb = document.createElement('div'); lb.className = 'lightbox'; lb.setAttribute('role', 'dialog');
     lb.innerHTML = `<img src="${esc(img.src)}" alt="${esc(o.id)}"><div class="lbcap">${$('#gCap').innerHTML}</div>`;
-    const close = () => { lb.remove(); document.removeEventListener('keydown', key, true); };
+    const close = (fromPop) => { if (!lb.isConnected) return; lb.remove(); document.removeEventListener('keydown', key, true); if (fromPop !== true) backDone(close); };
     const key = (ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); close(); } };
     lb.onclick = (ev) => { if (!ev.target.closest('a')) close(); };
-    document.addEventListener('keydown', key, true); document.body.appendChild(lb);
+    document.addEventListener('keydown', key, true); document.body.appendChild(lb); backPush(close);
   };
   commonsPhotos(o).then((list) => {
     const ph = $('#gPh'); if (!ph || state.sel !== o.id) return;
@@ -562,6 +562,7 @@ function renderDetail() {
   const chips = [
     r.usableH >= 0.25 ? `<span class="hc">${tx('Stanotte visibile {w} · altezza massima {a}°', { w: win, a: Math.round(r.maxA) })}</span>` : `<span class="hc bad">${tx('Stanotte non è riprendibile')}</span>`,
     moonCost ? `<span class="hc warn">${tx('Luna al {p}%: stanotte {h}', { p: Math.round(n.moonIll * 100), h: fmtH(hm) })}</span>` : '',
+    r.transit && r.first >= 0 && r.transit > n.t[r.first] && r.transit < n.t[r.last] + DT ? `<span class="hc">${tx('Meridiano {t}', { t: fmtT(r.transit) })}</span>` : '',
     `<span class="hc" id="periodChip">${tx('Periodo…')}</span>`,
     `<span class="hc">${esc(tx(e.fill.label))}${e.fill.sub ? ` · ${esc(e.fill.sub)}` : ''}</span>`,
     bl ? `<span class="hc loc">${esc(bl.l.site.name)} ≈ ${fmtH(bl.s.h)}${bl.gain != null ? ` (−${Math.round(bl.gain * 100)}%)` : ''}</span>` : '',
@@ -683,13 +684,13 @@ function renderPeriod(r) {
 /* porta l'app su un'altra notte lasciando aperto il target (t0: istante della notte o data AAAA-MM-GG) */
 function goNight(t0, quiet) {
   const ds = typeof t0 === 'string' ? t0 : dsOf(t0), d = new Date(ds + 'T12:00:00Z');
-  $('#nightDate').value = ds; state.live = ds === defaultNightStr(); state.playing = false;
+  $('#nightDate').value = ds; state.follow = state.live = ds === defaultNightStr(); state.userTime = false; state.playing = false;
   $('#liveBtn').setAttribute('aria-pressed', String(state.live)); setPlayIcon();
   refresh(); if (!quiet) toast(tx('Notte del {d}', { d: d.toLocaleDateString(LOCALE, { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' }) }));
 }
 /* ---------- grafici della notte: lettura al passaggio, clic/trascina per l'ora ---------- */
 function setTimeFromChart(i) {
-  const n = state.res.night; state.live = false; state.playing = false; Dome.setAnimating(false);
+  const n = state.res.night; state.live = false; state.userTime = true; state.playing = false; Dome.setAnimating(false);
   $('#liveBtn').setAttribute('aria-pressed', 'false'); setPlayIcon();
   Dome.tweenTo(n.t[clamp(i, n.w0, n.w1)], onTime);
 }

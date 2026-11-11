@@ -281,7 +281,14 @@ function migrateProfile(p) {
     p.optics = [{ id: 'o1', ...clean, useNative: nat !== false, accessories: acc }];
     delete p.optic; delete p.accessories; delete p.useNative;
   }
-  p.optics.forEach((o, i) => { if (!o.id) o.id = 'o' + (i + 1); if (!Array.isArray(o.accessories)) o.accessories = []; });
+  // file scritti a mano o da altri programmi: campi mancanti non devono fermare l'avvio
+  p.optics = p.optics.filter((o) => o && typeof o === 'object');
+  if (!p.optics.length) p.optics = [{ name: 'Telescopio', ap: 80, fl: 480, obs: 0, useNative: true }];
+  p.optics.forEach((o, i) => { if (!o.id) o.id = 'o' + (i + 1); if (!Array.isArray(o.accessories)) o.accessories = []; o.name = String(o.name || 'Telescopio'); if (!(+o.ap > 0)) o.ap = 60; if (!(+o.fl > 0)) o.fl = 300; });
+  if (!p.id) p.id = 'p-' + Math.random().toString(36).slice(2, 9);
+  p.name = String(p.name || 'Profilo');
+  const cam = p.camera; if (!(+cam.w > 0)) cam.w = 4000; if (!(+cam.h > 0)) cam.h = 3000; if (!(+cam.pix > 0)) cam.pix = 3.76; if (!cam.type) cam.type = 'osc';
+  if (!p.session || typeof p.session !== 'object') p.session = templateProfile().session;
   if (p.filters && !Array.isArray(p.filters.owned)) { // vecchio formato sì/no → filtri generici
     const f = p.filters, nb = +f.nbw || 7, set = nb <= 3.5 ? 'chr3' : nb <= 5 ? 'chr5' : nb <= 6.5 ? 'bd65' : nb <= 7 ? 'zwo7' : 'ast12';
     const owned = [];
@@ -414,10 +421,14 @@ function qeRel(l) {
 const PIX_FRAC = { mono: 1, all: 1, R: 0.25, GB: 0.75 };
 function wAt(w, l) { const q = qeRel(l); if (w === 'mono') return q; const b = bayer(l); return q * (w === 'R' ? 0.25 * b.R : w === 'GB' ? 0.5 * b.G + 0.25 * b.B : 0.25 * b.R + 0.5 * b.G + 0.25 * b.B); }
 const TAt = (f, l) => { for (const [lo, hi, t] of f.bands) if (l >= lo && l <= hi) return t; return 0; };
-/* integrali di un canale (filtro × risposta pixel), calcolati una volta */
+/* integrali di un canale (filtro × risposta pixel), calcolati una volta: a fette di 1 nm tagliate sui bordi della banda
+   (un filtro da 3,5 nm e uno da 4,5 nm non contano più tutti e due 4 nm) */
 function channelSpec(f, w, target, extra) {
   let I = 0, lc = 0;
-  for (const [lo, hi, t] of f.bands) for (let l = Math.ceil(lo); l <= Math.floor(hi); l++) { const v = t * wAt(w, l); I += v * 10; lc += v * l; }
+  for (const [lo, hi, t] of f.bands) for (let l = Math.floor(lo); l < hi; l++) {
+    const a = Math.max(lo, l), b = Math.min(hi, l + 1); if (b <= a) continue;
+    const lm = (a + b) / 2, v = t * wAt(w, lm) * (b - a); I += v * 10; lc += v * lm;
+  }
   const center = I > 0 ? lc * 10 / I : 550;
   const skyL = LP_LINES.reduce((s, l) => s + TAt(f, l) * wAt(w, l), 0);
   const lineW = {}; LINE_WL.forEach(([l, g, k]) => (lineW[k] = TAt(f, l) * wAt(w, l)));
@@ -512,8 +523,9 @@ function defaultNightStr() { const now = Date.now(), w = wall(now); return w.get
 const dateStr = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 function hmToOff(s) { if (!s) return null; const [h, m] = s.split(':').map(Number); return ((h * 60 + m - 720) + 1440) % 1440; }
 const msToOff = (ms, tz) => { const w = wall(ms, tz); return (w.getUTCHours() * 60 + w.getUTCMinutes() - 720 + 1440) % 1440; };
-/* dentro l'orario della sessione ("dalle", "alle"); off = minuti da mezzogiorno */
-const inSession = (off, f, to) => (f != null && to != null ? (f <= to ? off >= f && off <= to : off >= f || off <= to) : f != null ? off >= f : to != null ? off <= to : true);
+/* dentro l'orario della sessione ("dalle", "alle"); off = minuti da mezzogiorno. L'ora di fine è esclusa: ogni campione
+   vale per i minuti che lo seguono, e una sessione 20:00–04:00 dura otto ore giuste */
+const inSession = (off, f, to) => (f != null && to != null ? (f <= to ? off >= f && off < to : off >= f || off < to) : f != null ? off >= f : to != null ? off < to : true);
 function computeNight(p, ds, withMoon = true) {
   const tz = siteTz(p.site), [y, m, d] = ds.split('-').map(Number), t0 = wallMs(y, m - 1, d, 12, 0, tz);
   const lat = p.site.lat * D2R, sL = Math.sin(lat), cL = Math.cos(lat), lon = +p.site.lon, thr = +p.session.sunThr;
@@ -525,7 +537,7 @@ function computeNight(p, ds, withMoon = true) {
     const s = sunPos(J); sun[i] = altaz(s.ra, s.dec, lst[i], sL, cL)[0];
     if (withMoon) {
       const mo = moonPos(J); const aa = altaz(mo.ra, mo.dec, lst[i], sL, cL);
-      mAlt[i] = aa[0] - 0.95 * Math.cos(aa[0] * D2R); mAz[i] = aa[1]; mV.push(unit(mo.ra, mo.dec));
+      mAlt[i] = moonTopo(aa[0]); mAz[i] = aa[1]; mV.push(moonTopoV(unit(mo.ra, mo.dec), lst[i], sL, cL));
       const el = Math.acos(clamp(Math.cos(mo.lat * D2R) * Math.cos((mo.lon - s.lon) * D2R), -1, 1)); mIll[i] = (1 - Math.cos(el)) / 2; if (i === N / 2) waxing = norm360(mo.lon - s.lon) < 180;
     }
     darkAll[i] = sun[i] < thr ? 1 : 0;
@@ -541,7 +553,7 @@ function computeNight(p, ds, withMoon = true) {
   const mid = first >= 0 ? Math.round((first + last) / 2) : N / 2;
   return {
     t0, t, lst, sun, mAlt, mAz, mIll, mV, dark, darkAll, sL, cL, thr, w0, w1, sunset: idxT(sunset), sunrise: idxT(sunrise),
-    darkH: dc * STEP / 60, moonUpFrac: dc ? mUp / dc : 0, moonIll: mIll[mid], waxing, mRise: idxT(cross(mAlt, 0, false)), mSet: idxT(cross(mAlt, 0, true)),
+    darkH: dc * STEP / 60, moonUpFrac: dc ? mUp / dc : 0, moonIll: mIll[mid], waxing, mRise: idxT(cross(mAlt, MOON_RISE, false)), mSet: idxT(cross(mAlt, MOON_RISE, true)),
     first, last, ds, tz, J: jd(t0 + N / 2 * DT), kV: extV(p.site),
   };
 }
@@ -817,26 +829,32 @@ function evalStrategies(o, S, K, U, Q, T, field) {
       }
       if (dust && c.target === 'all') R.push({ S: chanSignal(c, 'DN', Math.max(dust.sb, DUST_SB), K), snr: Q.faint * DUST_SNR * DUST_CTX * (c.snr || 1) * snrK(Math.max(dust.sb, DUST_SB), SNR_B.faint), what: 'dust' });
       // sub: minimo perché il fondo cielo (con la Luna di stanotte) copra 10× il rumore di lettura; poi limiti pratici del filtro
-      const skyPx = F0 * K.Aeff0 * K.pxArea * ((0.75 * c.I + 44 * c.skyL) * avg.art + c.I * (avg.nat + avg.mf)) / PIX_FRAC[c.w];
+      const pf = PIX_FRAC[c.w] || 1, [lo, hi] = subLimits(c.f || st.f, K.fr), fk = (c.f || st.f).kind;
       // oltre il minimo che copre il rumore di lettura l'SNR non cambia: in banda larga decide la posa più lunga che le stelle
       // reggono, se indicata nel telescopio; altrimenti il minimo della fascia pratica del filtro
-      const minSub = 10 * K.rn * K.rn / Math.max(1e-9, skyPx), [lo, hi] = subLimits(c.f || st.f, K.fr), fk = (c.f || st.f).kind;
-      const sub = K.subMax && (fk === 'bb' || fk === 'lp') ? Math.max(K.subMax, Math.ceil(minSub)) : niceSub(clamp(minSub * 6, lo, hi));
-      const Nc = K.dark * K.npix + K.npix * K.rn * K.rn / sub;
+      const subFor = (mf) => {
+        const skyPx = F0 * K.Aeff0 * K.pxArea * ((0.75 * c.I + 44 * c.skyL) * avg.art + c.I * (avg.nat + mf)) / pf, minSub = 10 * K.rn * K.rn / Math.max(1e-9, skyPx);
+        return [K.subMax && (fk === 'bb' || fk === 'lp') ? Math.max(K.subMax, Math.ceil(minSub)) : niceSub(clamp(minSub * 6, lo, hi)), minSub];
+      };
+      // la posa consigliata è quella di stanotte (con la sua Luna); le ore senza Luna si contano con la posa senza Luna
+      const [sub, minSub] = subFor(avg.mf), sub0 = avg.mf > 0 ? subFor(0)[0] : sub;
+      // rumore di lettura e corrente di buio dei soli pixel che vedono il canale (in una camera a colori un quarto per il
+      // rosso, tre quarti per verde e blu), come il segnale e il fondo
+      const noise = (s) => pf * K.npix * (K.dark + K.rn * K.rn / s), Nc = noise(sub), Nc0 = noise(sub0);
       const Blp = F0 * K.geo * (0.75 * c.I + 44 * c.skyL), Bc = F0 * K.geo * c.I;
-      chans.push({ c, st, R, sub, minSub, Nc, Blp, Bc, acc: new Float64Array(R.length), accD: new Float64Array(R.length) });
+      chans.push({ c, st, R, sub, minSub, Nc, Nc0, Blp, Bc, acc: new Float64Array(R.length), accD: new Float64Array(R.length) });
     }));
     for (let u = 0; u < U.n; u++) {
       const X = U.X[u], w = U.w ? U.w[u] : 1;
       if (w <= 0) continue;
       for (const ch of chans) {
-        const B0 = ch.Blp * U.art[u] + ch.Bc * U.nat[u] + ch.Nc, B = B0 + ch.Bc * U.mf[u], ex = Math.pow(10, -0.4 * ch.c.ext * ef * (X - 1));
+        const sky = ch.Blp * U.art[u] + ch.Bc * U.nat[u], B0 = sky + ch.Nc0, B = sky + ch.Nc + ch.Bc * U.mf[u], ex = Math.pow(10, -0.4 * ch.c.ext * ef * (X - 1));
         for (let q = 0; q < ch.R.length; q++) { const Sg = ch.R[q].S * ex; ch.acc[q] += w * Sg * Sg / (Sg + B); ch.accD[q] += w * Sg * Sg / (Sg + B0); }
       }
     }
     // ore per requisito: [ideale (al transito, senza Luna), con la Luna della notte, senza Luna lungo il percorso della notte]
     const hours = (ch, k) => {
-      const q = ch.R[k], exT = Math.pow(10, -0.4 * ch.c.ext * ef * (T.X - 1)), BT = ch.Blp * T.art + ch.Bc * T.nat + ch.Nc;
+      const q = ch.R[k], exT = Math.pow(10, -0.4 * ch.c.ext * ef * (T.X - 1)), BT = ch.Blp * T.art + ch.Bc * T.nat + ch.Nc0;
       const Sg = q.S * exT, rI = Sg * Sg / (Sg + BT), need = q.snr * q.snr, rT = weightSum > 0 ? ch.acc[k] / weightSum : 0, rD = weightSum > 0 ? ch.accD[k] / weightSum : 0;
       return [need / rI / 3600 * ch.c.mult, rT > 0 ? need / rT / 3600 * ch.c.mult : Infinity, rD > 0 ? need / rD / 3600 * ch.c.mult : Infinity];
     };
@@ -992,7 +1010,7 @@ function computePrep(cfgs, active, ds, now) {
 }
 function computeObj(C, o) {
   const { cfgs, active, night, lut, minAlt, sky, Q, consts, alt, az, U } = C;
-  if (active.site.lat >= 0 ? o.dec < C.minDec - 0.5 : o.dec > -C.minDec + 0.5) return null; // non sale mai sopra l'altezza minima
+  if (active.site.lat >= 0 ? o.dec < C.minDec - 0.5 : o.dec > 90 + active.site.lat - minAlt + 0.5) return null; // non sale mai sopra l'altezza minima
   const pr = precess(o.ra, o.dec, night.J), v = unit(pr.ra, pr.dec);
   const use = new Uint8Array(N + 1), blk = new Float32Array(N + 1);
   let maxA = -99, maxI = -1, first = -1, last = -1, minSep = 180, maxAll = -99, riseBlocked = -1; U.n = 0;
@@ -1009,10 +1027,17 @@ function computeObj(C, o) {
     }
   }
   if (maxAll < minAlt) return null;
+  // passaggio in meridiano dentro la notte: lì una montatura equatoriale alla tedesca si ribalta
+  let transit = null;
+  for (let i = 1; i <= N; i++) {
+    const h0 = ((night.lst[i - 1] - pr.ra + 540) % 360) - 180, h1 = ((night.lst[i] - pr.ra + 540) % 360) - 180;
+    if (h0 < 0 && h1 >= 0 && h1 - h0 < 5) { transit = night.t[i - 1] + DT * -h0 / (h1 - h0); break; }
+  }
   let moonSky = false; for (let u = 0; u < U.n; u++) if (U.mf[u] > 0) { moonSky = true; break; }
   if (maxI < 0) for (let i = night.w0; i <= night.w1; i++) if (alt[i] > maxA) { maxA = alt[i]; maxI = i; }
   U.h = U.n * STEP / 60;
-  const usableH = U.h, altT = clamp(maxA, 20, 90), azT = maxI >= 0 ? az[maxI] : 180;
+  // senza ore utili stanotte il riferimento è il passaggio in meridiano (a sud o a nord secondo la declinazione)
+  const lat = +active.site.lat, usableH = U.h, altT = clamp(U.n ? maxA : 90 - Math.abs(lat - pr.dec), 20, 90), azT = U.n && maxI >= 0 ? az[maxI] : pr.dec < lat ? 180 : 0;
   const T = { X: airmass(altT), art: sky.art(altT, azT), nat: sky.nat(altT), ef: Math.exp(-(+active.site.elev || 0) / 8000) };
   const field = fieldOf(o);
   const vis = usableH > 0 ? Math.pow(Math.min(1, usableH / 4.5), 0.7) : 0;
@@ -1028,7 +1053,7 @@ function computeObj(C, o) {
   let nowAlt = null, nowAz = null, nowUse = false;
   if (C.nowIn) { const aa = altaz(pr.ra, pr.dec, C.nowLst, night.sL, night.cL); nowAlt = aa[0]; nowAz = aa[1]; nowUse = nowAlt >= Math.max(minAlt, lut[Math.round(nowAz) % 360]); }
   const skyMag = U.n ? -2.5 * Math.log10(U.art.slice(0, U.n).reduce((a, x) => a + x, 0) / U.n + U.nat.slice(0, U.n).reduce((a, x) => a + x, 0) / U.n) : null;
-  return { o, pr, v, alt: alt.slice(), az: az.slice(), use, blk, usableH, maxA, maxI, maxAll, first, last, minSep, riseBlocked, vis, evals, e: bestE, score: bestE.score, nowAlt, nowAz, nowUse, T, field, skyMag };
+  return { o, pr, v, alt: alt.slice(), az: az.slice(), use, blk, usableH, maxA, maxI, maxAll, first, last, transit, minSep, riseBlocked, vis, evals, e: bestE, score: bestE.score, nowAlt, nowAz, nowUse, T, field, skyMag };
 }
 /* Interesse fotografico: a parità di inquadratura, ore e fatica, una nebulosa vale più di un ammasso aperto (che esce in
    un'ora ma raramente è il soggetto di una foto). Gli oggetti con un nome proprio o nella lista dei classici pesano un
@@ -1070,9 +1095,10 @@ function aheadNight(C, k) {
     if (!inSession(msToOff(ms, A.tz), A.f, A.to)) continue;
     const J = jd(ms), sn = sunPos(J); if (altaz(sn.ra, sn.dec, lst[i], A.sL, A.cL)[0] >= A.thr) continue;
     const mo = moonPos(J), aa = altaz(mo.ra, mo.dec, lst[i], A.sL, A.cL);
-    dark[i] = 1; nd++; mAlt[i] = aa[0] - 0.95 * Math.cos(aa[0] * D2R); mV[i] = unit(mo.ra, mo.dec); if (mAlt[i] > 0) up++;
+    dark[i] = 1; nd++; mAlt[i] = moonTopo(aa[0]); mV[i] = moonTopoV(unit(mo.ra, mo.dec), lst[i], A.sL, A.cL); if (mAlt[i] > 0) up++;
     const el = Math.acos(clamp(Math.cos(mo.lat * D2R) * Math.cos((mo.lon - sn.lon) * D2R), -1, 1)); mIll[i] = moon = (1 - Math.cos(el)) / 2;
   }
+  if (!nd) moon = moonIllum(jd(t0 + 12 * 3600e3)).k; // notte senza buio: la fase c'è lo stesso
   return (A.list[k] = { t0, lst, dark, mAlt, mIll, mV, moon, moonUp: nd ? up / nd : 0, kV: A.kV });
 }
 /* Tre modi di riprendere (scelta dell'utente, C.mode):
@@ -1083,9 +1109,10 @@ function aheadNight(C, k) {
 const MOON_MODES = ['smart', 'all', 'dark'];
 const calMode = (C, mode) => mode || C.mode || (C.active.session.moon === 'dark' ? 'dark' : 'smart');
 const calKey = (r, e, deep, mode) => r.o.id + '|' + e.cfg.key + '|' + (e.best ? e.best.id : '') + (deep ? '|d' : '') + '|' + (mode || 'smart');
-/* La notte k per un target nella configurazione e: ore utili (solo serene dove c'è la previsione, pesate per la trasparenza
-   prevista: C.trans), ore geometriche e T,
-   le ore di posa che servirebbero con notti tutte come questa (Luna, altezza, cielo nella direzione del target). */
+/* La notte k per un target nella configurazione e: ore utili h (serene dove c'è la previsione, mai più di quelle
+   geometriche hGeo), e T, le ore di posa che servirebbero con notti tutte come questa (Luna, altezza, cielo nella
+   direzione del target, trasparenza prevista C.trans). La notte fa h/T del lavoro. sl, sa: per ogni passo di 20 minuti
+   quanto è sereno il tratto utile (0 = non utile) e a che altezza sta il target, per dividere la notte fra più target. */
 function nightRec(C, r, e, k, darkOnly) {
   const b = e.best, A = aheadCtx(C), key = 'n|' + calKey(r, e, false, darkOnly ? 'dark' : 'x') + '|' + k;
   const got = A.cache.get(key); if (got) return got;
@@ -1095,12 +1122,13 @@ function nightRec(C, r, e, k, darkOnly) {
   let x;
   if (k === 0 && !darkOnly) { // stanotte: i valori esatti della lista (ore serene, se c'è la previsione)
     const U = usableSteps(r, C.night, C.sky); U.w = new Float32Array(U.n); U.wSum = 0;
+    const sl = new Float32Array(CAL_N), sa = new Float32Array(CAL_N), per = CAL_STEP / STEP;
     let hs = 0, clearSum = 0, known = false, u = 0;
     for (let i = 0; i <= N; i++) if (r.use[i]) {
       const t = C.night.t[i], f = wx ? wx(t) : null;
       if (f != null) known = true;
-      const clear = f == null ? 1 : clamp(f, 0, 1);
-      hs++; clearSum += clear;
+      const clear = f == null ? 1 : clamp(f, 0, 1), j = Math.floor(i / per);
+      hs++; clearSum += clear; if (j < CAL_N) { sl[j] += clear / per; sa[j] = Math.max(sa[j], r.alt[i]); }
       U.w[u] = clear * (tr ? tr(t, U.X[u]) : 1); U.wSum += U.w[u]; u++;
     }
     let T = b.tonight, TD = b.tonightDeep;
@@ -1108,13 +1136,14 @@ function nightRec(C, r, e, k, darkOnly) {
       T = TD = Infinity;
       if (U.wSum > 0 && S) {
         const ev = evalStrategies(r.o, S, e.K, U, C.Q, r.T, r.field).find((q) => q.id === b.id);
-        if (ev) { T = ev.tonight * panels; TD = ev.tonightDeep * panels; }
+        if (ev) { const kT = clearSum / U.wSum; T = ev.tonight * panels * kT; TD = ev.tonightDeep * panels * kT; }
       }
     }
-    x = { k, t0: nk.t0, h: (known || tr) ? U.wSum * STEP / 60 : r.usableH, hGeo: r.usableH, clear: known ? (hs ? clearSum / hs : 1) : null, T, TD, moon: C.night.moonIll };
+    x = { k, t0: nk.t0, h: clearSum * STEP / 60, hGeo: r.usableH, clear: known ? (hs ? clearSum / hs : 1) : null, T, TD, moon: C.night.moonIll, sl, sa };
   } else {
     const U = A.U || (A.U = { X: new Float32Array(CAL_N), art: new Float32Array(CAL_N), nat: new Float32Array(CAL_N), mf: new Float32Array(CAL_N), w: new Float32Array(CAL_N), n: 0, h: 0, wSum: 0 });
     U.n = 0; U.wSum = 0; let clearSum = 0, known = false;
+    const sl = new Float32Array(CAL_N), sa = new Float32Array(CAL_N);
     for (let i = 0; i < CAL_N; i++) {
       if (!nk.dark[i] || (darkOnly && nk.mAlt[i] > 0 && nk.mIll[i] > 0.1)) continue; const aa = altaz(r.pr.ra, r.pr.dec, nk.lst[i], A.sL, A.cL), a = aa[0], z = aa[1];
       if (a < Math.max(C.minAlt, C.lut[Math.round(z) % 360])) continue;
@@ -1122,12 +1151,12 @@ function nightRec(C, r, e, k, darkOnly) {
       const t = nk.t0 + (i + 0.5) * CAL_STEP * 60000, f = wx ? wx(t) : null;
       if (f != null) known = true;
       const clear = f == null ? 1 : clamp(f, 0, 1);
-      clearSum += clear;
+      clearSum += clear; sl[i] = clear; sa[i] = a;
       U.w[U.n] = clear * (tr ? tr(t, U.X[U.n]) : 1); U.wSum += U.w[U.n]; U.n++;
     }
     const hGeo = U.h = U.n * CAL_STEP / 60; let T = Infinity, TD = Infinity;
-    if (hGeo >= CAL_MIN_H && U.wSum > 0 && S) { const ev = evalStrategies(r.o, S, e.K, U, C.Q, r.T, r.field).find((q) => q.id === b.id); if (ev) { T = ev.tonight * panels; TD = ev.tonightDeep * panels; } }
-    x = { k, t0: nk.t0, h: (known || tr) ? U.wSum * CAL_STEP / 60 : hGeo, hGeo, clear: known ? (U.n ? clearSum / U.n : 1) : null, T, TD, moon: nk.moon };
+    if (hGeo >= CAL_MIN_H && U.wSum > 0 && S) { const ev = evalStrategies(r.o, S, e.K, U, C.Q, r.T, r.field).find((q) => q.id === b.id); if (ev) { const kT = clearSum / U.wSum; T = ev.tonight * panels * kT; TD = ev.tonightDeep * panels * kT; } }
+    x = { k, t0: nk.t0, h: clearSum * CAL_STEP / 60, hGeo, clear: known ? (U.n ? clearSum / U.n : 1) : null, T, TD, moon: nk.moon, sl, sa };
   }
   A.cache.set(key, x); return x;
 }
@@ -1174,13 +1203,13 @@ function shootCalendar(C, r, e, deep, mode) {
 /* Per le prossime notti: frazione del buio con la Luna sopra l'orizzonte, pesata per la fase. */
 function moonCalendar(p, fromDs, nights) {
   const out = [], tz = siteTz(p.site); const [y, m, d] = fromDs.split('-').map(Number);
-  const lat = p.site.lat * D2R, sL = Math.sin(lat), cL = Math.cos(lat), lon = +p.site.lon, thr = +p.session.sunThr;
+  const lat = p.site.lat * D2R, sL = Math.sin(lat), cL = Math.cos(lat), lon = +p.site.lon, thr = +p.session.sunThr, f = hmToOff(p.session.from), to = hmToOff(p.session.to);
   for (let k = 0; k < nights; k++) {
     const t0 = wallMs(y, m - 1, d + k, 12, 0, tz); let dark = 0, moonW = 0, ill = 0;
     for (let i = 0; i <= 144; i++) {
       const ms = t0 + i * 600000, J = jd(ms), lst = lstDeg(ms, lon), s = sunPos(J);
-      if (altaz(s.ra, s.dec, lst, sL, cL)[0] >= thr) continue;
-      dark++; const mo = moonPos(J); const ma = altaz(mo.ra, mo.dec, lst, sL, cL)[0];
+      if (!inSession(msToOff(ms, tz), f, to) || altaz(s.ra, s.dec, lst, sL, cL)[0] >= thr) continue;
+      dark++; const mo = moonPos(J); const ma = moonTopo(altaz(mo.ra, mo.dec, lst, sL, cL)[0]);
       if (ma > 0) { const el = Math.acos(clamp(Math.cos(mo.lat * D2R) * Math.cos((mo.lon - s.lon) * D2R), -1, 1)); ill = (1 - Math.cos(el)) / 2; moonW += ill; }
     }
     out.push({ t0, ds: dsOf(t0, tz), darkH: dark / 6, moon: dark ? moonW / dark : 0 });
@@ -1192,13 +1221,14 @@ function darkWindows(cal) { // notti consecutive in cui la Luna pesa poco
   cal.forEach((n) => { const good = n.moon < 0.12 && n.darkH > 0.5; if (good) { if (!cur) cur = { from: n.t0, to: n.t0, n: 0 }; cur.to = n.t0; cur.n++; } else if (cur) { w.push(cur); cur = null; } });
   if (cur) w.push(cur); return w;
 }
-/* ore utili (buio, sopra altezza minima e orizzonte, senza Luna) nella notte che inizia a mezzogiorno t0 */
+/* ore utili (buio nell'orario della sessione, sopra altezza minima e orizzonte) nella notte che inizia a mezzogiorno t0 */
 function nightHoursFor(o, p, lut, t0) {
   const lat = p.site.lat * D2R, sL = Math.sin(lat), cL = Math.cos(lat), lon = +p.site.lon, thr = +p.session.sunThr, minAlt = +p.session.minAlt || 0;
+  const f = hmToOff(p.session.from), to = hmToOff(p.session.to), tz = siteTz(p.site);
   const pr = precess(o.ra, o.dec, jd(t0)); let h = 0;
   for (let i = 0; i <= 144; i++) {
     const ms = t0 + i * 600000, J = jd(ms), lst = lstDeg(ms, lon), s = sunPos(J);
-    if (altaz(s.ra, s.dec, lst, sL, cL)[0] >= thr) continue;
+    if (!inSession(msToOff(ms, tz), f, to) || altaz(s.ra, s.dec, lst, sL, cL)[0] >= thr) continue;
     const [a, z] = altaz(pr.ra, pr.dec, lst, sL, cL);
     if (a >= Math.max(minAlt, lut[Math.round(z) % 360])) h += 1 / 6;
   }

@@ -3,7 +3,7 @@
 const F_DEFAULT = { types: [], srcs: [], minUse: 0.25, maxNights: 11, maxSb: 26, fill: 'any', band: 'any', con: '', hideClassic: false, showAll: false, mine: false, hideDone: false };
 const state = {
   profiles: [], activeId: null, locs: [], locId: null, projects: Object.create(null), cfgFilter: '', res: null, cfgs: [], byId: new Map(), filtered: [], page: 60,
-  sel: null, selCfg: null, rot: 90, mosaic: true, realSky: LS.get('sf.realSky', true), live: true, playing: false,
+  sel: null, selCfg: null, rot: 90, mosaic: true, realSky: LS.get('sf.realSky', true), live: true, follow: true, userTime: false, playing: false,
   f: Object.assign({}, F_DEFAULT, LS.get('sf.filters', {})), q: '', sort: LS.get('sf.sort', 'score'), computeKey: '', windows: null, nextDarkTxt: '', calKey: '',
 };
 const activeProfile = () => state.profiles.find((p) => p.id === state.activeId) || state.profiles[0];
@@ -30,6 +30,7 @@ const stripSite = (p) => { delete p.site; delete p.horizon; return p; };
 const storeData = () => ({ version: 3, active: state.activeId, activeLoc: state.locId, profiles: state.profiles.filter((p) => !p.unsaved).map(withLegacy), locations: state.locs.filter((l) => !l.unsaved), projects: state.projects });
 /* telefono e browser: tutto in un'unica chiave (sf.store, formato 3); le chiavi separate restano per le versioni vecchie */
 function saveStore() {
+  if (state.noSave) return; // dati salvati non letti: non si sovrascrivono
   const d = storeData();
   LS.set('sf.store', d);
   LS.set('sf.profiles', d.profiles); LS.set('sf.active', state.activeId); LS.set('sf.locs', d.locations); LS.set('sf.loc', state.locId);
@@ -97,7 +98,7 @@ async function importProfiles() {
   if (!state.profiles.some((p) => p.id === state.activeId)) state.activeId = state.profiles[0].id;
   if (!state.locs.some((l) => l.id === state.locId)) state.locId = state.locs[0].id;
   mergeProjects(data.projects);
-  saveStore(); if (typeof closeEditor === 'function') closeEditor(); refresh(true); toast(tx('{n} profili e {m} luoghi importati', { n: list.length, m: locs.length }));
+  state.noSave = false; saveStore(); if (typeof closeEditor === 'function') closeEditor(); refresh(true); toast(tx('{n} profili e {m} luoghi importati', { n: list.length, m: locs.length }));
 }
 
 /* ============================ calcolo ============================ */
@@ -110,7 +111,7 @@ const yieldTask = (() => { const ch = new MessageChannel(), q = []; ch.port1.onm
 function recompute(force, async) {
   const a = active();
   // orari e date nell'ora del luogo attivo; «stanotte» è la notte in corso lì
-  setDisplayTz(a.site); if (state.live) $('#nightDate').value = defaultNightStr();
+  setDisplayTz(a.site); if (state.live || state.follow) $('#nightDate').value = defaultNightStr();
   const ds = $('#nightDate').value || defaultNightStr();
   const key = JSON.stringify(a) + ds;
   if (!force && key === state.computeKey && state.res && !JOB.key) return false;
@@ -316,12 +317,13 @@ function onTime() {
 }
 function setPlayIcon() { const b = $('#playBtn'); b.setAttribute('aria-pressed', String(!!state.playing)); b.innerHTML = ic(state.playing ? 'pause' : 'play'); }
 function setLive() {
+  state.follow = true; state.userTime = false;
   state.playing = false; setPlayIcon(); Dome.setAnimating(false);
   if ($('#nightDate').value !== defaultNightStr()) { $('#nightDate').value = defaultNightStr(); state.live = true; refresh(); }
   state.live = true; $('#liveBtn').setAttribute('aria-pressed', 'true'); Dome.tweenTo(Date.now(), onTime);
 }
 function togglePlay() {
-  state.playing = !state.playing; state.live = false;
+  state.playing = !state.playing; state.live = false; state.userTime = true;
   setPlayIcon(); $('#liveBtn').setAttribute('aria-pressed', 'false');
   Dome.setAnimating(state.playing);
   if (state.playing) { let last = performance.now(); const step = (t) => { if (!state.playing) return; const n = state.res.night, span = n.t[n.w1] - n.t[n.w0]; let x = Dome.time + (t - last) / 18000 * span; last = t; if (x > n.t[n.w1] || x < n.t[n.w0]) x = n.t[n.w0]; Dome.setTime(x); onTime(); requestAnimationFrame(step); }; requestAnimationFrame(step); }
@@ -329,7 +331,7 @@ function togglePlay() {
 function wireStrip() {
   const el = $('#strip'); let down = false;
   const set = (e) => { const n = state.res.night, b = el.getBoundingClientRect(), fr = clamp((e.clientX - b.left) / b.width, 0, 1); Dome.setTime(n.t[n.w0] + fr * (n.t[n.w1] - n.t[n.w0])); onTime(); };
-  el.addEventListener('pointerdown', (e) => { down = true; el.setPointerCapture(e.pointerId); state.live = false; state.playing = false; Dome.setAnimating(false); $('#liveBtn').setAttribute('aria-pressed', 'false'); setPlayIcon(); set(e); });
+  el.addEventListener('pointerdown', (e) => { down = true; el.setPointerCapture(e.pointerId); state.live = false; state.userTime = true; state.playing = false; Dome.setAnimating(false); $('#liveBtn').setAttribute('aria-pressed', 'false'); setPlayIcon(); set(e); });
   el.addEventListener('pointermove', (e) => down && set(e));
   ['pointerup', 'pointercancel'].forEach((ev) => el.addEventListener(ev, () => { down = false; if (state.sort === 'now') { applyFilters(); renderList(); } }));
 }
@@ -337,7 +339,7 @@ function wireStrip() {
 /* ============================ eventi ============================ */
 function wire() {
   $('#nightDate').value = defaultNightStr();
-  $('#nightDate').onchange = () => { if (!$('#nightDate').value) $('#nightDate').value = defaultNightStr(); state.live = $('#nightDate').value === defaultNightStr(); refresh(); };
+  $('#nightDate').onchange = () => { if (!$('#nightDate').value) $('#nightDate').value = defaultNightStr(); state.follow = state.live = $('#nightDate').value === defaultNightStr(); state.userTime = false; refresh(); };
   $('#liveBtn').onclick = setLive; $('#playBtn').onclick = togglePlay;
   $('#nav').onclick = (e) => { const b = e.target.closest('[data-view]'); if (b) setView(b.dataset.view); };
   $('#locChip').onclick = openLocSheet; $('#profChip').onclick = openProfSheet; $('#nightChip').onclick = openNightSheet;
@@ -373,16 +375,25 @@ function wire() {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (!$('#editor').hidden) askCloseEditor(); else if (!$('#drawer').hidden) closeDetail(); else if (!$('#adv').hidden) setAdv(false); } });
   setRed(LS.get('sf.red', false)); $('#nightBtn').onclick = () => setRed($('#veil').hidden);
   wireDrawerDrag();
+  // un file lasciato cadere fuori dal riquadro della mappa non deve sostituire la pagina
+  ['dragover', 'drop'].forEach((t) => document.addEventListener(t, (e) => { if (!(e.target.closest && e.target.closest('#skyDrop'))) e.preventDefault(); }));
   window.addEventListener('resize', () => { drawStrip(); if (state.sel && !$('#drawer').hidden) drawPreview(); });
   setPlayIcon();
   Dome.onPick((id) => openDetail(id));
   wireStrip(); wireEditor(); syncAdv();
   const liveTick = () => { if (state.live && !document.hidden) { Dome.setTime(Date.now()); onTime(); } };
   setInterval(liveTick, 15000); document.addEventListener('visibilitychange', liveTick); // l'ora si mostra al minuto: basta un passo ogni 15 s
-  const rollover = () => { if (state.live && $('#nightDate').value !== defaultNightStr()) { $('#nightDate').value = defaultNightStr(); refresh(); } };
-  setInterval(rollover, 300000);
+  /* «Stanotte» segue il calendario (state.follow): a mezzogiorno si passa alla notte nuova e al tramonto l'ora torna
+     quella vera, a meno che tu non stia guardando un'altra notte o un'altra ora (state.userTime) */
+  const roll = () => {
+    if (!state.res || !state.follow || JOB.key) return;
+    if ($('#nightDate').value !== defaultNightStr()) { state.userTime = false; state.live = true; refresh(); return; }
+    const n = state.res.night, now = Date.now();
+    if (!state.live && !state.userTime && !state.playing && n.ds === defaultNightStr() && now >= n.t[n.w0] && now <= n.t[n.w1]) setLive();
+  };
+  setInterval(roll, 60000);
   // ritorno in primo piano (i timer di una pagina nascosta rallentano o si fermano): notte, meteo e avvisi si riallineano
-  window.onAppResume = () => { if (document.hidden || !state.res) return; rollover(); refreshWeather(false); alertsOpen(); if (UI.view === 'setup') renderAlertStatus(); };
+  window.onAppResume = () => { if (document.hidden || !state.res) return; roll(); refreshWeather(false); alertsOpen(); if (UI.view === 'setup') renderAlertStatus(); };
   document.addEventListener('visibilitychange', window.onAppResume);
 }
 
@@ -392,6 +403,8 @@ async function boot() {
   Dome.init($('#dome'), $('#domeTip'));
   if (DESK) {
     let d = null; try { d = await window.cielo.loadProfiles(); } catch (e) { /* niente */ }
+    // file occupato da un altro programma: si mostra l'ultima copia nota e non si salva niente fino al riavvio
+    if (d && d.blocked) { state.noSave = true; d = LS.get('sf.store', null); setTimeout(() => toast(tx('File dei profili occupato: chiudi e riapri Skyframe')), 2500); }
     applyStore(d);
     if (d && d.restored) setTimeout(() => toast(tx('Profili ripristinati dalla copia del {d}', { d: new Date(d.restored).toLocaleString(LOCALE, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) })), 2500);
   }
@@ -399,7 +412,12 @@ async function boot() {
   else applyStore(LS.get('sf.store', null) || { profiles: LS.get('sf.profiles', []), active: LS.get('sf.active', null), locations: LS.get('sf.locs', undefined), activeLoc: LS.get('sf.loc', null) });
   await restoreExtras(state.projects); // oggetti fuori lista salvati: prima del primo calcolo
   const bk = LS.get('sf.bak', null); if (!bk || Date.now() - bk.at > 864e5) backupSoon(storeData()); // almeno una copia al giorno
-  wire(); refresh(true); alertsOpen();
+  wire();
+  try { refresh(true); } catch (e) { // dati salvati che il calcolo non regge: si parte dall'esempio senza toccarli
+    console.error(e); state.profiles = [stripSite(templateProfile())]; state.locs = [templateLoc()]; state.activeId = state.profiles[0].id; state.locId = state.locs[0].id; state.projects = Object.create(null); effMemo = null;
+    state.noSave = true; refresh(true); setTimeout(() => toast(tx('Dati salvati non leggibili: importa una copia da Setup')), 2500);
+  }
+  alertsOpen();
   window.__bootMs = Math.round(performance.now());
   // guida al primo avvio e novità dopo un aggiornamento: quando il logo è arrivato al suo posto
   Promise.resolve(window.introExit ? introExit() : $('#bootScreen') && $('#bootScreen').remove()).then(() => setTimeout(tourBoot, 250));

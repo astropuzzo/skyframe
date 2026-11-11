@@ -5,7 +5,9 @@
    - Prima di passare a un formato nuovo si tiene il file com'era (profili-v<n>-backup.json).
    - Copie di sicurezza profili.bak1..3.json (bak1 la più recente), al massimo una ogni 6 ore.
    - Un file illeggibile non si sovrascrive: si mette da parte (profili-illeggibile-<data>.json) e si riparte dalla copia
-     più recente che si legge; il dato restituito ha restored = data della copia. */
+     più recente che si legge; il dato restituito ha restored = data della copia.
+   - Un file che non si riesce ad aprire (occupato da antivirus o sincronizzazione) non è rovinato: si riprova per un paio
+     di secondi, poi si risponde { blocked: true } e fino al riavvio non si scrive niente. */
 const fs = require('fs/promises');
 const path = require('path');
 
@@ -19,18 +21,25 @@ async function readJson(f) {
 
 function createStore(fileOf) {
   const bak = (i) => fileOf().replace(/\.json$/, `.bak${i}.json`);
+  let blocked = false;
   async function load() {
     const file = fileOf();
-    try { return await readJson(file); } catch (e) {
-      if (e.code === 'ENOENT') return null;
-      try { await fs.rename(file, file.replace(/\.json$/, `-illeggibile-${new Date().toISOString().replace(/[:.]/g, '-')}.json`)); } catch { /* niente */ }
-      for (let i = 1; i <= BAK_N; i++) {
-        try { const j = await readJson(bak(i)); j.restored = (await fs.stat(bak(i))).mtimeMs; return j; } catch { /* la prossima */ }
+    for (let i = 0; ; i++) {
+      try { blocked = false; return await readJson(file); } catch (e) {
+        if (e.code === 'ENOENT') return null;
+        if (!e.code) break; // si apre ma non è JSON valido: rovinato
+        if (i >= 7) { blocked = true; return { blocked: true }; }
+        await new Promise((r) => setTimeout(r, 300));
       }
-      return null;
     }
+    try { await fs.rename(file, file.replace(/\.json$/, `-illeggibile-${new Date().toISOString().replace(/[:.]/g, '-')}.json`)); } catch { /* niente */ }
+    for (let i = 1; i <= BAK_N; i++) {
+      try { const j = await readJson(bak(i)); j.restored = (await fs.stat(bak(i))).mtimeMs; return j; } catch { /* la prossima */ }
+    }
+    return null;
   }
   async function write(data) {
+    if (blocked) throw new Error('file dei profili occupato');
     const file = fileOf();
     await fs.mkdir(path.dirname(file), { recursive: true });
     let txt = null; try { txt = await fs.readFile(file, 'utf8'); JSON.parse(txt); } catch { txt = null; } // file com'era, se si legge

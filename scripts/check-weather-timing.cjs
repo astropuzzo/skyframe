@@ -66,7 +66,7 @@ for (const [day, offset] of [['2026-03-29', '+02:00'], ['2026-10-25', '+01:00']]
   const previous = new Date(`${day}T12:00:00${offset}`); previous.setDate(previous.getDate() - 1);
   const n = M.computeNight(p, `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, '0')}-${String(previous.getDate()).padStart(2, '0')}`);
   const atFour = new Date(`${day}T04:00:00${offset}`).getTime(), i = n.t.indexOf(atFour);
-  assert(i >= 0 && n.dark[i] === 1 && n.dark[i + 1] === 0, `Orario locale errato nel cambio d'ora ${day}`);
+  assert(i > 0 && n.dark[i - 1] === 1 && n.dark[i] === 0, `Orario locale errato nel cambio d'ora ${day}`); // l'ora di fine è esclusa
 }
 if (old) {
   const prev = run(load(old), old);

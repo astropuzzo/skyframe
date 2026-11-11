@@ -143,9 +143,9 @@ function askCloseEditor() {
 }
 function readForm() { return edMode === 'loc' ? readLocForm() : readProfForm(); }
 function readProfForm() {
-  const d = draft, n = (id) => parseFloat(F(id).value);
+  const d = draft, n = (id) => parseFloat(F(id).value), pos = (v, dflt, lo, hi) => clamp(v > 0 ? v : dflt, lo, hi);
   d.name = F('f_name').value.trim() || tx('Profilo senza nome');
-  d.camera = { preset: F('f_cam').value, name: (CAMERAS.find((c) => c.id === F('f_cam').value) || {}).name || tx('Personalizzata'), w: n('f_cw') || 4000, h: n('f_ch') || 3000, pix: n('f_pix') || 3.76, type: F('f_ctype').value, qe: n('f_qe') || 70, rn: n('f_rn') || 2 };
+  d.camera = { preset: F('f_cam').value, name: (CAMERAS.find((c) => c.id === F('f_cam').value) || {}).name || tx('Personalizzata'), w: Math.round(pos(n('f_cw'), 4000, 100, 20000)), h: Math.round(pos(n('f_ch'), 3000, 100, 20000)), pix: pos(n('f_pix'), 3.76, 0.8, 30), type: F('f_ctype').value, qe: pos(n('f_qe'), 70, 10, 100), rn: pos(n('f_rn'), 2, 0.3, 30) };
   d.bin = +F('f_bin').value || 1;
   d.optics = (d.optics || []).map((o) => ({ ...o, name: String(o.name || '').trim() || 'Telescopio', ap: +o.ap > 0 ? +o.ap : 60, fl: +o.fl > 0 ? +o.fl : 300, obs: clamp(+o.obs || 0, 0, 60), accessories: (o.accessories || []).map((a) => ({ ...a, fac: +a.fac > 0 ? +a.fac : 1 })) }));
   if (!d.optics.length) d.optics = [{ id: 'o1', preset: 'custom', name: tx('Telescopio'), ap: 80, fl: 480, obs: 0, useNative: true, accessories: [] }];
@@ -158,10 +158,10 @@ function readProfForm() {
 function readLocForm() {
   const d = draft, n = (id) => parseFloat(F(id).value);
   const sqm = n('f_sqm'), lat = n('f_lat'), lon = n('f_lon'), prev = d.site;
-  d.site = { name: F('f_site').value.trim() || tx('Il mio luogo di osservazione'), lat: isFinite(lat) ? clamp(lat, -89.9, 89.9) : 45, lon: isFinite(lon) ? clamp(lon, -180, 180) : 9, bortle: +F('f_bortle').value, sqm: isFinite(sqm) ? clamp(sqm, 16, 22.2) : BORTLE_SQM[F('f_bortle').value], sqmMeas: F('f_sqmMeas').checked };
+  d.site = { name: F('f_site').value.trim() || tx('Il mio luogo di osservazione'), lat: isFinite(lat) ? clamp(lat, -89.9, 89.9) : prev.lat, lon: isFinite(lon) ? clamp(lon, -180, 180) : prev.lon, bortle: +F('f_bortle').value, sqm: isFinite(sqm) ? clamp(sqm, 16, 22.2) : BORTLE_SQM[F('f_bortle').value], sqmMeas: F('f_sqmMeas').checked };
   if (prev.example && prev.lat === d.site.lat && prev.lon === d.site.lon && prev.name === d.site.name) d.site.example = true;
   if (prev.tz && Math.abs(prev.lat - d.site.lat) < 0.3 && Math.abs(prev.lon - d.site.lon) < 0.3) d.site.tz = prev.tz; // il fuso lo riporta il meteo
-  const elev = n('f_elev'); if (isFinite(elev)) d.site.elev = Math.round(elev);
+  const elev = n('f_elev'); if (isFinite(elev)) d.site.elev = Math.round(clamp(elev, -450, 8900));
   // dati della luce: validi solo per le coordinate con cui sono stati ottenuti (entro ~1 km)
   const near = (at) => at && Math.abs(at[0] - d.site.lat) < 0.01 && Math.abs(at[1] - d.site.lon) < 0.01;
   if ((prev.lpGrid || prev.lpAz) && near(prev.lpAt)) {
@@ -355,11 +355,13 @@ function wireEditor() {
   // un clic fuori dal pannello non chiude più nulla: si esce solo con Chiudi, Esc o Salva
   F('edClose').onclick = () => askCloseEditor();
   ['input', 'change'].forEach((ev) => F('editor').addEventListener(ev, () => { edDirty = true; }));
-  F('editor').querySelector('.sheet-body, .sheet > div, form')?.addEventListener('pointerdown', () => { edDirty = true; });
+  // mappa, orizzonte e pulsanti cambiano i dati senza passare da un campo; scorrere il foglio no
+  F('editor').querySelector('.sheet-body, .sheet > div, form')?.addEventListener('pointerdown', (e) => { if (e.target.closest('button, canvas, svg, .leaflet-container, .chip, .seg')) edDirty = true; });
   F('leaveNo').onclick = () => { F('leaveConfirm').hidden = true; };
   F('leaveYes').onclick = () => closeEditor();
   F('leaveSave').onclick = () => F('edSave').click();
   F('edSave').onclick = () => {
+    if (edMode === 'loc') for (const id of ['f_lat', 'f_lon']) if (!isFinite(parseFloat(F(id).value))) { toast(tx('Coordinate non valide')); F(id).focus(); return; }
     const d = readForm(), loc = edMode === 'loc';
     if (loc) { persistLoc(d); state.locId = d.id; } else { persistProfile(d); state.activeId = d.id; }
     saveStore(); closeEditor(); refresh(true); toast(tx(loc ? 'Luogo salvato' : 'Profilo salvato'));

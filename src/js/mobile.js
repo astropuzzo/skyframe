@@ -32,6 +32,7 @@
       if (Sh) try { const { uri } = await F.writeFile({ path: name, data: text, directory: 'CACHE', encoding: 'utf8' }); await Sh.share({ title: name, files: [uri] }); } catch { /* condivisione annullata */ }
       return where;
     },
+    async shareText(title, text) { const Sh = plug('Share'); if (!Sh) return navigator.clipboard.writeText(text); try { await Sh.share({ title, text, dialogTitle: title }); } catch { /* condivisione annullata */ } },
     // copia automatica: sempre lo stesso file; se non si può riscrivere (era di un'installazione precedente) se ne fa uno nuovo
     async backup(text) {
       let name = localStorage.getItem('sf.bakName') || 'skyframe-backup.json';

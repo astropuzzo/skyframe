@@ -21,7 +21,8 @@ const projHoursDone = (id) => { const p = state.projects[id]; return p ? (p.sess
 /* dopo ogni modifica: si salva, i calendari ripartono dal lavoro fatto, si ridisegna quello che si vede */
 function projTouched() {
   saveStore();
-  const A = state.res && state.res.C && state.res.C.ahead; if (A) A.cache.clear();
+  // i calendari partono dal lavoro fatto: si rifanno qui e negli altri luoghi già calcolati
+  for (const C of [state.res && state.res.C, ...[...cmp.cache.values()].map((c) => c.C)]) if (C && C.ahead) C.ahead.cache.clear();
   applyFilters(); renderList(); renderTonight(); renderTopList(); pushDome(); planNotifications(); if (UI.view === 'projects') renderProjects();
   if (state.sel && !$('#drawer').hidden) { const sc = $('#drawer').scrollTop; renderDetail(); $('#drawer').scrollTop = sc; }
 }
@@ -170,6 +171,7 @@ function renderProjects() {
     }
     $('#pvSeason').onclick = (e) => {
       const pm = e.target.closest('[data-pm]'); if (pm) { PM.m = Math.max(0, PM.m + +pm.dataset.pm); $('#pvSeason .month-card').outerHTML = monthHTML(P); return; }
+      if (e.target.closest('[data-ics]')) { saveText('skyframe-piano.ics', seasonIcs(P, state.res.C)); return; }
       const c = e.target.closest('.pm[data-k]'); if (c) { openSeasonNight(P, +c.dataset.k); return; }
       const r = e.target.closest('[data-id]'); if (r) { e.stopPropagation(); openDetail(r.dataset.id, r); }
     };
