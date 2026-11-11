@@ -80,7 +80,8 @@ public final class AlertsEngine {
             // prove automatiche: la previsione finta vale subito, anche se in memoria c'è quella vera di un minuto prima
             boolean mock = cfg.has("mock") && (ctx.getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
             if (fetch == 2 || (fetch == 1 && (old || mock))) {
-                AlertsCore.Wx fresh = download(ctx, cfg, now, "alarm".equals(why) ? 3500 : 12000);
+                // sveglia e widget girano dentro un ricevitore, che ha pochi secondi: limite breve
+                AlertsCore.Wx fresh = download(ctx, cfg, now, "alarm".equals(why) || "widget".equals(why) ? 3500 : 12000);
                 if (fresh != null) { wx = fresh; st.put("wx", fresh.toJson()); st.put("ok", now); }
             }
             if (wx != null && now - wx.at > 6 * AlertsCore.HOUR) wx = null; // troppo vecchia per decidere
