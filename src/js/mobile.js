@@ -66,6 +66,8 @@
     // bussola per la misura dell'orizzonte: declinazione magnetica del luogo e quanto è calibrato il magnetometro (0–3)
     compass: plug('SkyframeSensors') && {
       declination: (lat, lon) => plug('SkyframeSensors').declination({ lat, lon }).then((r) => +r.deg).catch(() => null),
+      // le fotocamere del telefono: focale e sensore, per sapere quanto cielo inquadra l'immagine
+      cameras: () => plug('SkyframeSensors').cameras().then((r) => (r && r.list) || []).catch(() => []),
       watch(cb) {
         const P = plug('SkyframeSensors'); let h = null;
         try { h = P.addListener('accuracy', (d) => cb(d.level)); P.start().then((r) => { if (r && r.level >= 0) cb(r.level); }).catch(() => {}); } catch { /* resta senza */ }

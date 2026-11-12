@@ -1,21 +1,27 @@
 package io.github.astropuzzo.skyframe.sensors;
 
 import android.content.Context;
+import android.graphics.Rect;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraManager;
 import android.hardware.GeomagneticField;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.util.Size;
+import android.util.SizeF;
 import android.view.WindowManager;
 
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
-/* Bussola per la misura dell'orizzonte: la declinazione magnetica del luogo (modello mondiale di Android) e quanto è
-   calibrato il magnetometro. L'orientamento del telefono lo legge la pagina (DeviceOrientation). Finché la misura è
+/* Per la misura dell'orizzonte: la declinazione magnetica del luogo (modello mondiale di Android), quanto è calibrato
+   il magnetometro, e focale e sensore delle fotocamere (da lì il campo inquadrato, per disegnare sull'immagine). L'orientamento del telefono lo legge la pagina (DeviceOrientation). Finché la misura è
    aperta lo schermo resta acceso: si guarda il profilo degli ostacoli, non si tocca il telefono. */
 @CapacitorPlugin(name = "SkyframeSensors")
 public class SensorsPlugin extends Plugin implements SensorEventListener {
@@ -31,6 +37,37 @@ public class SensorsPlugin extends Plugin implements SensorEventListener {
         GeomagneticField f = new GeomagneticField(lat.floatValue(), lon.floatValue(), 0f, System.currentTimeMillis());
         JSObject r = new JSObject();
         r.put("deg", (double) f.getDeclination());
+        call.resolve(r);
+    }
+
+    /* Le fotocamere: focale e lati del sensore in millimetri, e quanta parte del sensore lavora (use). Sono dati del
+       telefono: non serve il permesso della fotocamera. */
+    @PluginMethod
+    public void cameras(PluginCall call) {
+        JSArray list = new JSArray();
+        try {
+            CameraManager cm = (CameraManager) getContext().getSystemService(Context.CAMERA_SERVICE);
+            for (String id : cm.getCameraIdList()) {
+                CameraCharacteristics c = cm.getCameraCharacteristics(id);
+                float[] focal = c.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
+                SizeF mm = c.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE);
+                if (focal == null || focal.length == 0 || mm == null) continue;
+                Integer facing = c.get(CameraCharacteristics.LENS_FACING);
+                Size px = c.get(CameraCharacteristics.SENSOR_INFO_PIXEL_ARRAY_SIZE);
+                Rect active = c.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
+                JSObject o = new JSObject();
+                o.put("id", id);
+                o.put("back", facing != null && facing == CameraCharacteristics.LENS_FACING_BACK);
+                o.put("focal", (double) focal[0]);
+                o.put("w", (double) mm.getWidth());
+                o.put("h", (double) mm.getHeight());
+                if (px != null && active != null && px.getWidth() > 0 && px.getHeight() > 0)
+                    o.put("use", (double) Math.max(active.width(), active.height()) / Math.max(px.getWidth(), px.getHeight()));
+                list.put(o);
+            }
+        } catch (Exception e) { /* senza questi dati vale il campo tipico */ }
+        JSObject r = new JSObject();
+        r.put("list", list);
         call.resolve(r);
     }
 

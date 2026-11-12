@@ -914,6 +914,8 @@ window.I18N.en = {
   "Bussola assente: serve il Sole o la Luna sopra l’orizzonte": "No compass: the Sun or the Moon must be above the horizon",
   "Bussola imprecisa: muovi il telefono a otto": "Compass inaccurate: move the phone in a figure of eight",
   "Mirino sul profilo degli ostacoli. Tocca: un punto. Tieni premuto: segui il profilo.": "Crosshair on the skyline. Tap: one point. Hold: follow the skyline.",
+  "Tieni premuto e segui il profilo col mirino, oppure tocca un punto dell’immagine.": "Hold and follow the skyline with the crosshair, or tap a point in the image.",
+  "Misura dell’orizzonte: i punti restano disegnati sul paesaggio mentre muovi il telefono, con i punti cardinali, l’orizzonte di prima e il Sole; un tocco sull’immagine mette un punto": "Horizon measurement: the points stay drawn on the landscape as you move the phone, with the cardinal points, the previous horizon and the Sun; a tap on the image places a point",
   "{n} punti · {c}° su 360": "{n} points · {c}° of 360", "Orizzonte misurato: {n} punti": "Horizon measured: {n} points",
   "Android: orizzonte misurato col telefono, con fotocamera e sensori; nord allineato al Sole o alla Luna": "Android: horizon measured with the phone, camera and sensors; north aligned to the Sun or the Moon",
   "6. Camera": "6. Camera",

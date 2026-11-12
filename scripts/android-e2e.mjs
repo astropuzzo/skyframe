@@ -198,7 +198,14 @@ try {
     out.checks.orizzonte_fotocamera = await until(`HZS.el && HZS.cam === 'on' && HZS.el.querySelector('video').videoWidth > 0`, 25000);
     out.checks.orizzonte_sensori = await until(`HZS.el && HZS.evN > 0 && !!HZS.aimNow() && HZS.aimNow().az != null`, 15000);
     out.orizzonte = await ev(`const a = HZS.aimNow(), v = HZS.el.querySelector('video'); return { cam: HZS.cam, eventi: HZS.evN, rel: !!HZS.rel, abs: !!HZS.abs, declinazione: HZS.decl, bussola: HZS.acc, punta: a && { az: a.az == null ? null : Math.round(a.az), alt: Math.round(a.alt), ref: a.ref }, video: [v.videoWidth, v.videoHeight], msg: HZS.el.querySelector('[data-msg]').textContent }`).catch((e) => String(e));
+    // il campo inquadrato dai dati della fotocamera del telefono, e il disegno sull'immagine: il puntamento cade al centro
+    out.checks.orizzonte_campo = await until(`HZS.el && HZS.fov.known`, 10000);
+    out.campo = await ev(`return { gradi: +HZS.fov.deg.toFixed(1), noto: HZS.fov.known, etichetta: HZS.label, fotocamere: (await window.cielo.compass.cameras()).map((c) => ({ id: c.id, dietro: c.back, focale: c.focal, sensore: [c.w, c.h], usa: c.use })) }`).catch((e) => String(e));
+    out.checks.orizzonte_disegno = await ev(`const V = HZS.view(), a = HZS.aimNow(); if (!V || !a) return false; const p = hzProject(V, a.az, a.alt), e = hzProject(V, a.az + 10, a.alt); return !!p && !!e && Math.hypot(p[0] - V.cx, p[1] - V.cy) < 6 && e[0] > V.cx + 20`);
+    // tre punti attorno al mirino, solo per vedere il disegno nella schermata
+    await ev(`const a = HZS.aimNow(); HZS.strokes.push([{ az: a.az - 12, alt: a.alt + 2 }, { az: a.az - 4, alt: a.alt + 7 }, { az: a.az + 5, alt: a.alt + 4 }, { az: a.az + 13, alt: a.alt + 9 }]); return 1`);
     await sleep(800); shot('15-orizzonte');
+    await ev(`HZS.strokes.length = 0; return 1`);
     // Il verso dell'azimut, con un campo magnetico noto e il telefono in piedi: nord dietro il telefono = si guarda a nord,
     // nord a destra dello schermo = a ovest, a sinistra = a est. La fusione dei sensori di Android ci mette qualche secondo.
     try {
@@ -219,6 +226,31 @@ try {
       if ([nord, ovest, est].every((v) => v != null) && gap(ovest, est) > 90) out.checks.orizzonte_verso = gap(nord, 4) < 20 && gap(ovest, 274) < 20 && gap(est, 94) < 20;
       else out.notes.push('il campo magnetico dell’emulatore non si lascia pilotare: verso dell’azimut non provato');
     } catch (e) { out.notes.push('verso dell’azimut: ' + e.message); }
+    // Inclinazione laterale: con la gravità che il telefono sente per metà verso destra (accelerometro 4,9 : 8,5 : 0) il «su» del
+    // mondo, visto dal telefono, deve stare a 30° dalla sua cima verso destra. È la terza riga della rotazione usata per disegnare.
+    try {
+      adb('emu sensor set acceleration 4.9:8.5:0');
+      let up = null;
+      for (let k = 0; k < 12; k++) { await sleep(2500); up = await ev(`const R = HZS.relR || HZS.absR; return R ? R[2].map((x) => +x.toFixed(3)) : null`); if (up && Math.abs(up[0] - 0.5) < 0.1) break; }
+      out.su = up; out.checks.orizzonte_rollio = !!up && Math.abs(up[0] - 0.5) < 0.12 && Math.abs(up[1] - 0.866) < 0.12 && Math.abs(up[2]) < 0.15;
+      adb('emu sensor set acceleration 0:9.81:0'); await sleep(4000);
+    } catch (e) { out.notes.push('inclinazione laterale: ' + e.message); }
+    // Rotazione dello schermo: 1 = telefono girato in senso antiorario, 3 = orario. Il disegno conta sull'angolo che dice la pagina.
+    try {
+      const turn = async (r) => { adb('shell settings put system accelerometer_rotation 0'); adb(`shell settings put system user_rotation ${r}`); await sleep(3500); return await ev(`return { angolo: screen.orientation ? screen.orientation.angle : null, largo: innerWidth > innerHeight, video: [HZS.el.querySelector('video').videoWidth, HZS.el.querySelector('video').videoHeight] }`); };
+      const r1 = await turn(1); shot('15b-orizzonte-orizzontale'); const r3 = await turn(3);
+      out.rotazione = { antiorario: r1, orario: r3 };
+      out.checks.orizzonte_rotazione = r1.angolo === 90 && r3.angolo === 270 && r1.largo && r3.largo;
+    } catch (e) { out.notes.push('rotazione dello schermo: ' + e.message); }
+    try { adb('shell settings put system user_rotation 0'); } catch { /* niente */ }
+    await sleep(3500);
+    // un tocco sull'immagine, lontano dal centro: nasce un punto, e ridisegnato cade dove si è toccato
+    out.checks.orizzonte_tocco = await ev(`const v = HZS.el.querySelector('[data-view]'), r = v.getBoundingClientRect(), x = r.width / 2 + 90, y = r.height / 2 - 70;
+      HZS.el.querySelector('video').dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: r.left + x, clientY: r.top + y }));
+      const st = HZS.strokes[HZS.strokes.length - 1], p = st && hzProject(HZS.view(), st[0].az, st[0].alt); window.__tocco = st && { az: Math.round(st[0].az), alt: Math.round(st[0].alt) };
+      return HZS.strokes.length === 1 && !!p && Math.hypot(p[0] - x, p[1] - y) < 3`).catch(() => false);
+    out.tocco = await ev(`return window.__tocco || null`).catch(() => null);
+    await ev(`HZS.strokes.length = 0; return 1`);
     // un punto dal pulsante (dove punta l'emulatore), un secondo messo a mano 20° più in là, poi «Fine»
     out.checks.orizzonte_punto = await ev(`HZS.el.querySelector('[data-mark]').click(); return HZS.strokes.length === 1 && HZS.strokes[0].length === 1`);
     await ev(`const p = HZS.strokes[0][0]; HZS.strokes.push([{ az: (p.az + 20) % 360, alt: 15 }]); return 1`);

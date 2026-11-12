@@ -16,7 +16,7 @@ for (const name of ['filters', 'dso', 'sky', 'quality', 'real']) vm.runInContext
 // nel piano di stagione il lavoro già fatto e i progetti in corso vengono dall'app: qui nessuno
 vm.runInContext("const LANG='it',LOCALE='it-IT',txName=(s)=>s,tx=(s,p)=>p?s.replace(/[{](\\w+)[}]/g,(_,k)=>p[k]??_):s,projProgress=()=>0,hasSessions=()=>false;" + file('js/astro.js') + '\n' + file('js/model.js') + '\n' + file('js/nights.js') + '\n' + file('js/season.js') + '\n' + file('js/hzscan.js') +
   '\n;this.M={siteTz,tzOff,wall,wallMs,dsOf,TZ,setDisplayTz,defaultNightStr,computeNight,moonCalendar,templateProfile,migrateProfile,migrateLoc,locsFromProfiles,moonFlux,unit,mosaicPanes,ninaCsv,' +
-  'channelSpec,qeRel,airmass,profileConfigs,computePrep,computeObj,hoursOf,nightRec,shootCalendar,aheadNight,buildSeason,seasonIcs,nightSamples,moonPos,altaz,lstDeg,jd,CAT_BY_ID,MOON_RISE,MOON_PAR,STEP,CAL_N,CAL_STEP,aimVec,aimOf,scanToHorizon,skyRefs,skyRef,horizonLUT,sunPos};', ctx);
+  'channelSpec,qeRel,airmass,profileConfigs,computePrep,computeObj,hoursOf,nightRec,shootCalendar,aheadNight,buildSeason,seasonIcs,nightSamples,moonPos,altaz,lstDeg,jd,CAT_BY_ID,MOON_RISE,MOON_PAR,STEP,CAL_N,CAL_STEP,aimVec,aimOf,scanToHorizon,skyRefs,skyRef,horizonLUT,sunPos,hzRot,hzProject,hzUnproject,hzFov};', ctx);
 const M = ctx.M;
 
 const SITES = {
@@ -283,6 +283,42 @@ test('orizzonte col telefono: dove guarda la fotocamera', () => {
   // e lo stesso telefono inclinato di 25° verso l'alto resta a est
   p = aim(0, 0, -90); near(p.az, 90); near(p.alt, 0);
   p = aim(0, 0, -115); near(p.az, 90); near(p.alt, 25);
+});
+
+test('orizzonte col telefono: dal cielo allo schermo e ritorno', () => {
+  const near = (x, y, tol = 0.01) => assert.ok(Math.abs(x - y) < tol, `${x} ≠ ${y}`), t10 = Math.tan(10 * Math.PI / 180) * 1000;
+  // la direzione della fotocamera è −z della rotazione, comunque sia tenuto il telefono
+  for (const [a, b, g] of [[10, 80, 5], [200, 120, -30], [330, 45, 60]]) { const R = M.hzRot(a, b, g), v = M.aimVec(a, b, g); for (let i = 0; i < 3; i++) near(v[i], -R[i][2], 1e-12); }
+  // in piedi verso nord, schermo dritto: il mirino al centro, l'est a destra, il cielo in alto, quello che sta dietro non si disegna
+  let V = { R: M.hzRot(0, 90, 0), off: 0, ang: 0, f: 1000, cx: 500, cy: 800 };
+  let p = M.hzProject(V, 0, 0); near(p[0], 500); near(p[1], 800);
+  p = M.hzProject(V, 10, 0); near(p[0], 500 + t10); near(p[1], 800);
+  p = M.hzProject(V, 0, 10); near(p[0], 500); near(p[1], 800 - t10);
+  assert.equal(M.hzProject(V, 180, 0), null); assert.equal(M.hzProject(V, 90, 0), null);
+  // il nord corretto: se i sensori leggono 20° in meno del vero, il punto a 30° veri sta 10° a destra del mirino
+  p = M.hzProject({ ...V, off: 20 }, 30, 0); near(p[0], 500 + t10); near(p[1], 800);
+  // Girato in senso antiorario (la cima a sinistra), sempre verso nord. Con lo schermo bloccato in verticale l'est finisce
+  // verso il basso dello schermo; se lo schermo ha ruotato con lui (angolo 90) torna a destra, e il cielo in alto.
+  V = { R: M.hzRot(90, 0, -90), off: 0, ang: 0, f: 1000, cx: 500, cy: 800 };
+  p = M.hzProject(V, 0, 0); near(p[0], 500); near(p[1], 800);
+  p = M.hzProject(V, 10, 0); near(p[0], 500); near(p[1], 800 + t10);
+  p = M.hzProject({ ...V, ang: 90 }, 10, 0); near(p[0], 500 + t10); near(p[1], 800);
+  p = M.hzProject({ ...V, ang: 90 }, 0, 10); near(p[0], 500); near(p[1], 800 - t10);
+  // girato in senso orario (la cima a destra, angolo 270)
+  V = { R: M.hzRot(270, 0, 90), off: 0, ang: 270, f: 1000, cx: 500, cy: 800 };
+  p = M.hzProject(V, 10, 0); near(p[0], 500 + t10); near(p[1], 800);
+  p = M.hzProject(V, 0, 10); near(p[0], 500); near(p[1], 800 - t10);
+  // il punto toccato torna dov'era, per orientamenti, rotazioni dello schermo e scarti qualunque; il centro è il puntamento
+  for (const [a, b, g, ang, off] of [[33, 95, 4, 0, 12], [250, 20, -70, 90, -8], [120, 100, 30, 270, 0], [5, 150, 10, 180, 3]]) {
+    const W = { R: M.hzRot(a, b, g), off, ang, f: 900, cx: 400, cy: 700 };
+    for (const [x, y] of [[400, 700], [120, 300], [700, 1200], [40, 60]]) { const s = M.hzUnproject(W, x, y), back = M.hzProject(W, s.az, s.alt); near(back[0], x, 1e-6); near(back[1], y, 1e-6); }
+    const c = M.hzUnproject(W, 400, 700), aim = M.aimOf(M.aimVec(a, b, g)); near(c.alt, aim.alt, 1e-9); near(((c.az - aim.az - off + 540) % 360) - 180, 0, 1e-9);
+  }
+  // campo inquadrato dai dati della fotocamera: focale 4,3 mm su un sensore da 6,4 mm di lato lungo
+  let f = M.hzFov({ focal: 4.3, w: 6.4, h: 4.8 }); assert.equal(f.known, true); near(f.deg, 2 * Math.atan(3.2 / 4.3) * 180 / Math.PI, 1e-9);
+  f = M.hzFov({ focal: 4.3, w: 4.8, h: 6.4, use: 0.98 }); near(f.deg, 2 * Math.atan(3.2 * 0.98 / 4.3) * 180 / Math.PI, 1e-9);
+  // dati assenti o non credibili: il campo tipico, segnato come non noto
+  for (const bad of [null, {}, { focal: 0.5, w: 6, h: 4 }, { focal: 30, w: 6, h: 4 }]) { f = M.hzFov(bad); assert.equal(f.known, false); assert.equal(f.deg, 66); }
 });
 
 test('orizzonte col telefono: Sole di riferimento', () => {
