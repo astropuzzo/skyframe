@@ -169,6 +169,11 @@ try {
   await ev(`setView('tonight'); document.getElementById('v-tonight').scrollTop = 900; return 1`); await sleep(1200); shot('05-stanotte-giu');
   // dettaglio di un target: tempi e calendario
   await ev(`const id = state.byId.has('NGC 7000') ? 'NGC 7000' : state.filtered[0].o.id; openDetail(id); setDTab('piano'); return 1`); await sleep(2500);
+  // l'immagine del target arriva, dal CDS o composta dalle tessere delle copie; e una composta dalle sole copie
+  out.checks.immagine_target = await until(`(() => { const i = document.getElementById('gImg'); return !!i && i.naturalWidth > 0 && !i.classList.contains('wait'); })()`, 60000);
+  out.immagine = await ev(`const i = document.getElementById('gImg'); return { da: i.src.slice(0, 5), px: [i.naturalWidth, i.naturalHeight], cdsGiu: SKY.down > 0, didascalia: document.getElementById('gCap').textContent }`).catch((e) => String(e));
+  out.checks.immagine_dalle_copie = await ev(`const cv = await hipsCompose('CDS/P/DSS2/color', 83.82, -5.39, 1.5, 480, 320), d = cv.getContext('2d').getImageData(0, 0, 480, 320).data; let s = 0; for (let k = 0; k < d.length; k += 4) s += d[k] + d[k + 1] + d[k + 2]; return s / (480 * 320 * 3) > 8`).catch(() => false);
+  shot('06a-dettaglio-immagine');
   await ev(`const d = document.getElementById('drawer'); d.scrollTop = document.getElementById('scen').offsetTop - 120; return 1`); await sleep(1500); shot('06-dettaglio-tempi');
   await ev(`setDTab('quando'); return 1`); await sleep(2000); shot('07-dettaglio-quando');
   // tasto indietro di Android: chiude il dettaglio

@@ -118,14 +118,14 @@ function rowProgress(r) {
 /* ---------- la sezione Progetti ---------- */
 /* I tuoi target in tre gruppi (in corso, preferiti, fatti): miniatura, avanzamento, ore mancanti e la prossima notte
    utile dal calendario di ripresa. Il calendario si calcola a pezzi, dopo il disegno. */
-const thumbUrl = (o) => { const f = clamp(Math.max(o.a * 1.6, 12) / 60, 0.15, 3); return hipsUrl(o.dec > -15 && f >= 0.6 && o.type !== 'Gx' && o.type !== 'GC' ? 'simg.de/P/NSNS/DR0_1/tc8' : 'CDS/P/DSS2/color', o, f, 144, 144); };
+const thumbAttrs = (o) => { const f = clamp(Math.max(o.a * 1.6, 12) / 60, 0.15, 3); return skyAttrs(o.dec > -15 && f >= 0.6 && o.type !== 'Gx' && o.type !== 'GC' ? 'simg.de/P/NSNS/DR0_1/tc8' : 'CDS/P/DSS2/color', o, f, 144, 144); };
 function projCard(id) {
   const r = state.byId.get(id), o = r ? r.o : CAT_BY_ID.get(id); if (!o) return '';
   const done = isDone(id), prog = projProgress(id), hd = projHoursDone(id), b = r && r.e.best, need = b ? hoursOf(b) : Infinity;
   const rem = isFinite(need) ? need * (1 - prog) : null;
   const left = done ? tx('fatto') : prog > 0 ? (rem != null ? tx('mancano ≈ {h}', { h: fmtH(rem) }) : '') : rem != null ? tx('servono ≈ {h}', { h: fmtH(need) }) : tx('non riprendibile da questo luogo');
   return `<div class="pc${done ? ' done' : ''}" role="button" tabindex="0" data-id="${esc(id)}">
-    <span class="th"><img src="${esc(thumbUrl(o))}" alt="" loading="lazy" decoding="async"></span>
+    <span class="th"><img ${thumbAttrs(o)} alt="" loading="lazy" decoding="async"></span>
     <span class="bd"><span class="t"><b>${esc(o.id)}</b><small>${esc(o.nick || tx(TYPES[o.type]))}</small>${favBtn(id)}</span>
       <span class="m">${tx(TYPES_PL[o.type])} · ${esc(CONST_NAMES[o.con] || o.con)}${b ? ' · ' + esc(b.label) : ''}</span>
       <span class="pb"><b style="width:${Math.round((done ? 1 : prog) * 100)}%"></b></span>

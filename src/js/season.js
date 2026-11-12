@@ -99,7 +99,7 @@ function seasonIcs(P, C) {
    la miniatura non è ancora arrivata, o è una nebulosa rossa come le altre. Sono i colori dei modelli meteo di Cielo. */
 const SERIES = ['#4CCFBC', '#E6AA45', '#7FA8F0', '#E88A6E', '#B58CF0', '#5ACD8B', '#F0D264', '#C3CCDC'];
 const seriesCol = (id) => { const i = seasonTargets().findIndex((r) => r.o.id === id); return i < 0 ? null : SERIES[i % SERIES.length]; };
-const tThumb = (o, sz = 22, col) => `<img class="tt" src="${esc(thumbUrl(o))}" alt="" loading="lazy" decoding="async" width="${sz}" height="${sz}" style="--tc:${col || TYPE_COLOR[o.type]}">`;
+const tThumb = (o, sz = 22, col) => `<img class="tt" ${thumbAttrs(o)} alt="" loading="lazy" decoding="async" width="${sz}" height="${sz}" style="--tc:${col || TYPE_COLOR[o.type]}">`;
 function seasonHTML(P) {
   if (!P || !P.targets.length) return '';
   const C = state.res.C, lastK = Math.max(13, ...P.targets.map((t) => (t.done != null ? t.done + 2 : t.nights.length ? t.nights[t.nights.length - 1].k + 2 : 0)));

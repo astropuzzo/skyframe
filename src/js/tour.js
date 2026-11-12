@@ -48,6 +48,7 @@ const TOUR_STEPS = [
 ];
 /* novità per versione (le più recenti in cima) */
 const NEWS = [
+  { v: '0.34.1', items: ['Immagini dei target anche quando il servizio del CDS non risponde: arrivano dalle copie di ESA, IRSA, STScI e dal sito della NSNS', 'Immagine del target: + stringe e − allarga'] },
   { v: '0.34.0', items: ['Misura dell’orizzonte: i punti restano disegnati sul paesaggio mentre muovi il telefono, con i punti cardinali, l’orizzonte di prima e il Sole; un tocco sull’immagine mette un punto'] },
   { v: '0.33.0', items: ['Android: orizzonte misurato col telefono, con fotocamera e sensori; nord allineato al Sole o alla Luna'] },
   { v: '0.32.0', items: ['Android: widget «Stanotte» per la schermata Home, aggiornato anche ad app chiusa', 'Buio e finestre dei target al minuto', 'Notti quasi coperte fuori dai calendari e dal piano di stagione', 'Piano di stagione: un colore per target, notti con nuvole tratteggiate', 'Immagine del cielo: «Riprova» se non arriva', 'Computer: avvisi anche a finestra chiusa, dalla barra di sistema'] },

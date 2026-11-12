@@ -355,6 +355,8 @@ window.I18N.en = {
   "Registra la sessione": "Log the session",
   "Scarico le previsioni…": "Loading the forecast…",
   "Ora per ora": "Hour by hour",
+  "Immagini dei target anche quando il servizio del CDS non risponde: arrivano dalle copie di ESA, IRSA, STScI e dal sito della NSNS": "Target images even when the CDS service is down: they come from the ESA, IRSA and STScI mirrors and from the NSNS site",
+  "Immagine del target: + stringe e − allarga": "Target image: + zooms in, − zooms out",
   "DSS2 a colori": "DSS2 color",
   "DSS2 rosso": "DSS2 red",
   "Prima notte senza Luna: <b>{d}</b> ({h}).": "First moonless night: <b>{d}</b> ({h}).",

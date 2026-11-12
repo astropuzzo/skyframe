@@ -132,8 +132,8 @@ Profili e luoghi sono in `profili.json` nella cartella dati dell'app (`%APPDATA%
 | Cielo per direzione | Mappa *All-sky* di [lightpollutionmap.info](https://www.lightpollutionmap.info) (Jurij Stare), dati VIIRS | letta dal sito su richiesta per il tuo punto, non ridistribuita |
 | Inquinamento luminoso | [Atlante di David Lorenz](https://djlorenz.github.io/astronomy/lp/) (VIIRS 2025) | scaricato al bisogno, non ridistribuito |
 | Stelle, costellazioni, Via Lattea | [d3-celestial](https://github.com/ofrohn/d3-celestial) (Olaf Frohn) | BSD-3-Clause |
-| Immagini del target | DSS2, Pan-STARRS1 via [CDS hips2fits](https://alasky.cds.unistra.fr/hips-image-services/hips2fits) / NASA SkyView | uso online |
-| Immagini a grande campo e Hα | [Northern Sky Narrowband Survey](http://www.simg.de/nebulae3/dr0_1), Stefan Ziegenbalg, via CDS hips2fits | CC BY-NC-SA 4.0 |
+| Immagini del target | DSS2, Pan-STARRS1 via [CDS hips2fits](https://alasky.cds.unistra.fr/hips-image-services/hips2fits); se non risponde, dalle tessere HiPS in copia presso [ESA](https://skies.esac.esa.int), [IRSA](https://irsa.ipac.caltech.edu) e [STScI](https://archive.stsci.edu); in ultimo NASA SkyView | uso online |
+| Immagini a grande campo e Hα | [Northern Sky Narrowband Survey](http://www.simg.de/nebulae3/dr0_1), Stefan Ziegenbalg, via CDS hips2fits o dalle tessere del sito della survey | CC BY-NC-SA 4.0 |
 | Foto degli astrofili e degli osservatori | [Wikimedia Commons](https://commons.wikimedia.org), cercate per nome del target | licenza e autore di ogni foto, mostrati nell'app |
 | Mappa, ricerca, altitudine | OpenStreetMap, Photon (komoot), Open-Meteo | ODbL / servizi pubblici |
 | Mappa interattiva | [Leaflet](https://leafletjs.com) | BSD-2-Clause (`src/vendor/leaflet/LICENSE`) |

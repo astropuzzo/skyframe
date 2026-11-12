@@ -14,9 +14,9 @@ const ctx = { window: {}, console, Date, Math, Map, Set, Intl, JSON, Float32Arra
 vm.createContext(ctx);
 for (const name of ['filters', 'dso', 'sky', 'quality', 'real']) vm.runInContext(file(`data/${name}.js`), ctx);
 // nel piano di stagione il lavoro già fatto e i progetti in corso vengono dall'app: qui nessuno
-vm.runInContext("const LANG='it',LOCALE='it-IT',txName=(s)=>s,tx=(s,p)=>p?s.replace(/[{](\\w+)[}]/g,(_,k)=>p[k]??_):s,projProgress=()=>0,hasSessions=()=>false;" + file('js/astro.js') + '\n' + file('js/model.js') + '\n' + file('js/nights.js') + '\n' + file('js/season.js') + '\n' + file('js/hzscan.js') +
+vm.runInContext("const LANG='it',LOCALE='it-IT',txName=(s)=>s,tx=(s,p)=>p?s.replace(/[{](\\w+)[}]/g,(_,k)=>p[k]??_):s,projProgress=()=>0,hasSessions=()=>false;" + file('js/astro.js') + '\n' + file('js/model.js') + '\n' + file('js/nights.js') + '\n' + file('js/season.js') + '\n' + file('js/hzscan.js') + '\n' + file('js/hips.js') +
   '\n;this.M={siteTz,tzOff,wall,wallMs,dsOf,TZ,setDisplayTz,defaultNightStr,computeNight,moonCalendar,templateProfile,migrateProfile,migrateLoc,locsFromProfiles,moonFlux,unit,mosaicPanes,ninaCsv,' +
-  'channelSpec,qeRel,airmass,profileConfigs,computePrep,computeObj,hoursOf,nightRec,shootCalendar,aheadNight,buildSeason,seasonIcs,nightSamples,moonPos,altaz,lstDeg,jd,CAT_BY_ID,MOON_RISE,MOON_PAR,STEP,CAL_N,CAL_STEP,aimVec,aimOf,scanToHorizon,skyRefs,skyRef,horizonLUT,sunPos,hzRot,hzProject,hzUnproject,hzFov};', ctx);
+  'channelSpec,qeRel,airmass,profileConfigs,computePrep,computeObj,hoursOf,nightRec,shootCalendar,aheadNight,buildSeason,seasonIcs,nightSamples,moonPos,altaz,lstDeg,jd,CAT_BY_ID,MOON_RISE,MOON_PAR,STEP,CAL_N,CAL_STEP,aimVec,aimOf,scanToHorizon,skyRefs,skyRef,horizonLUT,sunPos,hzRot,hzProject,hzUnproject,hzFov,hpxNest,hpxLoc,tanXY,tanSky,hipsCover,hipsPlan,hipsPath,HIPS_SRC};', ctx);
 const M = ctx.M;
 
 const SITES = {
@@ -265,6 +265,57 @@ test('pannelli per N.I.N.A.: centro e PA come nell’anteprima', () => {
   // due righe: la prima a nord
   P = M.mosaicPanes(o, g, 1, 2, 90, [0, 0]);
   assert.ok(P[0].dec > o.dec && P[1].dec < o.dec && P[0].row === 1);
+});
+
+test('immagini dalle tessere: pixel HEALPix', () => {
+  // i dodici pixel di base: quattro attorno al polo nord, quattro sull'equatore, quattro a sud
+  const base = [[45, 41.8103], [135, 41.8103], [225, 41.8103], [315, 41.8103], [0, 0], [90, 0], [180, 0], [270, 0], [45, -41.8103], [135, -41.8103], [225, -41.8103], [315, -41.8103]];
+  base.forEach(([ra, dec], f) => {
+    const c = M.hpxLoc(0, f, 0.5, 0.5);
+    assert.ok(Math.abs(c[0] - ra) < 1e-3 && Math.abs(c[1] - dec) < 1e-3, 'centro del pixel ' + f + ': ' + c);
+    assert.equal(M.hpxNest(0, ra, dec), f);
+  });
+  // gli angoli del pixel 0: nord al polo, sud sull'equatore, est a RA maggiore
+  assert.ok(Math.abs(M.hpxLoc(0, 0, 1, 1)[1] - 90) < 1e-6);
+  assert.deepEqual([...M.hpxLoc(0, 0, 0, 0)].map((x) => +x.toFixed(6)), [45, 0]);
+  assert.ok(Math.abs(M.hpxLoc(0, 0, 1, 0)[0] - 90) < 1e-6 && Math.abs(M.hpxLoc(0, 0, 0, 1)[0]) < 1e-6);
+  let seed = 7; const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
+  for (let i = 0; i < 4000; i++) {
+    const ra = rnd() * 360, dec = Math.asin(2 * rnd() - 1) * 180 / Math.PI, k = 1 + Math.floor(rnd() * 11), n = M.hpxNest(k, ra, dec);
+    assert.ok(n >= 0 && n < 12 * 4 ** k);
+    // schema annidato: il pixel dell'ordine sopra è n / 4; il centro di un pixel cade nel pixel stesso
+    assert.equal(M.hpxNest(k - 1, ra, dec), Math.floor(n / 4));
+    const c = M.hpxLoc(k, n, 0.5, 0.5); assert.equal(M.hpxNest(k, c[0], c[1]), n);
+    // il punto sta a meno di una diagonale dal centro del suo pixel
+    const d = Math.acos(Math.min(1, Math.sin(dec * Math.PI / 180) * Math.sin(c[1] * Math.PI / 180) + Math.cos(dec * Math.PI / 180) * Math.cos(c[1] * Math.PI / 180) * Math.cos((ra - c[0]) * Math.PI / 180))) * 180 / Math.PI;
+    assert.ok(d < 58.7 / 2 ** k * 1.1, 'ordine ' + k + ': ' + d);
+  }
+  // all'ordine 2 il cielo intero è fatto di 192 pixel
+  const seen = new Set(); for (let dec = -89.5; dec < 90; dec += 1) for (let ra = 0; ra < 360; ra += 1) seen.add(M.hpxNest(2, ra, dec));
+  assert.equal(seen.size, 192);
+  assert.equal(M.hipsPath(6, 123456, 'jpg'), '/Norder6/Dir120000/Npix123456.jpg');
+});
+
+test('immagini dalle tessere: proiezione e tessere che servono', () => {
+  // est a sinistra: un punto a RA maggiore ha xi positivo; andata e ritorno
+  const p = M.tanXY(83.8, -5.4, 84.3, -5.0); assert.ok(p[0] > 0 && p[1] > 0);
+  const s = M.tanSky(83.8, -5.4, p[0], p[1]); assert.ok(Math.abs(s[0] - 84.3) < 1e-9 && Math.abs(s[1] + 5.0) < 1e-9);
+  assert.equal(M.tanXY(10, 40, 190, -40), null);
+  for (const [ra0, dec0, fov, w, h] of [[10.68, 41.27, 1.5, 720, 475], [83.82, -5.39, 3, 1400, 644], [314, 44.3, 0.4, 144, 144], [0.2, 89.2, 2, 800, 500], [359.9, 0.1, 6, 800, 500]]) {
+    for (const k of [3, 5, 7]) {
+      const tiles = new Set(M.hipsCover(k, ra0, dec0, fov, w, h)), F = w / (fov * Math.PI / 180);
+      // ogni punto dell'immagine cade in una tessera scelta
+      for (let y = 0; y <= h; y += 7) for (let x = 0; x <= w; x += 7) { const q = M.tanSky(ra0, dec0, (w / 2 - x) / F, (h / 2 - y) / F); assert.ok(tiles.has(M.hpxNest(k, q[0], q[1])), 'punto scoperto ' + [ra0, dec0, k, x, y]); }
+      // e nessuna tessera scelta è lontana dall'immagine più della propria diagonale
+      for (const n of tiles) { const c = M.hpxLoc(k, n, 0.5, 0.5), t = M.tanXY(ra0, dec0, c[0], c[1]); assert.ok(t && Math.abs(t[0] * F) < w / 2 + 62 / 2 ** k * Math.PI / 180 * F && Math.abs(t[1] * F) < h / 2 + 62 / 2 ** k * Math.PI / 180 * F, 'tessera di troppo ' + n); }
+    }
+  }
+  // telefono, 1,5° su 720 pixel: 7,5"/px → ordine 6 della DSS2 (6,4"/px)
+  const dss = M.hipsPlan(M.HIPS_SRC['CDS/P/DSS2/color'], 10.68, 41.27, 1.5, 720, 475); assert.equal(dss.order, 6); assert.ok(dss.tiles.length >= 2 && dss.tiles.length <= 24);
+  // un campo stretto non chiede più dell'ordine massimo della survey
+  assert.equal(M.hipsPlan(M.HIPS_SRC['simg.de/P/NSNS/DR0_1/tc8'], 83.82, -5.39, 0.7, 1400, 644).order, 5);
+  // un campo largo della NSNS scende di ordine per restare entro sei tessere
+  const wide = M.hipsPlan(M.HIPS_SRC['simg.de/P/NSNS/DR0_1/tc8'], 83.82, -5.39, 6, 1400, 644); assert.ok(wide.tiles.length <= 6 && wide.order < 5);
 });
 
 test('orizzonte col telefono: dove guarda la fotocamera', () => {

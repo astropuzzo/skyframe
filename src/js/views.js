@@ -360,8 +360,8 @@ function curEval(r) { return r.evals.find((e) => e.cfg.key === state.selCfg) || 
    Piano = la risposta (quanto, con cosa, dove conviene); Quando = notti, periodo, la notte, l'anno; Campo = anteprima e
    coordinate; Consigli. La scheda scelta resta quella quando si apre un altro target. */
 /* ============================ immagini del target ============================ */
-/* In cima al dettaglio: il target visto da diverse survey (servizio hips2fits del CDS) e le foto con licenza libera di
-   Wikimedia Commons, prima quelle degli astrofili. Una striscia sola: si tocca e si vede nel riquadro. */
+/* In cima al dettaglio: il target visto da diverse survey (js/hips.js) e le foto con licenza libera di Wikimedia
+   Commons, prima quelle degli astrofili. Una striscia sola: si tocca e si vede nel riquadro. */
 const SURVEYS = [
   { id: 'nsns', hips: 'simg.de/P/NSNS/DR0_1/tc8', label: 'NSNS colori', credit: 'Northern Sky Narrowband Survey, S. Ziegenbalg · CC BY-NC-SA 4.0', ok: (o) => o.dec > -15 },
   { id: 'dss', hips: 'CDS/P/DSS2/color', label: 'DSS2 colori', credit: 'DSS2 · CDS', ok: () => true },
@@ -381,7 +381,6 @@ function galSurvey(o, fov) {
   const id = fov >= 0.6 && o.dec > -15 && o.type !== 'Gx' && o.type !== 'GC' ? 'nsns' : o.dec > -29 && fov < 0.6 ? 'ps' : 'dss';
   return SURVEYS.find((s) => s.id === id);
 }
-const hipsUrl = (hips, o, fov, w, h) => `https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=${encodeURIComponent(hips)}&width=${w}&height=${h}&fov=${fov.toFixed(4)}&projection=TAN&coordsys=icrs&ra=${o.ra.toFixed(5)}&dec=${o.dec.toFixed(5)}&format=jpg`;
 
 /* foto con licenza libera da Wikimedia Commons: autore e licenza sempre in vista */
 const photoCache = new Map();
@@ -420,7 +419,7 @@ function galHTML(r, e) {
   const o = r.o;
   return `<div class="dgal">
     <div class="gview" id="gView"><img id="gImg" alt="${esc(o.id)}" decoding="async"><div class="gload" id="gLoad">${tx('Carico l’immagine…')}</div>
-      <div class="gzoom" id="gZoom"><button class="gz" data-z="0.5" aria-label="${tx('Allarga il campo')}" title="${tx('Allarga il campo')}">−</button><button class="gz" data-z="2" aria-label="${tx('Stringi sul target')}" title="${tx('Stringi sul target')}">+</button></div></div>
+      <div class="gzoom" id="gZoom"><button class="gz" data-z="2" aria-label="${tx('Allarga il campo')}" title="${tx('Allarga il campo')}">−</button><button class="gz" data-z="0.5" aria-label="${tx('Stringi sul target')}" title="${tx('Stringi sul target')}">+</button></div></div>
     <div class="gcap" id="gCap"></div>
     <div class="gstrip" id="gStrip">${SURVEYS.filter((s) => s.ok(o)).map((s) => `<button class="gs" data-sv="${s.id}">${esc(tx(s.label))}</button>`).join('')}<span class="gph" id="gPh"><span class="gsp">${tx('Cerco foto…')}</span></span></div>
   </div>`;
@@ -431,7 +430,7 @@ function galShow(r, e) {
   const load = $('#gLoad'), cap = $('#gCap'), zoom = $('#gZoom');
   const w = Math.max(320, box.clientWidth || 600), h = Math.round(w * (w < 500 ? 0.66 : 0.46));
   box.style.height = h + 'px';
-  let src, capHTML;
+  let src, capHTML, get = null;
   if (gal.photo) {
     const p = gal.photo; src = p.big;
     capHTML = `${esc(p.artist)}${p.license ? ' · ' + esc(p.license) : ''} · <a href="${esc(p.page)}" target="_blank" rel="noopener">Wikimedia Commons</a>`;
@@ -439,7 +438,7 @@ function galShow(r, e) {
     $$('#gStrip .gs').forEach((b) => b.setAttribute('aria-pressed', 'false'));
   } else {
     const fov = galFov(r, e), s = galSurvey(o, fov), dpr = Math.min(2, devicePixelRatio || 1), pw = Math.min(1400, Math.round(w * dpr)), ph = Math.round(pw * h / w);
-    src = hipsUrl(s.hips, o, fov, pw, ph);
+    src = hipsUrl(s.hips, o, fov, pw, ph); get = () => skyUrl(s.hips, o, fov, pw, ph);
     capHTML = `${esc(tx(s.label))} · ${tx('campo {f}', { f: fmtDeg(fov * 60) })} · ${esc(s.credit)}`;
     zoom.hidden = false; box.classList.remove('photo');
     $$('#gStrip .gs').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sv === s.id)));
@@ -448,12 +447,13 @@ function galShow(r, e) {
   cap.innerHTML = capHTML;
   if (img.dataset.src === src) return;
   img.dataset.src = src; load.hidden = false; load.textContent = tx('Carico l’immagine…'); img.classList.add('wait');
-  // il servizio delle immagini a volte non risponde: dopo 20 secondi lo si dice, con un «Riprova»
+  // se l'immagine non arriva né dal CDS né dalle copie, dopo 40 secondi lo si dice, con un «Riprova»
   const fail = () => { if (img.dataset.src === src && img.classList.contains('wait')) load.innerHTML = `${tx('Immagine non disponibile')} · <button type="button" class="link" data-retry>${tx('Riprova')}</button>`; };
-  clearTimeout(gal.wait); gal.wait = setTimeout(fail, 20000);
+  clearTimeout(gal.wait); gal.wait = setTimeout(fail, 40000);
   img.onload = () => { if (img.dataset.src === src) { clearTimeout(gal.wait); load.hidden = true; img.classList.remove('wait'); } };
-  img.onerror = fail;
-  img.src = src;
+  // un ritaglio del CDS che non si carica più: una seconda richiesta, che va alle copie
+  const show = (url) => { if (img.dataset.src !== src) return; img.onerror = get && url === src ? () => { skyDrop(src); get().then(show, fail); } : fail; img.src = url; };
+  if (get) get().then(show, fail); else show(src);
 }
 function wireGallery(r, e) {
   const o = r.o;
@@ -826,12 +826,13 @@ function realSkyImage(o, w, h, k, dpr) {
   const pw = Math.min(1400, Math.round(w * dpr)), ph = Math.round(pw * h / w), fw = (w / k) / 60, fh = (h / k) / 60, sv = galSurvey(o, fw), key = `${o.id}|${pw}|${fw.toFixed(4)}|${sv.id}`;
   const c = skyCache.get(key); if (c) return c.ok ? c : null;
   const srcs = [
-    ...(sv.id !== 'dss' ? [{ url: hipsUrl(sv.hips, o, fw, pw, ph), label: tx('Foto reale {s}', { s: tx(sv.label) }) + ` (${sv.credit})` }] : []),
-    { url: hipsUrl('CDS/P/DSS2/color', o, fw, pw, ph), label: 'DSS2 a colori' },
-    { url: `https://skyview.gsfc.nasa.gov/current/cgi/runquery.pl?Survey=${encodeURIComponent('DSS2 Red')}&position=${o.ra.toFixed(5)},${o.dec.toFixed(5)}&Size=${fw.toFixed(4)},${fh.toFixed(4)}&Pixels=${Math.min(pw, 900)},${Math.round(Math.min(pw, 900) * h / w)}&Return=JPEG&Scaling=Log`, label: 'DSS2 rosso' }];
-  const ent = { img: null, ok: false, label: '' }; skyCache.set(key, ent);
-  const tryN = (i) => { if (i >= srcs.length) { setTimeout(() => skyCache.delete(key), 60000); if (state.sel === o.id) setSkyNote(tx('Senza connessione: anteprima schematica')); return; }
-    const img = new Image(); img.onload = () => { ent.img = img; ent.ok = true; ent.label = tx(srcs[i].label); if (state.sel === o.id) drawPreview(); }; img.onerror = () => tryN(i + 1); img.src = srcs[i].url; };
+    ...(sv.id !== 'dss' ? [{ get: () => skyUrl(sv.hips, o, fw, pw, ph), label: tx('Foto reale {s}', { s: tx(sv.label) }) + ` (${sv.credit})` }] : []),
+    { get: () => skyUrl('CDS/P/DSS2/color', o, fw, pw, ph), label: 'DSS2 a colori' },
+    { log: true, get: async () => `https://skyview.gsfc.nasa.gov/current/cgi/runquery.pl?Survey=${encodeURIComponent('DSS2 Red')}&position=${o.ra.toFixed(5)},${o.dec.toFixed(5)}&Size=${fw.toFixed(4)},${fh.toFixed(4)}&Pixels=${Math.min(pw, 900)},${Math.round(Math.min(pw, 900) * h / w)}&Return=JPEG&Scaling=Log`, label: 'DSS2 rosso' }];
+  const ent = { img: null, ok: false, label: '', log: false }; skyCache.set(key, ent);
+  const tryN = (i, again) => { if (i >= srcs.length) { setTimeout(() => skyCache.delete(key), 60000); if (state.sel === o.id) setSkyNote(tx('Senza connessione: anteprima schematica')); return; }
+    const img = new Image(); img.onload = () => { ent.img = img; ent.ok = true; ent.label = tx(srcs[i].label); ent.log = !!srcs[i].log; if (state.sel === o.id) drawPreview(); };
+    srcs[i].get().then((url) => { img.onerror = () => { if (!again && /hips2fits/.test(url)) { skyDrop(url); tryN(i, true); } else tryN(i + 1); }; img.src = url; }, () => tryN(i + 1)); };
   tryN(0); return null;
 }
 function drawPreview() {
@@ -848,7 +849,7 @@ function drawPreview() {
   const cx = w / 2, cy = h / 2, R = rng(hash(o.id));
   const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.7); bg.addColorStop(0, '#0A0E16'); bg.addColorStop(1, '#03050A'); ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
   const real = state.realSky ? realSkyImage(o, w, h, k, dpr) : null;
-  if (real) { if (/SkyView/.test(real.label)) ctx.filter = 'brightness(0.62) contrast(2.1)'; ctx.drawImage(real.img, 0, 0, w, h); ctx.filter = 'none'; frameOverlay(ctx, e, g, k, w, h, mos); setSkyNote(real.label); return; }
+  if (real) { if (real.log) ctx.filter = 'brightness(0.62) contrast(2.1)'; ctx.drawImage(real.img, 0, 0, w, h); ctx.filter = 'none'; frameOverlay(ctx, e, g, k, w, h, mos); setSkyNote(real.label); return; }
   setSkyNote(tx(state.realSky ? 'Scarico la foto DSS2…' : 'Anteprima schematica'));
   const A = Math.max(o.a / 2 * k, 2), B = Math.max(o.b / 2 * k, 2), pa = o.pa * D2R;
   const inObj = (x, y) => { const dx = x - cx, dy = y - cy, u = dx * Math.cos(pa) - dy * Math.sin(pa), v = dx * Math.sin(pa) + dy * Math.cos(pa); return Math.sqrt((u / B) ** 2 + (v / A) ** 2); };
