@@ -5,9 +5,10 @@
    punti diventano l'orizzonte del luogo. Dalla fotocamera non si salva e non si manda niente.
    Quello che si è segnato resta disegnato sul paesaggio mentre il telefono si muove, insieme alla linea dell'orizzonte coi
    punti cardinali, all'orizzonte di prima e al Sole: serve il campo inquadrato, che arriva dai dati della fotocamera.
-   Il nord: vicino a ringhiere e cemento armato la bussola del telefono sbaglia anche di 10°. Il mirino si può allineare al
-   Sole o alla Luna, di cui si conosce l'azimut vero: da lì in poi conta solo il giroscopio. Senza allineamento vale la
-   bussola, corretta della declinazione magnetica dove il telefono la sa calcolare (Android). */
+   I punti si tengono nel riferimento del giroscopio, che è fermo rispetto al paesaggio; il nord è un numero solo per tutta
+   la misura. Vicino a ringhiere e cemento armato la bussola del telefono sbaglia anche di 10°: il mirino si può allineare
+   al Sole o alla Luna, di cui si conosce l'azimut vero. Senza allineamento vale la media della bussola su tutto il giro,
+   corretta della declinazione magnetica dove il telefono la sa calcolare (Android). */
 const HZS_GAP = 60, HZS_STEP = 1.5; // oltre 60° senza punti resta l'orizzonte di prima; passo della traccia (gradi)
 const HZS_FOV = 66;                 // campo sul lato lungo di una fotocamera principale tipica, quando il telefono non lo dice
 const wrap180 = (d) => ((d % 360) + 540) % 360 - 180;
@@ -130,13 +131,11 @@ async function hzScanOpen() {
     </div>`;
   const q = (s) => el.querySelector(s), video = q('video'), strip = q('[data-strip]'), mark = q('[data-mark]'), ar = q('[data-ar]'), viewEl = q('[data-view]');
   const keep = HZS.saved && HZS.saved.id === draft.id && Date.now() - HZS.saved.at < 30 * 60e3 ? HZS.saved.strokes : [];
-  const S = Object.assign(HZS, { el, site, old, strokes: keep, saved: null, rel: null, abs: null, relR: null, absR: null, v: null, offS: 0, offC: 0, offN: 0, decl: null, acc: -1, cal: null, hold: false, last: null, cam: 'wait', stream: null, fov: hzFov(null), raf: 0, t0: Date.now(), evN: 0, say: '', sayAt: 0, res: null, shown: {}, ref: null, refAt: 0, vAt: 0, applied: false });
+  const S = Object.assign(HZS, { el, site, old, strokes: keep, saved: null, rel: null, abs: null, relR: null, absR: null, v: null, offS: 0, offC: 0, offN: 0, offOk: false, offT: 0, decl: null, acc: -1, cal: null, hold: false, last: null, cam: 'wait', stream: null, fov: hzFov(null), raf: 0, t0: Date.now(), evN: 0, say: '', sayAt: 0, res: null, resOff: null, rev: 0, shown: {}, ref: null, refAt: 0, vAt: 0, vSrc: null, applied: false });
   const css = getComputedStyle(document.documentElement), col = (n) => css.getPropertyValue(n).trim();
   const C = { ink2: col('--ink-2'), line: col('--line-3'), dim: col('--ink-3'), acc: col('--accent'), sun: col('--sii') };
   const oldLut = old.length ? horizonLUT(old) : null;
   const buzz = () => { try { if (navigator.vibrate) navigator.vibrate(8); } catch { /* niente */ } };
-  const refresh = () => { S.res = scanToHorizon(S.strokes.flat(), S.old); S.shown = {}; };
-  refresh();
 
   /* ---- sensori ---- */
   const onOri = (e) => {
@@ -146,7 +145,11 @@ async function hzScanOpen() {
     // Di quanto la bussola è ruotata rispetto al giroscopio: media nel tempo, lontano dallo zenit dove l'azimut non si legge.
     // Il browser manda un evento solo quando l'orientamento cambia: a telefono fermo ne arrivano pochi, la prima coppia si
     // prende da qualunque dei due.
-    if (S.rel && S.abs && (abs || S.offN < 3) && Math.abs(S.abs[2]) < 0.9 && Math.abs(S.rel[2]) < 0.9) { const d = (aimOf(S.abs).az - aimOf(S.rel).az) * D2R, k = Math.max(0.003, 1 / ++S.offN); S.offS += (Math.sin(d) - S.offS) * k; S.offC += (Math.cos(d) - S.offC) * k; }
+    if (S.rel && S.abs && (abs || !S.offOk) && Math.abs(S.abs[2]) < 0.9 && Math.abs(S.rel[2]) < 0.9) {
+      // appena accesa la bussola si sta ancora assestando: dopo un secondo e mezzo la media riparte da capo
+      const now = Date.now(); if (!S.offT) S.offT = now; else if (S.offT > 0 && now - S.offT > 1500) { S.offT = -1; S.offN = 0; }
+      const d = (aimOf(S.abs).az - aimOf(S.rel).az) * D2R, k = Math.max(1 / 4000, 1 / ++S.offN); S.offS += (Math.sin(d) - S.offS) * k; S.offC += (Math.cos(d) - S.offC) * k; S.offOk = true;
+    }
   };
   const src = () => (S.rel ? 'rel' : S.abs ? 'abs' : null);
   /* il nord: { off = gradi da aggiungere all'azimut dei sensori (null se non c'è un riferimento), ref = da dove viene } */
@@ -154,12 +157,17 @@ async function hzScanOpen() {
     const s = src(), mag = S.decl == null ? 'mag' : 'compass'; if (!s) return null;
     if (S.cal && S.cal.src === s) return { off: S.cal.off, ref: S.cal.who };
     if (s === 'abs') return { off: S.decl || 0, ref: mag };
-    if (S.abs && S.offN > 0) return { off: Math.atan2(S.offS, S.offC) * R2D + (S.decl || 0), ref: mag };
+    if (S.abs && S.offOk) return { off: Math.atan2(S.offS, S.offC) * R2D + (S.decl || 0), ref: mag };
     return { off: null, ref: 'none' };
   };
   /* il puntamento: quello dei sensori così com'è per i punti, la media corta (S.v) per i numeri sullo schermo */
   const aimFrom = (v) => { const nn = north(); if (!nn || !v) return null; const a = aimOf(v); return { az: nn.off == null ? null : norm360(a.az + nn.off), alt: a.alt, ref: nn.ref }; };
   const aimNow = () => aimFrom(S.v), aimRaw = () => aimFrom(S.rel || S.abs);
+  /* I punti stanno nel riferimento dei sensori (b = azimut lì): restano fermi sul paesaggio anche mentre la stima del nord
+     si aggiusta. L'azimut vero si calcola quando serve; quelli ripresi da una misura chiusa arrivano già col loro (az). */
+  const offNow = () => { const nn = north(); return nn ? nn.off : null; };
+  const truePts = (off) => S.strokes.map((st) => st.map((p) => (p.b == null ? { az: p.az, alt: p.alt } : off == null ? null : { az: norm360(p.b + off), alt: p.alt })).filter(Boolean));
+  const refresh = () => { S.resOff = offNow(); S.res = scanToHorizon(truePts(S.resOff).flat(), S.old); S.rev++; };
   /* la vista per disegnare sull'immagine; null finché manca il nord */
   const view = () => {
     const nn = north(), R = S.rel ? S.relR : S.absR, W = viewEl.clientWidth, H = viewEl.clientHeight, vw = video.videoWidth, vh = video.videoHeight;
@@ -171,20 +179,19 @@ async function hzScanOpen() {
   const say = (t) => { S.say = t; S.sayAt = Date.now(); };
   const align = () => {
     const ref = skyRef(S.site, Date.now()), s = src(), base = S.rel || S.abs; if (!ref || !s || !base) return;
-    const a = aimOf(base), before = aimRaw();
+    const a = aimOf(base);
     // l'altezza non dipende dalla bussola: se non torna, nel mirino non c'è il Sole
     if (Math.abs(a.alt - ref.alt) > 6) { say(tx(ref.who === 'sun' ? 'Il Sole è a {h}° di altezza, il mirino a {a}°' : 'La Luna è a {h}° di altezza, il mirino a {a}°', { h: Math.round(ref.alt), a: Math.round(a.alt) })); return; }
     S.cal = { off: wrap180(ref.az - a.az), who: ref.who, src: s };
-    // i punti già presi avevano il nord di prima: si spostano dello stesso scarto
-    if (before && before.az != null) { const d = wrap180(ref.az - before.az); for (const st of S.strokes) for (const p of st) p.az = norm360(p.az + d); refresh(); }
-    S.say = ''; buzz();
+    S.say = ''; refresh(); buzz();
   };
 
   /* ---- punti ---- */
   const add = (start) => {
     const a = aimRaw(); if (!a || a.az == null || a.alt > 80) return false;
+    const b = aimOf(S.rel || S.abs);
     if (start) S.strokes.push([]);
-    S.strokes[S.strokes.length - 1].push({ az: a.az, alt: a.alt }); S.last = a; refresh();
+    S.strokes[S.strokes.length - 1].push({ b: b.az, alt: b.alt }); S.last = b; refresh();
     return true;
   };
   let pressed = false;
@@ -198,17 +205,18 @@ async function hzScanOpen() {
     if (e.target.closest('button') || !S.fov.known) return;
     const V = view(); if (!V) return;
     const r = viewEl.getBoundingClientRect(), p = hzUnproject(V, e.clientX - r.left, e.clientY - r.top); if (p.alt > 80) return;
-    S.strokes.push([p]); S.last = null; refresh(); buzz();
+    S.strokes.push([{ b: norm360(p.az - V.off), alt: p.alt }]); S.last = null; refresh(); buzz();
   });
   q('[data-undo]').onclick = () => { S.strokes.pop(); S.last = null; refresh(); };
   q('[data-cal]').onclick = align;
 
   /* ---- fotocamera ---- */
   const stopCam = () => { if (S.stream) S.stream.getTracks().forEach((t) => t.stop()); S.stream = null; video.srcObject = null; };
-  /* il campo inquadrato della fotocamera che il browser ha scelto (Android la chiama «camera2 0, facing back») */
+  /* il campo inquadrato della fotocamera che il browser ha scelto: la chiama «camera2 0, facing back», dove il numero è
+     la posizione nell'elenco delle fotocamere di Android */
   const readFov = async (label) => {
     const cp = window.cielo && window.cielo.compass; if (!cp || !cp.cameras) return;
-    const list = await cp.cameras(), id = (/camera2?\s+(\d+)/i.exec(label || '') || [])[1], cam = list.find((c) => String(c.id) === id) || list.find((c) => c.back);
+    const list = await cp.cameras(), n = (/camera2?\s+(\d+)/i.exec(label || '') || [])[1], cam = list.find((c) => String(c.index) === n) || list.find((c) => c.back);
     if (HZS.el === el && cam) S.fov = hzFov(cam);
   };
   const startCam = async () => {
@@ -243,7 +251,7 @@ async function hzScanOpen() {
       for (let d = 0; d < 360; d++) if ((M[d] && M[(d + 1) % 360] ? 1 : 0) === on) { c.moveTo(X(d), Y(lut[d])); c.lineTo(X(d + 1), Y(lut[d + 1])); }
       c.stroke();
     }
-    c.fillStyle = C.acc; for (const st of S.strokes) for (const p of st) c.fillRect(X(p.az) - 1, Y(p.alt) - 1, 2, 2);
+    c.fillStyle = C.acc; for (const p of truePts(S.resOff).flat()) c.fillRect(X(p.az) - 1, Y(p.alt) - 1, 2, 2);
     if (a && a.az != null) { const x = X(a.az); c.fillStyle = '#fff'; c.fillRect(Math.round(x), 0, 1, H); c.beginPath(); c.arc(x, Y(Math.max(0, a.alt)), 3, 0, 2 * Math.PI); c.fill(); }
   };
   /* Sull'immagine, ancorati al paesaggio: la linea dell'orizzonte coi cardinali, l'orizzonte di prima (tratteggiato), quello
@@ -266,8 +274,9 @@ async function hzScanOpen() {
     // l'orizzonte di prima, dove non si è ancora misurato
     if (oldLut) { const M = S.res.measured; line(around((d) => (M[Math.round(d) % 360] ? null : oldLut[Math.round(d) % 360])).map((q2) => (q2[1] == null ? null : q2))); ink('rgba(255, 255, 255, .8)', 1.5, [6, 6]); }
     // quello che si è segnato: le tracce, e un punto per ogni lettura
-    for (const st of S.strokes) if (st.length > 1) { line(st.map((p) => [p.az, p.alt])); ink(C.acc, 2.5); }
-    for (const st of S.strokes) for (const p of st) { const s = P(p.az, p.alt); if (!s) continue; c.beginPath(); c.arc(s[0], s[1], st.length > 1 ? 2.5 : 5, 0, 2 * Math.PI); c.fillStyle = C.acc; c.fill(); c.strokeStyle = 'rgba(0, 0, 0, .75)'; c.lineWidth = 1.5; c.stroke(); }
+    const mine = truePts(V.off);
+    for (const st of mine) if (st.length > 1) { line(st.map((p) => [p.az, p.alt])); ink(C.acc, 2.5); }
+    for (const st of mine) for (const p of st) { const s = P(p.az, p.alt); if (!s) continue; c.beginPath(); c.arc(s[0], s[1], st.length > 1 ? 2.5 : 5, 0, 2 * Math.PI); c.fillStyle = C.acc; c.fill(); c.strokeStyle = 'rgba(0, 0, 0, .75)'; c.lineWidth = 1.5; c.stroke(); }
     // dove stanno il Sole o la Luna secondo l'app: se il cerchio non cade sull'astro, la bussola sbaglia di quel tanto
     if (S.ref) { const s = P(S.ref.az, S.ref.alt); if (s) { c.beginPath(); c.arc(s[0], s[1], 17, 0, 2 * Math.PI); ink(S.ref.who === 'sun' ? C.sun : '#fff', 2); label(tx(S.ref.who === 'sun' ? 'Sole' : 'Luna'), s[0], s[1] - 24, '#fff'); } }
   };
@@ -276,12 +285,16 @@ async function hzScanOpen() {
     if (HZS.el !== el) return;
     S.raf = requestAnimationFrame(frame);
     const now = Date.now(), base = S.rel || S.abs;
-    // la mano trema: i numeri sullo schermo si leggono su una media di 50 ms
+    // la mano trema: i numeri sullo schermo si leggono su una media di 50 ms (che riparte se cambia la sorgente)
+    if (src() !== S.vSrc) { S.vSrc = src(); S.v = null; }
     if (base) { const k = S.v ? 1 - Math.exp(-Math.min(200, now - S.vAt) / 50) : 1, v = S.v || base, x = v[0] + (base[0] - v[0]) * k, y = v[1] + (base[1] - v[1]) * k, z = v[2] + (base[2] - v[2]) * k, n = Math.hypot(x, y, z) || 1; S.v = [x / n, y / n, z / n]; S.vAt = now; }
     if (now - S.refAt > 2000) { S.refAt = now; S.ref = skyRef(S.site, now); }
+    // punti arrivati col loro azimut vero (ripresi da prima): appena c'è il nord passano nel riferimento dei sensori
+    const off = offNow();
+    if (off != null) { let moved = false; for (const st of S.strokes) for (const p of st) if (p.b == null) { p.b = norm360(p.az - off); delete p.az; moved = true; } if (moved || S.resOff == null || Math.abs(wrap180(off - S.resOff)) > 0.3) refresh(); }
     const a = aimNow(), raw = aimRaw(), ref = S.ref, n = S.strokes.reduce((t, st) => t + st.length, 0);
     const noNorth = !!a && a.ref === 'none' && now - S.t0 > 1500; // nel primo secondo la bussola deve ancora arrivare
-    if (S.hold && raw && raw.az != null && raw.alt <= 80 && S.last && aimSep(raw, S.last) >= HZS_STEP) add(false);
+    if (S.hold && raw && raw.az != null && raw.alt <= 80 && S.last && aimSep(aimOf(base), S.last) >= HZS_STEP) add(false);
     set('read', a ? `${a.az == null ? '' : Math.round(a.az) % 360}|${Math.round(a.alt)}` : '', () => {
       q('[data-read]').hidden = !a; if (!a) return;
       q('[data-az]').textContent = a.az == null ? '—' : (Math.round(a.az) % 360) + '°'; q('[data-dir]').textContent = a.az == null ? '' : azName(a.az);
@@ -290,7 +303,7 @@ async function hzScanOpen() {
     // quanto sbagliava la bussola, dopo l'allineamento: si vede se conviene fidarsene la prossima volta
     let refTxt = '';
     if (a) {
-      if (a.ref === 'sun' || a.ref === 'moon') { const s = S.abs && S.rel && S.offN > 0 ? Math.round(wrap180(Math.atan2(S.offS, S.offC) * R2D + (S.decl || 0) - S.cal.off)) : null; refTxt = tx(a.ref === 'sun' ? 'Allineato al Sole' : 'Allineato alla Luna') + (s == null || S.cal.src !== 'rel' ? '' : ' · ' + tx('bussola {d}°', { d: (s > 0 ? '+' : s < 0 ? '−' : '') + Math.abs(s) })); }
+      if (a.ref === 'sun' || a.ref === 'moon') { const s = S.abs && S.rel && S.offOk ? Math.round(wrap180(Math.atan2(S.offS, S.offC) * R2D + (S.decl || 0) - S.cal.off)) : null; refTxt = tx(a.ref === 'sun' ? 'Allineato al Sole' : 'Allineato alla Luna') + (s == null || S.cal.src !== 'rel' ? '' : ' · ' + tx('bussola {d}°', { d: (s > 0 ? '+' : s < 0 ? '−' : '') + Math.abs(s) })); }
       else if (a.ref !== 'none' || noNorth) refTxt = tx({ compass: 'Bussola', mag: 'Nord magnetico', none: 'Bussola assente' }[a.ref]);
     }
     set('ref', refTxt, (v) => { q('[data-ref]').textContent = v; });
@@ -310,7 +323,7 @@ async function hzScanOpen() {
     set('done', n >= 2, (v) => { q('[data-done]').disabled = !v; });
     set('ready', !!(a && a.az != null), (v) => { mark.disabled = !v; });
     drawAr(view(), raw);
-    const sk = `${n}|${a && a.az != null ? Math.round(a.az * 2) : ''}|${a ? Math.round(a.alt) : ''}|${strip.clientWidth}`;
+    const sk = `${S.rev}|${a && a.az != null ? Math.round(a.az * 2) : ''}|${a ? Math.round(a.alt) : ''}|${strip.clientWidth}`;
     if (sk !== stripKey && now - stripAt > 80) { stripKey = sk; stripAt = now; drawStrip(a); }
   };
 
@@ -321,8 +334,10 @@ async function hzScanOpen() {
     const cp = window.cielo && window.cielo.compass; if (!cp) return;
     if (on && !unwatch) unwatch = cp.watch((lv) => { S.acc = lv; }); else if (!on && unwatch) { unwatch(); unwatch = null; }
   };
-  // in secondo piano la fotocamera si spegne; al ritorno riparte
-  const vis = () => { if (document.hidden) { stopCam(); sensors(false); } else { sensors(true); startCam(); } };
+  // In secondo piano fotocamera e sensori si spengono. Al ritorno il riferimento del giroscopio può essere un altro: i punti
+  // si fermano sul loro azimut vero e il nord si ricalcola (l'allineamento al Sole va rifatto).
+  const freeze = () => { S.strokes = truePts(offNow()); Object.assign(S, { cal: null, offOk: false, offN: 0, offT: 0, rel: null, abs: null, relR: null, absR: null, v: null, hold: false, last: null }); refresh(); };
+  const vis = () => { if (document.hidden) { freeze(); stopCam(); sensors(false); } else { sensors(true); startCam(); } };
   const key = (e) => {
     if (e.key === 'Escape') { e.stopPropagation(); close(); return; }
     if (e.key !== 'Tab') return;
@@ -332,17 +347,18 @@ async function hzScanOpen() {
   const close = (fromPop) => {
     if (HZS.el !== el) return;
     cancelAnimationFrame(S.raf); stopCam(); sensors(false); document.removeEventListener('visibilitychange', vis); document.removeEventListener('keydown', key, true);
-    if (S.strokes.length && !S.applied && draft) HZS.saved = { id: draft.id, at: Date.now(), strokes: S.strokes };
+    if (S.strokes.length && !S.applied && draft) HZS.saved = { id: draft.id, at: Date.now(), strokes: truePts(offNow()).filter((st) => st.length) };
     el.remove(); HZS.el = null; if (fromPop !== true) backDone(close);
     if (opener && opener.isConnected) try { opener.focus(); } catch { /* niente */ }
   };
   q('[data-x]').onclick = () => close();
   q('[data-done]').onclick = () => {
     if (!draft || S.strokes.reduce((t, st) => t + st.length, 0) < 2) return;
-    draft.horizon = scanToHorizon(S.strokes.flat(), S.old).pts; draft.hzSrc = 'user'; edDirty = true; S.applied = true;
+    draft.horizon = scanToHorizon(truePts(offNow()).flat(), S.old).pts; draft.hzSrc = 'user'; edDirty = true; S.applied = true;
     close(); drawHz(); drawLpPreview(F('lpSky'), draft.site, draft.horizon); toast(tx('Orizzonte misurato: {n} punti', { n: draft.horizon.length }));
   };
-  S.add = add; S.aimNow = aimNow; S.align = align; S.close = close; S.view = view;
+  refresh();
+  S.add = add; S.aimNow = aimNow; S.align = align; S.close = close; S.view = view; S.points = () => truePts(offNow()).flat();
   el.addEventListener('contextmenu', (e) => e.preventDefault()); // tenendo premuto «Segna» non deve uscire il menu del sistema
   document.body.appendChild(el); backPush(close);
   document.addEventListener('keydown', key, true); document.addEventListener('visibilitychange', vis);

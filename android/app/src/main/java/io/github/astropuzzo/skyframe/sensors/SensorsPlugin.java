@@ -40,14 +40,16 @@ public class SensorsPlugin extends Plugin implements SensorEventListener {
         call.resolve(r);
     }
 
-    /* Le fotocamere: focale e lati del sensore in millimetri, e quanta parte del sensore lavora (use). Sono dati del
-       telefono: non serve il permesso della fotocamera. */
+    /* Le fotocamere: posizione nell'elenco di Android (index), focale e lati del sensore in millimetri, quanta parte del
+       sensore lavora (use). Sono dati del telefono: non serve il permesso della fotocamera. */
     @PluginMethod
     public void cameras(PluginCall call) {
         JSArray list = new JSArray();
         try {
             CameraManager cm = (CameraManager) getContext().getSystemService(Context.CAMERA_SERVICE);
-            for (String id : cm.getCameraIdList()) {
+            String[] ids = cm.getCameraIdList();
+            for (int i = 0; i < ids.length; i++) {
+                String id = ids[i];
                 CameraCharacteristics c = cm.getCameraCharacteristics(id);
                 float[] focal = c.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
                 SizeF mm = c.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE);
@@ -57,6 +59,7 @@ public class SensorsPlugin extends Plugin implements SensorEventListener {
                 Rect active = c.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
                 JSObject o = new JSObject();
                 o.put("id", id);
+                o.put("index", i);
                 o.put("back", facing != null && facing == CameraCharacteristics.LENS_FACING_BACK);
                 o.put("focal", (double) focal[0]);
                 o.put("w", (double) mm.getWidth());
