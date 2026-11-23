@@ -190,7 +190,7 @@ async function hzScanOpen() {
   const add = (start) => {
     const a = aimRaw(); if (!a || a.az == null || a.alt > 80) return false;
     const b = aimOf(S.rel || S.abs);
-    if (start) S.strokes.push([]);
+    if (start) { S.strokes.push([]); S.sel = null; }
     S.strokes[S.strokes.length - 1].push({ b: b.az, alt: b.alt }); S.last = b; refresh();
     return true;
   };
@@ -202,12 +202,22 @@ async function hzScanOpen() {
   mark.addEventListener('click', () => { if (pressed) { pressed = false; return; } if (add(true)) buzz(); });
   // un tocco sull'immagine mette il punto lì: fuori dal centro serve il campo inquadrato vero, non quello tipico
   viewEl.addEventListener('click', (e) => {
-    if (e.target.closest('button') || !S.fov.known) return;
+    if (e.target.closest('button')) return;
     const V = view(); if (!V) return;
-    const r = viewEl.getBoundingClientRect(), p = hzUnproject(V, e.clientX - r.left, e.clientY - r.top); if (p.alt > 80) return;
+    const r = viewEl.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    // un tocco su un punto già segnato lo sceglie, e «Elimina» lo toglie; un tocco altrove lascia la scelta
+    let hit = null, best = 30;
+    truePts(V.off).forEach((st, i) => st.forEach((pt, j) => { const s = hzProject(V, pt.az, pt.alt), d = s ? Math.hypot(s[0] - x, s[1] - y) : 99; if (d < best) { best = d; hit = { i, j }; } }));
+    if (hit || S.sel) { S.sel = hit; S.rev++; if (hit) buzz(); return; }
+    if (!S.fov.known) return;
+    const p = hzUnproject(V, x, y); if (p.alt > 80) return;
     S.strokes.push([{ b: norm360(p.az - V.off), alt: p.alt }]); S.last = null; refresh(); buzz();
   });
-  q('[data-undo]').onclick = () => { S.strokes.pop(); S.last = null; refresh(); };
+  q('[data-undo]').onclick = () => {
+    const st = S.sel && S.strokes[S.sel.i];
+    if (st && st[S.sel.j]) { st.splice(S.sel.j, 1); if (!st.length) S.strokes.splice(S.sel.i, 1); } else S.strokes.pop();
+    S.sel = null; S.last = null; refresh();
+  };
   q('[data-cal]').onclick = align;
 
   /* ---- fotocamera ---- */
@@ -277,6 +287,8 @@ async function hzScanOpen() {
     const mine = truePts(V.off);
     for (const st of mine) if (st.length > 1) { line(st.map((p) => [p.az, p.alt])); ink(C.acc, 2.5); }
     for (const st of mine) for (const p of st) { const s = P(p.az, p.alt); if (!s) continue; c.beginPath(); c.arc(s[0], s[1], st.length > 1 ? 2.5 : 5, 0, 2 * Math.PI); c.fillStyle = C.acc; c.fill(); c.strokeStyle = 'rgba(0, 0, 0, .75)'; c.lineWidth = 1.5; c.stroke(); }
+    const sp = S.sel && mine[S.sel.i] && mine[S.sel.i][S.sel.j], ss = sp && P(sp.az, sp.alt);
+    if (ss) { c.beginPath(); c.arc(ss[0], ss[1], 6, 0, 2 * Math.PI); c.fillStyle = '#fff'; c.fill(); c.beginPath(); c.arc(ss[0], ss[1], 13, 0, 2 * Math.PI); ink('#fff', 2); }
     // dove stanno il Sole o la Luna secondo l'app: se il cerchio non cade sull'astro, la bussola sbaglia di quel tanto
     if (S.ref) { const s = P(S.ref.az, S.ref.alt); if (s) { c.beginPath(); c.arc(s[0], s[1], 17, 0, 2 * Math.PI); ink(S.ref.who === 'sun' ? C.sun : '#fff', 2); label(tx(S.ref.who === 'sun' ? 'Sole' : 'Luna'), s[0], s[1] - 24, '#fff'); } }
   };
@@ -309,6 +321,7 @@ async function hzScanOpen() {
     set('ref', refTxt, (v) => { q('[data-ref]').textContent = v; });
     const aligned = !!(a && (a.ref === 'sun' || a.ref === 'moon'));
     set('cal', !a || !ref ? '' : aligned ? tx('Riallinea') : tx(ref.who === 'sun' ? 'Allinea al Sole' : 'Allinea alla Luna'), (v) => { const b = q('[data-cal]'); b.hidden = !v; b.textContent = v; });
+    const selAll = S.sel ? truePts(off) : null, selPt = selAll && selAll[S.sel.i] && selAll[S.sel.i][S.sel.j];
     let msg;
     if (!base && now - S.t0 > 2500) msg = tx('Sensori di orientamento non disponibili');
     else if (S.cam === 'off') msg = tx('Fotocamera non disponibile');
@@ -316,10 +329,12 @@ async function hzScanOpen() {
     else if (noNorth) msg = !ref ? tx('Bussola assente: serve il Sole o la Luna sopra l’orizzonte') : tx(ref.who === 'sun' ? 'Bussola assente: allinea al Sole' : 'Bussola assente: allinea alla Luna');
     else if (!aligned && S.acc >= 0 && S.acc < 2) msg = tx('Bussola imprecisa: muovi il telefono a otto');
     else if (!n) msg = S.fov.known ? tx('Tieni premuto e segui il profilo col mirino, oppure tocca un punto dell’immagine.') : tx('Mirino sul profilo degli ostacoli. Tocca: un punto. Tieni premuto: segui il profilo.');
-    else msg = tx('{n} punti · {c}° su 360', { n, c: S.res.measured.reduce((t, x) => t + x, 0) });
+    else if (selPt) msg = tx('Punto scelto: {az}°, altezza {alt}°', { az: Math.round(selPt.az) % 360, alt: Math.round(selPt.alt) });
+    else msg = tx('{n} punti · {c}° su 360. Tocca un punto per toglierlo.', { n, c: S.res.measured.reduce((t, x) => t + x, 0) });
     set('msg', msg, (v) => { q('[data-msg]').textContent = v; });
     set('retry', S.cam === 'off', (v) => { q('[data-retry]').hidden = !v; });
     set('undo', n > 0, (v) => { q('[data-undo]').disabled = !v; });
+    set('undoTxt', tx(selPt ? 'Elimina' : 'Annulla'), (v) => { q('[data-undo]').textContent = v; });
     set('done', n >= 2, (v) => { q('[data-done]').disabled = !v; });
     set('ready', !!(a && a.az != null), (v) => { mark.disabled = !v; });
     drawAr(view(), raw);
